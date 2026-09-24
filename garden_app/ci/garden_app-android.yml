@@ -102,7 +102,7 @@ jobs:
 
       - name: Build release APK
         working-directory: garden_app/android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Sign APK
         env:
