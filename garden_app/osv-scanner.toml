@@ -1,0 +1,11 @@
+# OSV-Scanner exceptions for garden_app. Keep each one narrow, explained and time-limited.
+
+[[IgnoredVulns]]
+id = "GHSA-vcc3-ghjq-m6fr"
+# decode-uri-component@0.2.2 (DoS on malformed percent-encoding), pulled in by
+# expo-router -> query-string@7. The only fixed release (0.5.0) is ESM-only and
+# query-string@7 loads it with require(), so an npm override would break routing.
+# Exposure is limited to deep links opened in the user's own app. Re-check when
+# expo-router moves off query-string@7 (still ^7.1.3 as of expo-router 57.0.23).
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "Transitive via expo-router/query-string@7; fixed version is ESM-only and incompatible. Awaiting upstream."

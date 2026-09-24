@@ -4,3 +4,4 @@ node_modules/
 *.jks
 .env
 *.txt.bak
+CLAUDE_CODE_HANDOFF.md
