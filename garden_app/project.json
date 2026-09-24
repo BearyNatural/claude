@@ -1,0 +1,31 @@
+{
+  "name": "garden_app",
+  "displayName": "Sow by Season",
+  "description": "Australian garden-planning phone app (Expo / React Native)",
+  "kind": "expo-app",
+  "packageManager": "npm",
+  "install": "bash scripts/ci-install.sh",
+  "test": "npm test",
+  "typecheck": "npm run typecheck",
+  "dependencyUpdate": "expo",
+  "versionFiles": [
+    "package.json",
+    "app.json"
+  ],
+  "releaseWorkflow": "garden_app-android.yml",
+  "tagPrefix": "garden_app-v",
+  "licenceAllowList": [
+    "MIT",
+    "ISC",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "0BSD",
+    "BlueOak-1.0.0",
+    "CC0-1.0",
+    "CC-BY-4.0",
+    "Unlicense",
+    "Python-2.0",
+    "MPL-2.0"
+  ]
+}

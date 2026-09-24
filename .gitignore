@@ -1,0 +1,6 @@
+_private_signing/
+node_modules/
+*.keystore
+*.jks
+.env
+*.txt.bak

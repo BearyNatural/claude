@@ -1,0 +1,278 @@
+# ── Weekly maintenance for every project in this repository ──────────────────
+# Each top-level folder with a project.json is a project. Every project runs in
+# its own isolated job (matrix entry): its own install, checks, commit and
+# release. One project's failure never stops or mixes with another's.
+#
+# Per project, every week:
+#   1. Security    — secret scan (gitleaks), static analysis (Semgrep),
+#                    known-vulnerability scans (npm audit + OSV-Scanner)
+#   2. Compliance  — dependency licence allow-list, repository hygiene
+#                    (no keys/.env committed, README present), tests & type-check
+#   3. Dependencies — updates to the newest versions the project's own rules
+#                    allow (for Expo apps: SDK-compatible versions); if anything
+#                    changed and tests pass, bumps the patch version, commits to
+#                    main (only inside that project's folder) and triggers that
+#                    project's release workflow → a new release.
+# Security/compliance findings fail the job (red ✖) AFTER all checks and the
+# dependency update have run, and are listed in the run summary and in a
+# per-project GitHub issue titled "Weekly maintenance: <project>".
+
+name: "Weekly maintenance (security · compliance · dependencies)"
+
+on:
+  schedule:
+    - cron: '0 18 * * 0'   # Sundays 18:00 UTC = Mondays 04:00 in Brisbane
+  workflow_dispatch:
+    inputs:
+      project:
+        description: Only this project folder (blank = all projects)
+        required: false
+        default: ''
+      update_dependencies:
+        description: Apply dependency updates and release
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+jobs:
+  discover:
+    name: Find projects
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.find.outputs.projects }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: find
+        env:
+          ONLY: ${{ github.event.inputs.project }}
+        run: |
+          set -euo pipefail
+          list='[]'
+          for f in */project.json; do
+            [ -f "$f" ] || continue
+            dir=$(dirname "$f")
+            if [ -n "${ONLY:-}" ] && [ "$ONLY" != "$dir" ]; then continue; fi
+            list=$(jq -c --arg dir "$dir" --slurpfile p "$f" '. + [($p[0] + {dir: $dir})]' <<<"$list")
+          done
+          echo "Projects: $list"
+          echo "projects=$list" >> "$GITHUB_OUTPUT"
+
+  maintain:
+    name: "${{ matrix.project.dir }} · weekly maintenance"
+    needs: discover
+    if: needs.discover.outputs.projects != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false            # one project's problems never cancel another's
+      matrix:
+        project: ${{ fromJson(needs.discover.outputs.projects) }}
+    concurrency:
+      group: maintenance-${{ matrix.project.dir }}
+      cancel-in-progress: false
+    env:
+      DIR: ${{ matrix.project.dir }}
+      NAME: ${{ matrix.project.displayName || matrix.project.dir }}
+      LICENCES: ${{ join(matrix.project.licenceAllowList, ';') }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.project.dir }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # ── 1. Security ─────────────────────────────────────────────────────────
+      - name: "Security · secret scan (gitleaks)"
+        id: secrets
+        continue-on-error: true
+        run: |
+          docker run --rm -v "$PWD:/scan" ghcr.io/gitleaks/gitleaks:latest \
+            dir /scan --redact --verbose --exit-code 1
+
+      - name: "Security · static analysis (Semgrep)"
+        id: sast
+        continue-on-error: true
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:latest \
+            semgrep scan --config p/javascript --config p/typescript --config p/react \
+            --metrics=off --error --exclude node_modules --exclude android --exclude ios .
+
+      - name: Install dependencies
+        id: install
+        run: |
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund
+          elif [ -n "${{ matrix.project.install }}" ]; then ${{ matrix.project.install }}
+          else npm install --no-audit --no-fund; fi
+
+      - name: "Security · known vulnerabilities (npm audit, production deps)"
+        id: audit
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: "Security · known vulnerabilities (OSV-Scanner)"
+        id: osv
+        continue-on-error: true
+        run: |
+          docker run --rm -v "$PWD:/src" ghcr.io/google/osv-scanner:latest \
+            scan source --lockfile /src/package-lock.json
+
+      # ── 2. Compliance ──────────────────────────────────────────────────────
+      - name: "Compliance · dependency licences"
+        id: licences
+        continue-on-error: true
+        run: |
+          npx --yes license-checker-rseidelsohn --production --excludePrivatePackages \
+            --onlyAllow "$LICENCES" --summary
+
+      - name: "Compliance · repository hygiene"
+        id: hygiene
+        continue-on-error: true
+        run: |
+          set -u
+          problems=0
+          tracked=$(git ls-files .)
+          if grep -Ei '(\.keystore|\.jks|\.p12|\.pem|(^|/)\.env(\..+)?$)' <<<"$tracked" | grep -v '\.env\.example$'; then
+            echo "::error title=$DIR hygiene::Key or .env files are committed (listed above)."; problems=1; fi
+          [ -f README.md ] || { echo "::error title=$DIR hygiene::README.md missing."; problems=1; }
+          [ -f project.json ] || { echo "::error title=$DIR hygiene::project.json missing."; problems=1; }
+          exit $problems
+
+      - name: "Compliance · tests"
+        id: tests
+        continue-on-error: true
+        run: ${{ matrix.project.test || 'npm test' }}
+
+      - name: "Compliance · type-check"
+        id: typecheck
+        if: matrix.project.typecheck
+        continue-on-error: true
+        run: ${{ matrix.project.typecheck }}
+
+      # ── 3. Dependencies ────────────────────────────────────────────────────
+      - name: "Dependencies · report outdated (before)"
+        run: npm outdated || true
+
+      - name: "Dependencies · update"
+        id: update
+        if: github.event_name == 'schedule' || github.event.inputs.update_dependencies == 'true'
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.project.dependencyUpdate }}" = "expo" ]; then
+            # Newest versions compatible with the installed Expo SDK (never an
+            # unreviewed SDK major upgrade — those are reported, not applied).
+            npx expo install --fix -- --no-audit --no-fund
+            npm update --save --no-audit --no-fund
+            npx expo install --fix -- --no-audit --no-fund
+          else
+            npm update --save --no-audit --no-fund
+          fi
+          if git diff --quiet -- package.json package-lock.json && git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"; echo "No dependency updates."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"; git --no-pager diff --stat -- package.json package-lock.json || true
+          fi
+
+      - name: "Dependencies · verify updated project"
+        id: verify
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          ${{ matrix.project.test || 'npm test' }}
+          if [ -n "${{ matrix.project.typecheck }}" ]; then ${{ matrix.project.typecheck }}; fi
+
+      - name: "Dependencies · commit, bump version, release"
+        id: release
+        if: steps.verify.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Bump the patch version in each of this project's version files.
+          node -e '
+            const fs = require("fs");
+            const files = JSON.parse(process.argv[1]);
+            let newV;
+            for (const f of files) {
+              const j = JSON.parse(fs.readFileSync(f, "utf8"));
+              const t = j.expo ?? j;
+              const [a, b, c] = String(t.version).split(".").map(Number);
+              newV = newV ?? `${a}.${b}.${c + 1}`;
+              t.version = newV;
+              fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");
+            }
+            fs.appendFileSync(process.env.GITHUB_ENV, `NEW_VERSION=${newV}\n`);
+          ' '${{ toJson(matrix.project.versionFiles) }}'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- package.json package-lock.json ${{ join(matrix.project.versionFiles, ' ') }}
+          git commit -m "$DIR: weekly dependency update → v${NEW_VERSION}" -- .
+          # Only this project's folder is committed; retry if another project pushed first.
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push origin HEAD:main && break
+            sleep $((i * 5))
+          done
+          if [ -n "${{ matrix.project.releaseWorkflow }}" ]; then
+            gh workflow run "${{ matrix.project.releaseWorkflow }}" --ref main -f reason="weekly dependency update v${NEW_VERSION}"
+            echo "Triggered ${{ matrix.project.releaseWorkflow }}"
+          fi
+
+      # ── Report ─────────────────────────────────────────────────────────────
+      - name: Summary, issue and verdict
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          R_SECRETS: ${{ steps.secrets.outcome }}
+          R_SAST: ${{ steps.sast.outcome }}
+          R_AUDIT: ${{ steps.audit.outcome }}
+          R_OSV: ${{ steps.osv.outcome }}
+          R_LIC: ${{ steps.licences.outcome }}
+          R_HYG: ${{ steps.hygiene.outcome }}
+          R_TEST: ${{ steps.tests.outcome }}
+          R_TYPE: ${{ steps.typecheck.outcome }}
+          R_UPD: ${{ steps.update.outputs.changed }}
+          R_VER: ${{ steps.verify.outcome }}
+          R_REL: ${{ steps.release.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          icon() { case "$1" in success) echo "✅ pass";; failure) echo "❌ FAIL";; skipped|"") echo "➖ skipped";; *) echo "$1";; esac; }
+          fails=0
+          for v in "$R_SECRETS" "$R_SAST" "$R_AUDIT" "$R_OSV" "$R_LIC" "$R_HYG" "$R_TEST" "$R_TYPE" "$R_VER"; do
+            [ "$v" = failure ] && fails=$((fails+1))
+          done
+          upd="none needed"
+          [ "$R_UPD" = true ] && upd=$([ "$R_REL" = success ] && echo "updated → v${NEW_VERSION:-?}, release started" || echo "updates found but NOT released (verification failed)")
+          body=$(cat <<MD
+          ## Weekly maintenance: \`$DIR\` ($NAME)
+
+          | Check | Result |
+          |---|---|
+          | Secret scan (gitleaks) | $(icon "$R_SECRETS") |
+          | Static analysis (Semgrep) | $(icon "$R_SAST") |
+          | Vulnerabilities (npm audit) | $(icon "$R_AUDIT") |
+          | Vulnerabilities (OSV-Scanner) | $(icon "$R_OSV") |
+          | Licence compliance | $(icon "$R_LIC") |
+          | Repository hygiene | $(icon "$R_HYG") |
+          | Tests | $(icon "$R_TEST") |
+          | Type-check | $(icon "$R_TYPE") |
+          | Dependency update | $upd |
+
+          Details: $RUN_URL
+          MD
+          )
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
+          title="Weekly maintenance: $DIR"
+          num=$(gh issue list --state open --search "\"$title\" in:title" --json number,title -q ".[] | select(.title==\"$title\") | .number" | head -1 || true)
+          if [ "$fails" -gt 0 ]; then
+            if [ -n "$num" ]; then gh issue comment "$num" --body "$body"; else gh issue create --title "$title" --body "$body" || true; fi
+            echo "::error title=$DIR maintenance::$fails security/compliance check(s) failed — see summary."
+            exit 1
+          elif [ -n "$num" ]; then
+            gh issue close "$num" --comment "All checks passed on $(date -u +%F). $RUN_URL" || true
+          fi

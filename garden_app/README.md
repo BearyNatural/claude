@@ -26,7 +26,9 @@ It runs on Android and iPhone, and in a browser for development. It is **local-f
 3. If asked, allow your browser or Files app to **install unknown apps**, then tap **Install**.
 4. To update later, install the newest release over the top. Your garden data is kept, as long as the signing secrets described below are set up.
 
-New releases are built automatically by GitHub Actions (`.github/workflows/sow-by-season-android.yml` at the repository root) whenever code in `garden_app/` changes on `main`, or when you choose **Actions → Sow by Season – Android app → Run workflow**.
+New releases are built automatically by GitHub Actions (`ci/garden_app-android.yml`, copied to `.github/workflows/` by `publish-to-github.sh`) whenever code in `garden_app/` changes on `main`, or when you choose **Actions → garden_app · Android build & release → Run workflow**. Releases are tagged `garden_app-v<version>-build<n>`.
+
+Every week the repository's **Weekly maintenance** workflow also scans this project (secrets, static analysis, vulnerable or badly-licensed dependencies, tests, type-check), updates dependencies to the newest Expo-compatible versions and, if tests still pass, bumps the patch version and publishes a new release. Problems are flagged in the run summary and in a GitHub issue named *Weekly maintenance: garden_app*.
 
 iPhone isn't packaged yet. Installing on an iPhone needs an Apple Developer account (TestFlight or the App Store).
 

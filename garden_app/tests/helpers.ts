@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { PLANTS } from '../src/data/plants';
 import { createCatalogue } from '../src/domain/catalogue';
 import { addDays } from '../src/domain/dates';

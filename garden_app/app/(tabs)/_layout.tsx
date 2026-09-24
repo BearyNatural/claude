@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
+import type { ColorValue } from 'react-native';
 import { useGardenState } from '../../src/state/hooks';
 import { usePalette } from '../../src/ui/theme/theme';
 
@@ -8,7 +9,7 @@ export default function TabsLayout() {
   const { data } = useGardenState();
   const p = usePalette();
   if (!data.profile?.onboardingComplete) return <Redirect href="/onboarding" />;
-  const icon = (name: keyof typeof Ionicons.glyphMap) => ({ color, size }: { color: string; size: number }) => <Ionicons name={name} color={color} size={size} />;
+  const icon = (name: keyof typeof Ionicons.glyphMap) => ({ color, size }: { color: ColorValue; size: number }) => <Ionicons name={name} color={color as string} size={size} />;
   return (
     <Tabs
       screenOptions={{

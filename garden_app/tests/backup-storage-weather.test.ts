@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { backupFileName, createBackup, fnv1a, serialiseBackup, stableStringify } from '../src/domain/backup/format';
