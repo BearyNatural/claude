@@ -94,15 +94,12 @@ jobs:
         env:
           CI: 1
 
-      - name: Build for real phones only (arm64 + armv7) — much faster
-        working-directory: garden_app/android
-        run: |
-          sed -i '/^reactNativeArchitectures=/d' gradle.properties
-          echo "reactNativeArchitectures=arm64-v8a,armeabi-v7a" >> gradle.properties
-
+      # Real phones only (arm64 + armv7) — much faster. Passed as a -P flag rather
+      # than appended to gradle.properties: prebuild writes that file without a
+      # trailing newline, so appending corrupts its last property.
       - name: Build release APK
         working-directory: garden_app/android
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        run: ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
       - name: Sign APK
         env:
