@@ -1,0 +1,80 @@
+# ── garden_app (Sow by Season) — plant list token expiry reminder ────────────
+# The app reads plant list updates from the private repository
+# BearyNatural/sow-by-season-plant-data using a read-only fine-grained token
+# (PLANT_DATA_READ_TOKEN), built into the app at build time. GitHub doesn't let
+# tokens be renewed automatically, so this checks it weekly and opens an issue
+# 30 days before it expires (or as soon as it stops working), with the steps to
+# renew it. The issue closes itself once a working token is in place.
+
+name: "garden_app · plant list token check"
+
+on:
+  schedule:
+    - cron: '0 20 * * 0'   # Sundays 20:00 UTC = Mondays 06:00 in Brisbane
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: garden_app-token-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: garden_app · plant list token check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check the token and its expiry date
+        env:
+          TOKEN: ${{ secrets.PLANT_DATA_READ_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WARN_DAYS: 30
+        run: |
+          set -uo pipefail
+          TITLE="garden_app: plant list token needs renewing"
+          problem=""
+          if [ -z "${TOKEN:-}" ]; then
+            problem="The PLANT_DATA_READ_TOKEN secret is missing, so new app builds won't receive plant list updates."
+          else
+            headers=$(mktemp)
+            code=$(curl -s -o /dev/null -D "$headers" -w '%{http_code}' \
+              -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github.raw+json" -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/BearyNatural/sow-by-season-plant-data/contents/catalogue.json)
+            # e.g. "github-authentication-token-expiration: 2027-09-25 04:09:49 UTC" (absent if it never expires)
+            expires=$(grep -i '^github-authentication-token-expiration:' "$headers" | cut -d' ' -f2- | tr -d '\r' || true)
+            rm -f "$headers"
+            if [ "$code" != "200" ]; then
+              problem="The token can't read the plant list any more (HTTP $code) — it has probably expired. Installed apps keep their current plant list but get no new plants."
+            elif [ -n "$expires" ]; then
+              days=$(( ( $(date -d "$expires" +%s) - $(date +%s) ) / 86400 ))
+              echo "Token works; expires $expires ($days days)."
+              if [ "$days" -le "$WARN_DAYS" ]; then
+                problem="The token expires on $expires — in $days day(s)."
+              fi
+            else
+              echo "Token works and has no expiry date."
+            fi
+          fi
+
+          num=$(gh issue list -R "$REPO" --state open --search "\"$TITLE\" in:title" --json number,title -q ".[] | select(.title==\"$TITLE\") | .number" | head -1 || true)
+          if [ -z "$problem" ]; then
+            if [ -n "$num" ]; then gh issue close "$num" -R "$REPO" --comment "The plant list token is working again ($(date -u +%F))."; fi
+            exit 0
+          fi
+
+          body=$(cat <<MD
+          $problem
+
+          **To renew (about 2 minutes):**
+          1. On github.com: your profile picture → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**.
+          2. Open **Sow by Season plant list (read-only)** and choose **Regenerate token** (or create a new one: only the \`sow-by-season-plant-data\` repository, **Contents: Read-only**).
+          3. Save it without showing it: \`gh secret set PLANT_DATA_READ_TOKEN -R BearyNatural/claude\`
+          4. Build the app: **Actions → garden_app · Android build & release → Run workflow**, then install the new release on your phone (the old app keeps the old token).
+          5. Optional: **Actions → garden_app · plant list token check → Run workflow** to confirm — this issue then closes itself.
+          MD
+          )
+          if [ -n "$num" ]; then gh issue comment "$num" -R "$REPO" --body "$body"; else gh issue create -R "$REPO" --title "$TITLE" --body "$body"; fi
+          echo "::warning title=garden_app plant list token::$problem"

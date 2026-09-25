@@ -21,6 +21,9 @@ on:
     paths:
       - 'garden_app/**'
       - '.github/workflows/garden_app-android.yml'
+      # Workflows that don't change the app itself.
+      - '!garden_app/ci/garden_app-plant-data.yml'
+      - '!garden_app/ci/garden_app-token-check.yml'
   workflow_dispatch:
     inputs:
       reason:
