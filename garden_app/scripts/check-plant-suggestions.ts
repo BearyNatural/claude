@@ -1,5 +1,5 @@
 // Automatic first checks on plant suggestions shared from the app (issues
-// labelled "plant-suggestion" in BearyNatural/sow-by-season-plant-data).
+// labelled "plant-suggestion" in BearyNatural/australian_plant_data).
 // For each unchecked suggestion: validate the details, look for a plant that's
 // already in the list, confirm the botanical name with the Atlas of Living
 // Australia, then comment and label it. It never changes the plant list —
@@ -9,7 +9,7 @@ import { PLANTS } from '../src/data/plants';
 import { validateCustomPlant } from '../src/domain/validation';
 import { parseAlaResults } from '../src/services/plants/alaNames';
 
-const REPO = 'BearyNatural/sow-by-season-plant-data';
+const REPO = 'BearyNatural/australian_plant_data';
 const token = process.env.PLANT_DATA_TOKEN;
 if (!token) {
   console.error('PLANT_DATA_TOKEN is not set.');

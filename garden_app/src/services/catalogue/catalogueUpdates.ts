@@ -1,6 +1,6 @@
 /**
  * Downloads plant list updates published between app releases, from the
- * private repository BearyNatural/sow-by-season-plant-data (plant data only),
+ * private repository BearyNatural/australian_plant_data (plant data only),
  * via the GitHub API with a read-only token for that one repository. The token
  * is supplied at build time (EXPO_PUBLIC_PLANT_DATA_TOKEN, from the
  * PLANT_DATA_READ_TOKEN Actions secret) — never stored in the source.
@@ -14,7 +14,7 @@ import type { KeyValueStore } from '../storage/keyValueStore';
 
 export type HeaderFetch = (url: string, init?: { headers?: Record<string, string> }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
 
-export const CATALOGUE_FEED_URL = 'https://api.github.com/repos/BearyNatural/sow-by-season-plant-data/contents/catalogue.json';
+export const CATALOGUE_FEED_URL = 'https://api.github.com/repos/BearyNatural/australian_plant_data/contents/catalogue.json';
 const CACHE_KEY = 'sbs:cache:catalogue';
 const CHECKED_KEY = 'sbs:meta:catalogueCheckedAt';
 const DAY_MS = 24 * 60 * 60 * 1000;

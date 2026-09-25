@@ -11,7 +11,7 @@
 # Without them the APK is signed with a temporary key (installable, but a later
 # build signed differently can't update it without uninstalling first).
 # Optional: PLANT_DATA_READ_TOKEN — fine-grained GitHub token for
-# BearyNatural/sow-by-season-plant-data only: Contents read-only (plant list
+# BearyNatural/australian_plant_data only: Contents read-only (plant list
 # updates, update notices) and Issues read/write (plant sharing). Embedded in the APK.
 
 name: "garden_app · Android build & release"
@@ -114,7 +114,7 @@ jobs:
             echo "::warning title=garden_app plant list::No PLANT_DATA_READ_TOKEN secret — this build won't receive plant list updates."; exit 0
           fi
           CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github.raw+json" -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/BearyNatural/sow-by-season-plant-data/contents/catalogue.json)
+            https://api.github.com/repos/BearyNatural/australian_plant_data/contents/catalogue.json)
           if [ "$CODE" = "200" ]; then echo "Plant list token works."
           else echo "::warning title=garden_app plant list::PLANT_DATA_READ_TOKEN can't read the plant list (HTTP $CODE) — it may have expired. Create a new read-only token and replace the secret."; fi
 
@@ -227,7 +227,7 @@ jobs:
           chmod 600 ~/.ssh/plant_data_key
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
           export GIT_SSH_COMMAND="ssh -i ~/.ssh/plant_data_key -o IdentitiesOnly=yes"
-          git clone --depth 1 git@github.com:BearyNatural/sow-by-season-plant-data.git "$RUNNER_TEMP/plant-data"
+          git clone --depth 1 git@github.com:BearyNatural/australian_plant_data.git "$RUNNER_TEMP/plant-data"
           cd "$RUNNER_TEMP/plant-data"
           node -e '
             const fs = require("fs");

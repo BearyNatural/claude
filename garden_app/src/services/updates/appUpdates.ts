@@ -8,7 +8,7 @@
 import type { KeyValueStore } from '../storage/keyValueStore';
 import type { HeaderFetch } from '../catalogue/catalogueUpdates';
 
-export const APP_VERSION_URL = 'https://api.github.com/repos/BearyNatural/sow-by-season-plant-data/contents/app-version.json';
+export const APP_VERSION_URL = 'https://api.github.com/repos/BearyNatural/australian_plant_data/contents/app-version.json';
 const CHECKED_KEY = 'sbs:meta:appUpdateCheckedAt';
 const CACHE_KEY = 'sbs:cache:appUpdate';
 const NOTIFIED_KEY = 'sbs:meta:appUpdateNotified';

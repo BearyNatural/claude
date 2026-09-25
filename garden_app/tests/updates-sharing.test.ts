@@ -95,7 +95,7 @@ describe('sharing plants with the plant list (opt-in)', () => {
       },
     });
     assert.equal(ref, 42);
-    assert.match(sent!.url, /sow-by-season-plant-data\/issues$/);
+    assert.match(sent!.url, /australian_plant_data\/issues$/);
     assert.equal(sent!.auth, 'Bearer tok');
     await assert.rejects(submitSuggestion(PLANT, null, { appVersion: '1', fetch: async () => ({ ok: true, status: 201, json: async () => ({}) }) }));
   });
