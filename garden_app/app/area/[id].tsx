@@ -7,7 +7,7 @@ import { areaCapacityM2, areaUsage, isActive, overcrowdingWarning } from '../../
 import { buildTimeline, describeProgress } from '../../src/domain/timeline';
 import { getPlant } from '../../src/state/gardenStore';
 import { useGardenView } from '../../src/state/hooks';
-import { Badge, Button, Card, EmptyState, ListRow, Notice, Row, Screen, Section, T } from '../../src/ui/components/primitives';
+import { Badge, Button, Card, Chip, EmptyState, ListRow, Notice, Row, Screen, Section, T } from '../../src/ui/components/primitives';
 import { AREA_TYPE_LABELS, soilAdvice } from '../../src/ui/forms/areaForm';
 import { space } from '../../src/ui/theme/theme';
 import { isInArea } from '../../src/domain/plantingAreas';
@@ -16,6 +16,8 @@ export default function AreaDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, today, store } = useGardenView();
   const [confirm, setConfirm] = useState(false);
+  const [combining, setCombining] = useState(false);
+  const [keepId, setKeepId] = useState<string | null>(null);
   const area = data.areas.find((a) => a.id === id);
   if (!area) return <EmptyState title="Area not found" />;
   const plantings = data.plantings.filter((p) => isInArea(p, area.id));
@@ -94,6 +96,33 @@ export default function AreaDetail() {
             ))}
           </Card>
         </Section>
+      ) : null}
+
+      {combining ? (
+        <Card>
+          <T variant="h3">Combine with another area</T>
+          <T variant="small">{`For duplicates of the same garden bed. Choose the area to keep — "${area.name}" will be merged into it: its plantings, journal notes and plans move across, the kept area gets its map outline and any details it's missing, and "${area.name}" is removed.`}</T>
+          <Row wrap>
+            {data.areas.filter((a) => a.id !== area.id && !a.archived).map((a) => (
+              <Chip key={a.id} label={`${a.name}${a.outline ? ' (on map)' : ''}`} selected={keepId === a.id} onPress={() => setKeepId(a.id)} />
+            ))}
+          </Row>
+          <Row gap={space.sm} wrap>
+            <Button
+              label={keepId ? `Merge into ${data.areas.find((a) => a.id === keepId)?.name ?? ''}` : 'Choose an area'}
+              icon="git-merge-outline"
+              disabled={!keepId}
+              onPress={async () => {
+                if (!keepId) return;
+                await store.mergeAreas(area.id, keepId);
+                router.replace(`/area/${keepId}`);
+              }}
+            />
+            <Button variant="secondary" label="Cancel" onPress={() => { setCombining(false); setKeepId(null); }} />
+          </Row>
+        </Card>
+      ) : data.areas.filter((a) => a.id !== area.id && !a.archived).length ? (
+        <Button variant="ghost" icon="git-merge-outline" label="Combine with another area" onPress={() => setCombining(true)} />
       ) : null}
 
       {confirm ? (

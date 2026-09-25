@@ -249,6 +249,42 @@ export class GardenStore {
     });
   }
 
+  /**
+   * Fold a duplicate area into another: its plantings, journal notes, plans and
+   * readings move across, the kept area gains its map outline and any details it
+   * lacks, and the duplicate is removed.
+   */
+  async mergeAreas(duplicateId: string, keepId: string) {
+    const d = this.state.data;
+    const dup = d.areas.find((a) => a.id === duplicateId);
+    const keep = d.areas.find((a) => a.id === keepId);
+    if (!dup || !keep || dup.id === keep.id) return;
+    const now = this.nowIso();
+    const fromMap = !keep.outline && dup.outline
+      ? { outline: dup.outline, usableAreaM2: dup.usableAreaM2, lengthM: dup.lengthM, widthM: dup.widthM }
+      : {};
+    await this.saveArea({
+      ...keep,
+      ...fromMap,
+      lengthM: fromMap.lengthM ?? keep.lengthM ?? dup.lengthM,
+      widthM: fromMap.widthM ?? keep.widthM ?? dup.widthM,
+      usableAreaM2: fromMap.usableAreaM2 ?? keep.usableAreaM2 ?? dup.usableAreaM2,
+      sunHours: keep.sunHours ?? dup.sunHours,
+      soilType: keep.soilType && keep.soilType !== 'unknown' ? keep.soilType : dup.soilType ?? keep.soilType,
+      drainage: keep.drainage && keep.drainage !== 'unknown' ? keep.drainage : dup.drainage ?? keep.drainage,
+      irrigation: keep.irrigation && keep.irrigation !== 'unknown' ? keep.irrigation : dup.irrigation ?? keep.irrigation,
+      container: keep.container ?? dup.container,
+      notes: [keep.notes, dup.notes].filter(Boolean).join('\n\n') || undefined,
+    });
+    for (const p of d.plantings.filter((x) => isInArea(x, dup.id))) {
+      await this.putRecord('plantings', { ...p, areaIds: toAreaIds(areaIdsOf(p).map((a) => (a === dup.id ? keep.id : a))), updatedAt: now });
+    }
+    for (const j of d.journal.filter((x) => x.areaId === dup.id)) await this.putRecord('journal', { ...j, areaId: keep.id });
+    for (const s of d.successionPlans.filter((x) => x.areaId === dup.id)) await this.putRecord('successionPlans', { ...s, areaId: keep.id, updatedAt: now });
+    for (const o of d.observations.filter((x) => x.areaId === dup.id)) await this.putRecord('observations', { ...o, areaId: keep.id });
+    await this.removeRecord('areas', dup.id);
+  }
+
   /** Forget the saved address and every traced outline. Measured sizes are kept. */
   async clearMapData() {
     const prev = this.state.data.profile;

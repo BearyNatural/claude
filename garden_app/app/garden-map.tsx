@@ -7,7 +7,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { outlineDimensionsM, polygonAreaM2, roundTenth, type LatLon } from '../src/domain/geometry';
+import { centroid, outlineDimensionsM, polygonAreaM2, roundTenth, type LatLon } from '../src/domain/geometry';
 import type { AreaType } from '../src/domain/types';
 import { searchAddress, ADDRESS_SEARCH_ATTRIBUTION, type AddressResult } from '../src/services/location/addressSearch';
 import { coordinatesForPostcode } from '../src/services/location/geocode';
@@ -19,6 +19,7 @@ import { space, usePalette } from '../src/ui/theme/theme';
 
 /** Area types it makes sense to trace from above. */
 const MAPPABLE: AreaType[] = ['vegetable-bed', 'raised-bed', 'in-ground', 'herb-garden', 'orchard', 'food-forest', 'greenhouse', 'balcony', 'trellis'];
+const NOT_MAPPABLE: AreaType[] = ['pot', 'large-container', 'seed-starting'];
 
 function describe(points: LatLon[]): string {
   if (points.length < 3) return points.length ? `${points.length} corner${points.length > 1 ? 's' : ''} — keep tapping around the edge.` : 'Tap each corner of the garden bed on the map.';
@@ -49,12 +50,15 @@ export default function GardenMapScreen() {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [findingAddress, setFindingAddress] = useState(false);
+  const [streetOnly, setStreetOnly] = useState(false);
 
   // Drawing
   const [drawing, setDrawing] = useState(!!editing);
   const [draft, setDraft] = useState<LatLon[]>(editing?.outline ?? []);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
+  /** Existing area this outline belongs to, or 'new'. */
+  const [linkTo, setLinkTo] = useState<string | null>(null);
   const [type, setType] = useState<AreaType>('vegetable-bed');
   const [zoom, setZoom] = useState(property?.zoom ?? 19);
   const [recentreKey, setRecentreKey] = useState('start');
@@ -72,6 +76,13 @@ export default function GardenMapScreen() {
     return start ?? { lat: -27.47, lon: 153.02 };
   }, [editing, start]);
 
+  // Areas already in My Garden that an outline could belong to — ones not yet on the map first.
+  const linkable = useMemo(
+    () => data.areas.filter((a) => !a.archived && !NOT_MAPPABLE.includes(a.type)).sort((a, b) => Number(!!a.outline) - Number(!!b.outline) || a.name.localeCompare(b.name)),
+    [data.areas],
+  );
+  const linked = linkTo && linkTo !== 'new' ? data.areas.find((a) => a.id === linkTo) : undefined;
+
   const onTap = useCallback(async (pt: LatLon) => setDraft((d) => [...d, pt]), []);
   const onZoom = useCallback(async (z: number) => setZoom(z), []);
 
@@ -79,7 +90,7 @@ export default function GardenMapScreen() {
     setSearching(true);
     setSearchError(null);
     try {
-      const r = await searchAddress(query, (u, i) => fetch(u, i));
+      const r = await searchAddress(query, (u, i) => fetch(u, i), fallback ?? undefined);
       setResults(r);
       if (!r.length) setSearchError('No matching address found. Try including the suburb, e.g. "12 Example St, Strathpine".');
     } catch {
@@ -91,6 +102,7 @@ export default function GardenMapScreen() {
 
   const chooseAddress = async (r: AddressResult) => {
     await store.setProperty({ lat: r.lat, lon: r.lon, label: r.label, zoom: 19 });
+    setStreetOnly(!r.exact);
     setResults(null);
     setQuery('');
     setFindingAddress(false);
@@ -101,18 +113,25 @@ export default function GardenMapScreen() {
     if (draft.length < 3) return;
     setSaving(true);
     try {
-      if (property) await store.setProperty({ ...property, zoom });
+      // Remember where the garden is so the map reopens there (kept on this device only).
+      const here = centroid(draft)!;
+      await store.setProperty({ ...property, lat: here.lat, lon: here.lon, zoom });
       if (editing) {
         await store.saveAreaOutline(editing.id, draft);
         router.back();
         return;
       }
-      const area = await store.saveArea({ name: name.trim(), type });
-      await store.saveAreaOutline(area.id, draft);
+      if (linked) {
+        await store.saveAreaOutline(linked.id, draft);
+      } else {
+        const area = await store.saveArea({ name: name.trim(), type });
+        await store.saveAreaOutline(area.id, draft);
+      }
       setDraft([]);
       setDrawing(false);
       setNaming(false);
       setName('');
+      setLinkTo(null);
     } finally {
       setSaving(false);
     }
@@ -126,7 +145,7 @@ export default function GardenMapScreen() {
         <T variant="title">Map your garden (optional)</T>
         <T variant="small">Find your place on a satellite map, then tap around each garden bed to measure it. The app works out the size for you.</T>
         <Notice tone="info" icon="lock-closed-outline" title="Your address stays on this phone">
-          {'Your address and the outlines you draw are saved only on this device (and in backups you make). The search text is sent to OpenStreetMap to find the address, and map images are loaded from Esri. Weather and climate still use your rounded suburb location. You can remove the address at any time.'}
+          {'Your address and the outlines you draw are saved only on this device (and in backups you make). The search text is sent to an OpenStreetMap address search (Photon by Komoot, or Nominatim) to find it, and map images are loaded from Esri. Weather and climate still use your rounded suburb location. You can remove the address at any time.'}
         </Notice>
         <Field label="Street address" value={query} onChangeText={(t) => { setQuery(t); setResults(null); }} placeholder="e.g. 12 Example St, Strathpine" />
         <Button icon="search" label={searching ? 'Searching…' : 'Find address'} onPress={search} loading={searching} disabled={query.trim().length < 4} />
@@ -170,13 +189,34 @@ export default function GardenMapScreen() {
             </Row>
             {naming && !editing ? (
               <Card>
-                <Field label="Name this area" value={name} onChangeText={setName} placeholder="e.g. Back vegetable patch" />
-                <Row wrap>
-                  {MAPPABLE.map((t) => (
-                    <Chip key={t} label={AREA_TYPE_LABELS[t]} selected={type === t} onPress={() => setType(t)} />
-                  ))}
-                </Row>
-                <Button icon="checkmark" label="Save area" disabled={!name.trim()} loading={saving} onPress={saveDraft} />
+                <T variant="small" style={{ fontWeight: '600' }}>Which garden area is this?</T>
+                {linkable.length ? (
+                  <Row wrap>
+                    {linkable.map((a) => (
+                      <Chip key={a.id} label={`${a.name}${a.outline ? ' (on map)' : ''}`} selected={linkTo === a.id} onPress={() => setLinkTo(a.id)} />
+                    ))}
+                    <Chip icon="add" label="A new area" selected={linkTo === 'new'} onPress={() => setLinkTo('new')} />
+                  </Row>
+                ) : null}
+                {linked?.outline ? <T variant="tiny" muted>{`This replaces ${linked.name}'s current outline and size.`}</T> : null}
+                {linked ? <T variant="tiny" muted>{`${linked.name} keeps its plantings and details; its size is updated from this outline.`}</T> : null}
+                {linkTo === 'new' || !linkable.length ? (
+                  <>
+                    <Field label="Name this area" value={name} onChangeText={setName} placeholder="e.g. Back vegetable patch" />
+                    <Row wrap>
+                      {MAPPABLE.map((t) => (
+                        <Chip key={t} label={AREA_TYPE_LABELS[t]} selected={type === t} onPress={() => setType(t)} />
+                      ))}
+                    </Row>
+                  </>
+                ) : null}
+                <Button
+                  icon="checkmark"
+                  label={linked ? `Save to ${linked.name}` : 'Save area'}
+                  disabled={linked ? false : (linkTo !== 'new' && linkable.length > 0) || !name.trim()}
+                  loading={saving}
+                  onPress={saveDraft}
+                />
               </Card>
             ) : (
               <Button icon="checkmark" label={editing ? 'Save size' : 'Next'} disabled={draft.length < 3} loading={saving} onPress={() => (editing ? void saveDraft() : setNaming(true))} />
@@ -185,9 +225,10 @@ export default function GardenMapScreen() {
           </>
         ) : (
           <>
-            <T variant="small" muted>{property?.label ?? 'Starting from your suburb — drag and zoom the map to find your garden.'}</T>
+            <T variant="small" muted>{property?.label ?? (property ? 'Your garden' : 'Starting from your suburb — drag and zoom the map to find your garden.')}</T>
+            {streetOnly ? <Notice tone="info">That address found the street but not the house itself. Drag the map to your garden — it will open there next time once you save an outline.</Notice> : null}
             <Row wrap gap={space.sm}>
-              <Button compact icon="add" label="Outline a new area" onPress={() => { setDraft([]); setDrawing(true); }} />
+              <Button compact icon="add" label="Outline an area" onPress={() => { setDraft([]); setDrawing(true); }} />
               <Button compact variant="ghost" icon="home-outline" label={property ? 'Change address' : 'Find my address'} onPress={() => setFindingAddress(true)} />
             </Row>
             {outlines.length ? <T variant="tiny" muted>{`${outlines.length} area${outlines.length > 1 ? 's' : ''} outlined. To redraw one, open it in My Garden and choose "Measure on map".`}</T> : null}
