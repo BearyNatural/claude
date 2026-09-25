@@ -29,6 +29,7 @@ on:
       - '!garden_app/ci/garden_app-plant-suggestions.yml'
       - '!garden_app/scripts/check-plant-suggestions.ts'
       - '!garden_app/docs/**'
+      - '!garden_app/*.md'
   workflow_dispatch:
 
 permissions:

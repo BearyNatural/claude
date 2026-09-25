@@ -15,14 +15,18 @@
  ┌───────┴──────┐   ┌───────────┴─────────┐  ┌─────┴──────────────┐
  │ src/domain   │   │ src/services        │  │ src/data           │
  │ pure TS      │   │ storage · weather · │  │ catalogue, sources,│
- │ engine       │   │ location · notif. · │  │ localities, systems│
- │ (no I/O)     │   │ backup files        │  │ companions, glossary│
+ │ engine       │   │ location · notif. · │  │ localities,        │
+ │ (no I/O)     │   │ backup · photos ·   │  │ postcodes, systems,│
+ │              │   │ updates · alerts    │  │ companions, glossary│
  └──────────────┘   └─────────────────────┘  └────────────────────┘
+        ▲
+        └── src/widget (Android home-screen widget) and the background
+            weather check read saved data directly, without the app open
 ```
 
 - **Domain** (`src/domain`) has no dependencies at all. Every rule there is a pure function over data, which is why the whole engine is tested in plain Node.
 - **Data** (`src/data`) holds the horticultural knowledge as structured records, each with provenance.
-- **Services** wrap the outside world behind small interfaces: `KeyValueStore`, `FetchLike`, the notification API and the file APIs. The storage and weather services are tested with in-memory fakes.
+- **Services** wrap the outside world behind small interfaces: `KeyValueStore`, `FetchLike`, the notification API and the file APIs. The storage and weather services are tested with in-memory fakes. Where the browser needs different code, a `*.web.ts` file sits next to the native one (photos in IndexedDB, no background tasks, no automatic backup folder), and the bundler picks the right one.
 - **State** combines the domain and the services. `useGardenView()` runs the engine (Plant Now, tasks, the week plan) with memoisation, so every screen sees the same computed picture.
 - **UI** components are presentational. The screens don't contain gardening rules.
 
@@ -92,6 +96,10 @@ Planting systems are data: members, roles, functions, and sequencing rules such 
 ### Rotation and space
 Crop families come from the plant records. Growing the same family in the same area within a year triggers a warning. Space uses footprint ≈ plant spacing × row spacing, or mature width² for sprawling crops, with a 10 % tolerance. The checks cover overcrowding, "4 zucchini in a 1 × 1 m bed", sun hours, and minimum pot volume.
 
+## Several gardens
+
+`GardenData` holds one home garden (the Garden Profile's location and property) plus any extra `gardens`. Areas, plantings, journal notes, succession plans and observations carry an optional `gardenId`; no id means home. `settings.activeGardenId` picks the garden on screen. `useGardenView()` passes the engine a copy of the data **scoped to the active garden** (`scopeToGarden()` in `domain/gardens.ts`) with that garden's location, so every recommendation, task and forecast follows the garden being shown. New records are stamped with the active garden in the store. The wish list, your own plants, task responses and settings are shared by all gardens. A garden can only be deleted when it's empty.
+
 ## Storage and resilience
 
 See the README's *Storage behaviour* section. In short: records are stored and validated one at a time, bad records are quarantined, writes are queued one after another, and restore swaps in a new generation atomically.
@@ -100,16 +108,30 @@ See the README's *Storage behaviour* section. In short: records are stored and v
 
 - `planReminders()` groups non-urgent jobs into **one message per gardening day** (or a daily or weekly summary), respects quiet days, and sends time-critical frost and heat warnings separately.
 - `useReminderSync()` reschedules OS notifications (`expo-notifications`, DATE triggers) whenever tasks or preferences change, and the store refreshes on app foreground.
-- **Limitation, stated plainly:** iOS and Android don't guarantee background execution. Reminders reflect the garden and forecast as they were **when the app was last opened**. A new frost forecast that appears after that won't produce a reminder until the app is opened again. The app says this on the Reminders screen. A future background-fetch task could improve it, but it would still be best-effort because the OS controls when it runs. iOS limits apps to 64 pending notifications; the app schedules at most 30. Local notifications aren't available on web.
+- **Closed-app weather alerts (Android, opt-in):** `services/alerts/backgroundAlerts.ts` registers an `expo-background-task` (about every 3 hours, when Android allows). It loads the saved garden, fetches each garden's forecast, and `weatherAlerts()` (`domain/alerts.ts`) turns frost, extreme heat or heavy rain today or tomorrow into notifications. Each alert has a key (`<garden>:<kind>:<date>`) so it's sent only once. The task is defined in `index.ts` so Android can run it without opening the app.
+- **Limitation, stated plainly:** iOS and Android don't guarantee background execution. Scheduled reminders reflect the garden and forecast as they were **when the app was last opened**, and closed-app alerts run when Android chooses (battery saving can delay them). The app says this on the Reminders screen. iOS limits apps to 64 pending notifications; the app schedules at most 30. Notifications aren't available in the browser.
 - There is deliberately **no push server**.
+
+## Home-screen widget (Android)
+
+`react-native-android-widget` renders `src/widget/ThisWeekWidget.tsx`. The app builds a small snapshot of the active garden (top jobs, today's weather, what's good to plant) with `buildWidgetSnapshot()` whenever the garden changes, and saves it under `sbs:widget:snapshot`. The widget task handler (`widgetTaskHandler.tsx`, registered in `index.ts`) draws from that snapshot, so the widget never needs the full engine or the network.
+
+## Browser version
+
+The same code is exported for the web (react-native-web) and served from `/sow-by-season/` on GitHub Pages. `scripts/prepare-web.mjs` adds a web app manifest (so it can be added to a home screen, including on iPhone) and a small service worker: the app page is fetched fresh when online and cached for offline use, and the other built files are cached. Garden data is never in that cache. GitHub Pages has no server-side routing, so the site's `404.html` sends addresses inside the app back to `/sow-by-season/?to=<path>`, and the app's layout opens that path. The garden map is a Leaflet map in an Expo DOM component, so it works in the browser and on Android.
+
+## Plant list updates, update notices and plant sharing
+
+- **Plant list:** the built-in catalogue can be replaced by a newer `catalogue.json` from the private plant data repository, downloaded at most daily with a read-only token. It's treated as untrusted: validated plant by plant, never older than the built-in list, and cached for offline use (`services/catalogue/catalogueUpdates.ts`, `domain/catalogueUpdate.ts`).
+- **Update notices:** each Android release writes `app-version.json` to the same repository; the app checks it at most daily and offers a download link to the release (`services/updates/appUpdates.ts`). Only links to this project's own releases are accepted.
+- **Plant sharing:** opt-in per plant; sends only plant details, notes and climate zone as an issue in that repository (`services/plants/plantSuggestions.ts`). A daily workflow does first checks; a person verifies before anything is added to the plant list.
 
 ## Designed-for extensions
 
 - **IoT sensors:** `Observation { kind, value, unit, at, source: 'sensor', deviceId, areaId?, plantingId? }` is already in the data model, the validation and the backups. A sensor service would write observations, and the engine could then prefer *measured* soil temperature (`soilTempKind: 'measured'` is already supported) over the modelled value.
-- **Visual garden planner:** areas have dimensions and plants have spacing and mature size, so layout coordinates can be added to plantings without changing the engine.
-- **Multiple properties or shared households:** GardenData is one unit (one generation). Supporting several gardens means namespacing keys by garden id.
-- **Photos:** store the file with `expo-file-system` and keep a reference on a journal entry or planting. Backups would need a zip format (a schema v3 migration).
-- **SQLite:** if the data grows (photos, sensor data), swap `KeyValueStore` for an SQLite-backed repository. The domain doesn't change.
+- **Plant layout within beds:** areas have dimensions (and optional map outlines) and plants have spacing and mature size, so positions can be added to plantings without changing the engine.
+- **Shared households:** several gardens already live in one data set; sharing one between people would need a sync service, which the local-first design deliberately avoids for now.
+- **SQLite:** if the data grows (sensor data), swap `KeyValueStore` for an SQLite-backed repository. The domain doesn't change. Photos are already stored as files, outside AsyncStorage.
 
 ## Accessibility
 

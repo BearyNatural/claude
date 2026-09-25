@@ -97,6 +97,7 @@ Every relationship in `src/data/companions.ts` has reasons and an evidence level
 
 ## Localities
 
+- Suburb and postcode search uses the full GeoNames Australian postcode list (3,140 postcodes, about 18,000 suburbs; CC BY 4.0, `scripts/build-postcodes.mjs`). That only finds the place: the climate zone and frost exposure still come from the nearest reference town below.
 - There are **156** reference towns. **27** of them are named as zone examples by the cited references (ABC Organic Gardener, The Seed Collection) and are marked `zoneFromReference`. The rest were assigned by the developer from general climate knowledge.
 - The frost exposure for each town is a coarse typical value. Towns worth a specific check: Toowoomba, Warwick, Stanthorpe, Dalby, Kingaroy and Gatton (Darling Downs and Lockyer frost); Tamworth and other inland NSW towns; Albury, Wagga Wagga and Dubbo (classed arid by the cited references); Geraldton, Carnarvon, Albany and Manjimup (WA); Emerald and Charters Towers (inland QLD).
 - Coordinates are approximate town centres (2 decimal places).

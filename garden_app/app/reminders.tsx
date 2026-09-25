@@ -56,7 +56,7 @@ export default function Reminders() {
 
   return (
     <Screen>
-      {!notificationsSupported() ? <Notice tone="info">Notifications aren&apos;t available in the web preview. Your preferences are still saved and used to plan your week.</Notice> : null}
+      {!notificationsSupported() ? <Notice tone="info">Notifications aren&apos;t available in the browser version — use the Android app for reminders. Your preferences are still saved and used to plan your week.</Notice> : null}
       {perm === 'denied' ? <Notice tone="caution" title="Notifications are blocked">Allow notifications for Sow by Season in your phone&apos;s Settings to receive reminders. Everything still appears on the This Week screen.</Notice> : null}
       <ReminderForm value={prefs} onChange={(p) => { setPrefs(p); setSaved(false); }} />
       <Button label="Save" icon="checkmark" onPress={save} />

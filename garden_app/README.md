@@ -15,7 +15,7 @@ It runs as an **Android app** and in any **web browser** (which also works on iP
 |---|---|---|---|
 | ![This Week](docs/screenshots/this-week.png) | ![Plant Now](docs/screenshots/plant-now.png) | ![Timeline](docs/screenshots/planting-timeline.png) | ![Plant](docs/screenshots/plant-detail.png) |
 
-> **About these screenshots:** they come from a headless verification build that runs the app's real code (screens, store, gardening engine and storage) in Chromium, with a thin stand-in for React Native. The weather is mocked for the demo. They are **not** from a phone or from Expo's own web build. The development report explains why.
+> **About these screenshots:** they show version 1.0 with a demo garden and mocked weather. The current app looks much the same, with some additions (the garden photo banner, the garden switcher, maps and photos).
 
 ---
 
@@ -65,12 +65,26 @@ If a plant isn't in the list, add it with **"Add a plant that isn't listed"**. W
 
 ## Install on an Android phone
 
-1. On your phone, open the repository's **Releases** page (GitHub → BearyNatural/claude → Releases) and open the latest **Sow by Season** release.
-2. Tap the **`SowBySeason-….apk`** file to download it, then open it from the notification or your Files/Downloads app.
+1. On your phone, open **https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html**. The latest version starts downloading. (Or open the repository's **Releases** page — GitHub → BearyNatural/claude → Releases — and tap the **`SowBySeason-….apk`** file in the newest **Sow by Season** release.)
+2. Open the downloaded file from the notification or your Files/Downloads app.
 3. If asked, allow your browser or Files app to **install unknown apps**, then tap **Install**.
 4. To update later, install the newest release over the top. Your garden data is kept, as long as the signing secrets described below are set up.
 
-New releases are built automatically by GitHub Actions (`ci/garden_app-android.yml`, copied to `.github/workflows/` by `publish-to-github.sh`) whenever code in `garden_app/` changes on `main`, or when you choose **Actions → garden_app · Android build & release → Run workflow**. Releases are tagged `garden_app-v<version>-build<n>`.
+New releases are built automatically by GitHub Actions whenever app code in `garden_app/` changes on `main`, or when you choose **Actions → garden_app · Android build & release → Run workflow**. Releases are tagged `garden_app-v<version>-build<n>`. Changes to documentation alone don't start a build.
+
+### Automated workflows
+
+The workflows live in `ci/` and are copied to `.github/workflows/` by `publish-to-github.sh`:
+
+| Workflow | When | What it does |
+|---|---|---|
+| `garden_app-android.yml` · *Android build & release* | App code changes on `main` | Tests, builds and signs the APK, publishes a GitHub release, and updates `app-version.json` (the "new version available" notice) |
+| `garden_app-web.yml` · *publish browser version* | App code changes on `main` | Builds the browser version and publishes it to `/sow-by-season/` on the personal site (`BearyNatural/BearyNatural.github.io`, `SITE_DEPLOY_KEY`) |
+| `garden_app-plant-data.yml` · *publish plant list* | Plant data changes on `main` | Publishes `catalogue.json` for plant list updates (see [Plant list updates](#plant-list-updates)) |
+| `garden_app-plant-suggestions.yml` · *check plant suggestions* | Daily | First checks on plants shared from the app (see [Shared plant suggestions](#shared-plant-suggestions)) |
+| `garden_app-token-check.yml` · *plant list token check* | Weekly | Warns before the read-only plant list token expires |
+
+**Release notes come from [`CHANGELOG.md`](CHANGELOG.md).** When you change the version in `app.json`, add a `## <version> — <date>` section at the top of the changelog; the Android build copies that section into the GitHub release. Weekly dependency updates without a section get "Dependency updates and maintenance".
 
 Every week the repository's **Weekly maintenance** workflow also scans this project (secrets, static analysis, vulnerable or badly-licensed dependencies, tests, type-check), updates dependencies to the newest Expo-compatible versions and, if tests still pass, bumps the patch version and publishes a new release. Problems are flagged in the run summary and in a GitHub issue named *Weekly maintenance: garden_app*.
 
@@ -97,7 +111,8 @@ More documents:
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): how the pieces fit together, and the gardening engine in detail
 - [`docs/adr/`](docs/adr/): architecture decision records
 - [`docs/DATA_REVIEW.md`](docs/DATA_REVIEW.md): the plant data that needs horticultural review
-- [`DEVELOPMENT_REPORT.md`](DEVELOPMENT_REPORT.md): the build report
+- [`CHANGELOG.md`](CHANGELOG.md): what changed in each version
+- [`DEVELOPMENT_REPORT.md`](DEVELOPMENT_REPORT.md): the original 1.0 build report
 
 ---
 
@@ -110,21 +125,29 @@ More documents:
 | State | A small dependency-free observable store (`src/state/gardenStore.ts`) read through `useSyncExternalStore` |
 | Local storage | `@react-native-async-storage/async-storage` behind a `KeyValueStore` interface, with one record per key |
 | Weather | [Open-Meteo](https://open-meteo.com) forecast API. No key is needed for non-commercial use |
-| Place search | Open-Meteo geocoding (optional; an offline town list is built in) |
-| Notifications | `expo-notifications`, **local only** |
-| Backup files | `expo-file-system`, `expo-sharing`, `expo-document-picker` (the phone's own file providers) |
+| Place search | Every Australian postcode and suburb built in (GeoNames, offline); Open-Meteo geocoding as an optional extra |
+| Garden map (optional) | Leaflet in an Expo DOM component, Esri World Imagery, Photon / Nominatim address search |
+| Photos | `expo-image-picker`, stored as files (IndexedDB in the browser) |
+| Notifications | `expo-notifications`, **local only**; closed-app weather checks with `expo-background-task` (Android) |
+| Home-screen widget | `react-native-android-widget` (Android) |
+| Backup files | `expo-file-system` (including an Android folder for automatic backup), `expo-sharing`, `expo-document-picker` (the phone's own file providers) |
+| Browser version | Expo web export (react-native-web) plus a web app manifest and a small offline service worker (`scripts/prepare-web.mjs`), hosted on GitHub Pages |
 | Tests | Node's built-in test runner via `tsx`. The domain has no dependencies, so the tests need no emulator |
 
 ## Architecture
 
 ```
+index.ts                App entry: registers the Android widget and the closed-app weather check, then starts expo-router
 app/                    Screens (expo-router). Thin: they read state and call actions.
   (tabs)/               This Week · Plant Now · My Garden · Plants · More
-  plant/[id]            Plant detail (sources, windows, companions, soil advice…)
-  planting/new, [id]    Add a planting; timeline, events, journal, stage
+  plant/[id], plant/custom  Plant detail (sources, windows, companions, soil advice…); add your own plant
+  planting/new, [id]    Add a planting; timeline, events, journal, stage, photos
   area/…                Garden areas
+  garden-map            Optional satellite map: outline beds and measure them
+  gardens               More than one garden
   succession/…          Succession plans
   three-sisters, calendar, wishlist, journal, profile, reminders, backup, privacy, glossary, about
+public/android.html     Browser download page that fetches the latest APK
 src/
   domain/               PURE TypeScript gardening engine — no React, no I/O
     types.ts, plantTypes.ts        data model
@@ -138,17 +161,24 @@ src/
     rotation.ts, space.ts          crop-family rotation; spacing/overcrowding/sun/pot checks
     timeline.ts                    estimated milestones, replaced by real observations
     tasks.ts, workload.ts          weekly jobs + time-aware prioritisation
-    reminders.ts                   consolidated reminder planning
+    reminders.ts, alerts.ts        consolidated reminder planning; closed-app weather alerts
     calendar.ts                    seasonal calendar data
+    gardens.ts                     several gardens: the active garden and what belongs to it
+    plantValidation.ts, catalogueUpdate.ts   checking downloaded plant lists and your own plants
     validation.ts                  runtime validation for every stored record
     backup/                        versioned format, migrations, safe restore
   data/                 Plant catalogue, sources registry, localities, companions, systems, glossary
-  services/             I/O adapters: storage, weather, location lookup, notifications, backup files
-  state/                Store (actions = domain + persistence), React hooks
-  ui/                   Theme tokens, accessible components, shared forms
-tests/                  150 automated tests
+  services/             I/O adapters: storage, weather, location and address search, notifications,
+                        background alerts, backup files (manual and automatic), photos, plant list
+                        updates, app update notices, plant sharing. `*.web.ts` files are the browser versions
+  state/                Store (actions = domain + persistence), React hooks, automatic backup
+  ui/                   Theme tokens, accessible components, shared forms, map
+  widget/               Android home-screen widget
+tests/                  211 automated tests in 16 files
 data-sources/           Raw captures of source data (Gardening Australia monthly lists)
-scripts/                Data build scripts
+scripts/                Data build scripts, the browser build finisher, the plant suggestion checker
+web/                    Browser app icons
+ci/                     GitHub Actions workflows for this project
 docs/                   Architecture, ADRs, data review, screenshots
 ```
 
@@ -178,7 +208,14 @@ npm run data:ga-windows   # rebuild planting windows from data-sources/
 npm run doctor       # expo-doctor dependency health check
 ```
 
-> The `package.json` versions were set from the Expo SDK 57 documentation, because the build environment had no access to the npm registry. Run `npx expo install --fix` once after `npm install` so Expo can pin the exact compatible versions.
+To build the browser version as it's published:
+
+```bash
+npx expo export --platform web --output-dir dist
+node scripts/prepare-web.mjs dist /sow-by-season   # manifest, icons, offline cache
+```
+
+The app expects to be served from `/sow-by-season/` (`experiments.baseUrl` in `app.json` and `src/services/webBase.ts`). To move it, change both and the path in `ci/garden_app-web.yml`. Don't use a path that any screen name starts with (such as `/garden`): expo-router strips it from the start of every address.
 
 ## Tests
 
@@ -186,21 +223,20 @@ npm run doctor       # expo-doctor dependency health check
 npm test
 ```
 
-There are **150 tests in 8 files, and all pass.** They cover Australian season boundaries, timezones and daylight saving, gardens that run across the new year, per-zone recommendations (Brisbane, Hobart, Darwin, Perth, inland Queensland), stale and unavailable weather, modelled soil temperature, frost, heat and heavy rain, household scaling, single-harvest vs repeat-harvest crops, succession limits at the end of the season, succession actions, Three Sisters sequencing, companion evidence levels, overcrowding, rotation, timelines, task generation and prioritisation, available gardening time, reminders, backup, restore, corrupt backups, schema migrations, atomic restore, per-record storage resilience, the weather client and cache, catalogue validation, and one integrated scenario taken from the brief. See the [development report](DEVELOPMENT_REPORT.md#testing).
+There are **211 tests in 16 files, and all pass.** They cover Australian season boundaries, timezones and daylight saving, gardens that run across the new year, per-zone recommendations (Brisbane, Hobart, Darwin, Perth, inland Queensland), stale and unavailable weather, modelled soil temperature, frost, heat and heavy rain, household scaling, single-harvest vs repeat-harvest crops, succession limits at the end of the season, succession actions, Three Sisters sequencing, companion evidence levels, overcrowding, rotation, timelines, task generation and prioritisation, available gardening time, reminders, backup, restore, corrupt backups, schema migrations, atomic restore, per-record storage resilience, the weather client and cache, catalogue validation, one integrated scenario taken from the brief, and — added since 1.0 — postcode search, plantings in several areas, the garden map and outline merging, photos and photo backups, plant list updates and your own plants, update notices and plant sharing, several gardens, closed-app weather alerts and the widget. The original test plan is in the [development report](DEVELOPMENT_REPORT.md#testing).
 
 ## Building for devices
 
-The project follows the standard Expo (EAS) workflow:
+Releases are built by `ci/garden_app-android.yml` without EAS: `expo prebuild` generates the Android project, and Gradle builds and signs the APK with the upload key from the repository's Actions secrets (the key itself lives in `_private_signing/` on your computer, never in git). To build locally:
 
 ```bash
-npm install -g eas-cli
-eas login
-eas build:configure
-eas build --platform android   # AAB/APK
-eas build --platform ios       # needs an Apple Developer account
+npx expo prebuild --platform android
+cd android && ./gradlew assembleRelease
 ```
 
-Bundle identifiers are set in `app.json` (`au.com.bearynatural.sowbyseason`). Change them before your first store submission if needed. Location permissions are explicitly **blocked** on Android, because the app never uses GPS.
+EAS (`eas build --platform android|ios`) also works if you prefer Expo's build service; iOS needs an Apple Developer account.
+
+The package name is set in `app.json` (`au.com.bearynatural.sowbyseason`). The only Android permission the app asks for is **notifications**. Location permissions are explicitly **blocked**, because the app never uses GPS.
 
 ## External services
 
@@ -211,7 +247,9 @@ Bundle identifiers are set in `app.json` (`au.com.bearynatural.sowbyseason`). Ch
 | Photon by Komoot / OpenStreetMap Nominatim | Optional garden map: finding a street address | The address typed, when "Find address" is pressed | No. The map can start from the suburb instead |
 | Esri World Imagery | Optional garden map: satellite images | Map tile requests for the area on screen | No |
 | Atlas of Living Australia species search (`api.ala.org.au`) | Optional botanical-name lookup for plants you add | The name typed, when "Look up" is pressed | No |
-| GitHub API (`api.github.com`) | Plant list updates between releases (about daily; can be turned off in About) | Nothing about the garden — a file download using the app's read-only token | No. The built-in plant list is used offline or without a token |
+| GitHub API (`api.github.com`) — reading | Android: plant list updates between releases (about daily; can be turned off in About) and the "new version available" check (at most daily) | Nothing about the garden — file downloads using the app's read-only token | No. The built-in plant list is used offline or without a token |
+| GitHub API — plant sharing | Plants you choose to share, as an issue in the private plant data repository | The plant's details, your notes about it and your climate zone | No. Sharing is opt-in per plant, Android only |
+| GitHub Pages | Hosting the browser version and its Android download page (which looks up the latest release on the GitHub API) | Normal web requests | Only for the browser version |
 
 There is no BearyNatural server, analytics, advertising or push-notification service.
 
@@ -224,6 +262,7 @@ Copy `.env.example` to `.env`:
 | Variable | Purpose |
 |---|---|
 | `EXPO_PUBLIC_OPEN_METEO_API_KEY` | Optional. Open-Meteo customer API key for commercial use. |
+| `EXPO_PUBLIC_PLANT_DATA_TOKEN` | Optional. The read-only plant data token. Set by the Android build from the `PLANT_DATA_READ_TOKEN` secret; leave it unset locally and in the browser build. Without it, plant list updates, update notices and plant sharing are switched off. |
 
 `EXPO_PUBLIC_*` values are embedded in the app bundle, so don't put secrets there that must stay private.
 
@@ -233,7 +272,11 @@ Copy `.env.example` to `.env`:
 - **One corrupt record never takes the garden down.** Every record is validated when loaded. A record that fails is moved aside to a `sbs:quarantine:*` key (kept, not deleted), and the app tells the gardener.
 - **Restore is atomic.** A complete new data "generation" is written and checked. Then a single key (`sbs:meta:generation`) is flipped to make it live. If anything fails before that flip, the partial generation is discarded and the current data stays untouched. Leftovers from an interrupted restore are cleaned up on the next launch.
 - Weather is cached under `sbs:cache:weather` with its fetch time, so it can be shown honestly as stale when you're offline.
-- The plant catalogue is bundled with the app. It isn't stored per user, and it isn't included in backups.
+- **Photos** are files in the app's own storage (IndexedDB in the browser). Records keep only the file name.
+- **Several gardens** share one data generation. Areas, plantings, journal notes, plans and observations carry a `gardenId` (none means the home garden).
+- The plant catalogue is bundled with the app. A newer downloaded plant list is cached under `sbs:cache:*` for offline use. Neither is included in backups; your own plants are.
+- Small helper keys: the widget's snapshot (`sbs:widget:snapshot`) and the alerts already sent (`sbs:alerts:sent`).
+- **Browser storage can be cleared by the browser.** Safari in particular may delete a website's data if you haven't visited it for about a week, unless it's been added to the Home Screen. Back up to cloud storage.
 
 ## Privacy model
 
@@ -244,31 +287,37 @@ In plain language, as it appears on the in-app **Privacy & your data** screen:
 - **Plant sharing (optional, per plant):** plants you choose to share — plant details, your notes about them and your climate zone only; never photos or personal information — may be used to expand the Sow by Season plant list after being verified against reliable sources.
 - **Optional garden map:** your street address and garden outlines stay on your device.
 - **Photos** stay on your device and are only in backups if you choose.
-- Your location is used only for climate and weather advice. It's approximate (suburb or postcode, rounded coordinates), and the app never asks for GPS or background location.
+- Your location is used only for climate and weather advice. It's approximate (suburb or postcode, rounded coordinates), and the app never asks for GPS or background location. Closed-app weather alerts (optional, Android) send the same rounded coordinates.
+- Plant list updates and the "new version available" check download files from GitHub; nothing about your garden is sent.
+- **Automatic backup (optional, Android)** writes your backup file to the folder you chose, such as Google Drive — your cloud storage, not BearyNatural's.
 - Weather and place-search services receive the information they need to answer each request (approximate coordinates or search text, plus your IP address, as with any web request).
 - Clearing the app's data or uninstalling can remove your garden records. Make backups if you want extra protection.
 - You can delete everything from the device at any time.
 
 ## Backup format
 
-A backup is a JSON file you save wherever your phone lets you: on the device, iCloud Drive, Google Drive, OneDrive, Dropbox, email, and so on. The app uses the operating system's share sheet and document picker, plus a "Save to folder…" option on Android. There's no custom cloud integration. The file is named like `SowBySeason-Backup-2026-09-24.json`:
+A backup is a JSON file you save wherever your phone lets you: on the device, iCloud Drive, Google Drive, OneDrive, Dropbox, email, and so on. The app uses the operating system's share sheet and document picker, plus a "Save to folder…" option on Android. On Android, **automatic backup** keeps `SowBySeason-AutoBackup.json` up to date in a folder you choose (Storage Access Framework, with the folder permission kept). There's no custom cloud integration. Manual backups are named like `SowBySeason-Backup-2026-09-24.json`:
 
 ```json
 {
   "format": "sow-by-season-backup",
-  "schemaVersion": 2,
-  "createdAt": "2026-09-24T08:00:00.000Z",
-  "app": { "name": "Sow by Season", "version": "1.0.0" },
-  "catalogueVersion": "2026.09.1",
-  "counts": { "areas": 1, "plantings": 5, "journal": 2, "wishlist": 2, "successionPlans": 1, "taskResponses": 3, "observations": 0 },
+  "schemaVersion": 6,
+  "createdAt": "2026-09-25T08:00:00.000Z",
+  "app": { "name": "Sow by Season", "version": "1.7.1" },
+  "catalogueVersion": "2026.09.2",
+  "counts": { "areas": 2, "plantings": 5, "journal": 2, "wishlist": 2, "successionPlans": 1, "taskResponses": 3, "observations": 0, "customPlants": 1, "gardens": 1 },
   "checksum": "fnv1a-1a2b3c4d",
   "data": {
     "profile": { … }, "settings": { … },
     "areas": [ … ], "plantings": [ … ], "journal": [ … ], "wishlist": [ … ],
-    "successionPlans": [ … ], "taskResponses": [ … ], "observations": [ … ]
-  }
+    "successionPlans": [ … ], "taskResponses": [ … ], "observations": [ … ],
+    "customPlants": [ … ], "gardens": [ … ]
+  },
+  "attachments": { "files": { "photo-….jpg": "<base64>" }, "checksum": "…" }
 }
 ```
+
+`attachments` is only there when you choose **Include photos**. Schema history: v2 one area per planting · v3 several areas · v4 photos, street address and bed outlines · v5 your own plants · v6 several gardens (details in `src/domain/backup/migrations.ts`).
 
 Restoring a backup goes through these steps:
 
@@ -276,7 +325,7 @@ Restoring a backup goes through these steps:
 2. Confirm it's a Sow by Season backup.
 3. Check the schema version. Backups from newer versions are refused with an "update the app" message.
 4. Verify the checksum.
-5. Migrate older formats (v1 → v2).
+5. Migrate older formats step by step (v1 → … → v6).
 6. Validate every record. Unreadable records are listed and left out.
 7. Show a preview and a clear "this will replace…" warning.
 8. Replace the data atomically. Current data isn't touched until the new data is known to be good.
@@ -299,18 +348,23 @@ Installed apps download it at most once a day through the GitHub API, using a fi
 
 Gardeners can also add their own plants ("Add a plant that isn't listed"). These are stored with their garden and included in backups.
 
+### Shared plant suggestions
+
+When a gardener shares a plant they added, the app opens an issue labelled `plant-suggestion` in `BearyNatural/sow-by-season-plant-data`, containing only the plant details, their notes and climate zone. This needs the read token to also have **Issues: Read and write** on that repository. Every day, *check plant suggestions* (`scripts/check-plant-suggestions.ts`) validates new suggestions, looks for duplicates of plants already in the list, confirms the botanical name with the Atlas of Living Australia, and comments with the result. It never changes the plant list: a person checks the growing details against reliable Australian sources and adds the plant to `src/data/plants/`, and *publish plant list* sends it to every app.
+
 ## Known limitations
 
 - **Background execution isn't guaranteed.** Reminders are planned from the garden and forecast as they were when the app was last opened, and Android decides when closed-app weather checks and widget refreshes run (see `docs/ARCHITECTURE.md`).
 - Climate zones are **5 broad zones** plus a frost-exposure setting. Microclimates need the manual override.
-- The offline town list has about 155 reference towns. Other suburbs use online search, or a postcode-based guess marked as low confidence.
+- Every Australian postcode and suburb can be found offline, but the climate zone and frost exposure are suggested from the nearest of about 155 reference towns. Check them, especially inland and at altitude.
 - Arid-zone windows from Gardening Australia are very broad. The frost check reduces the risk, but arid advice is the least precise.
 - The date input is a validated text field with ±1-week buttons. A native date picker is a planned improvement.
+- The browser version has no reminders, closed-app alerts, widget, automatic backup or plant sharing, and browsers can clear its data (see *Storage behaviour*).
 - The built-in plant list has 65 plants (more arrive with plant list updates); anything else can be added as your own plant.
 
 ## Future development
 
-The architecture already has places for these: pest and disease identification, IoT sensors (the `Observation` records already support sensors tied to an area, planting, device and timestamp, and they're included in backups), weather stations, seed inventory and expiry, harvest weights (an `Observation` kind already exists), preserving reminders, seed saving, optional moon-planting as a labelled traditional system, more planting systems (guilds, rotations, pollinator strips), a fuller rotation planner and shared households. The recommended next steps are in the [development report](DEVELOPMENT_REPORT.md#recommended-next-work).
+The architecture already has places for these: pest and disease identification, IoT sensors (the `Observation` records already support sensors tied to an area, planting, device and timestamp, and they're included in backups), weather stations, seed inventory and expiry, harvest weights (an `Observation` kind already exists), preserving reminders, seed saving, optional moon-planting as a labelled traditional system, more planting systems (guilds, rotations, pollinator strips), a fuller rotation planner and shared households. The original list of next steps is in the [development report](DEVELOPMENT_REPORT.md#recommended-next-work); items 4, 5 (background alerts) and 9 are done.
 
 ---
 

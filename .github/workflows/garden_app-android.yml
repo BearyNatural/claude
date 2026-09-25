@@ -27,6 +27,9 @@ on:
       - '!garden_app/ci/garden_app-plant-suggestions.yml'
       - '!garden_app/scripts/check-plant-suggestions.ts'
       - '!garden_app/ci/garden_app-web.yml'
+      # Documentation only.
+      - '!garden_app/docs/**'
+      - '!garden_app/*.md'
   workflow_dispatch:
     inputs:
       reason:
@@ -167,6 +170,39 @@ jobs:
           name: garden_app-android-apk
           path: ${{ env.APK }}
 
+      # Release notes: this version's section of CHANGELOG.md, then install steps.
+      - name: Write release notes
+        env:
+          REASON: ${{ github.event.inputs.reason }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const v = process.env.VERSION;
+            const minor = v.split(".").slice(0, 2).join(".") + ".x";
+            const log = fs.existsSync("CHANGELOG.md") ? fs.readFileSync("CHANGELOG.md", "utf8") : "";
+            const sections = log.split(/^(?=## )/m).filter((x) => x.startsWith("## "));
+            const hit = sections.find((x) => x.startsWith(`## ${v} `)) || sections.find((x) => x.startsWith(`## ${minor} `));
+            const changes = hit ? hit.replace(/^## [^\n]*\n/, "").trim() : "- Dependency updates and maintenance.";
+            fs.writeFileSync(process.env.RUNNER_TEMP + "/release-notes.md", [
+              "**Project:** `garden_app` — Sow by Season (Android)",
+              "",
+              "## What\u2019s new in " + v,
+              changes,
+              "",
+              "Full history: [CHANGELOG.md](https://github.com/BearyNatural/claude/blob/main/garden_app/CHANGELOG.md)",
+              "",
+              "## Install on an Android phone",
+              "1. On your phone, tap **" + process.env.APK_NAME + "** below to download it (or open https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html).",
+              "2. Open the downloaded file (from the notification or the Files / Downloads app).",
+              "3. If asked, allow your browser or Files app to **install unknown apps**, then tap **Install**.",
+              "4. To update later, install the newest release over the top — your garden data is kept.",
+              "",
+              "Trigger: " + process.env.GITHUB_EVENT_NAME + " " + (process.env.REASON || "") + " · Signing: `" + process.env.SIGNING + "` · Commit: " + process.env.GITHUB_SHA,
+              "",
+            ].join("\n"));
+          '
+          cat "$RUNNER_TEMP/release-notes.md"
+
       - name: Publish garden_app release
         uses: softprops/action-gh-release@v2
         with:
@@ -174,16 +210,7 @@ jobs:
           name: "Sow by Season ${{ env.VERSION }} (build ${{ github.run_number }})"
           make_latest: true
           files: ${{ env.APK }}
-          body: |
-            **Project:** `garden_app` — Sow by Season (Android)
-
-            ## Install on an Android phone
-            1. On your phone, tap **${{ env.APK_NAME }}** below to download it.
-            2. Open the downloaded file (from the notification or the Files / Downloads app).
-            3. If asked, allow your browser or Files app to **install unknown apps**, then tap **Install**.
-            4. To update later, install the newest release over the top — your garden data is kept.
-
-            Trigger: ${{ github.event_name }} ${{ github.event.inputs.reason }} · Signing: `${{ env.SIGNING }}` · Commit: ${{ github.sha }}
+          body_path: ${{ runner.temp }}/release-notes.md
 
       # Tells installed apps a new version exists (read with their read-only
       # plant list token). Written to the private plant data repository.

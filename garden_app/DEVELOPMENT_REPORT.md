@@ -2,6 +2,8 @@
 
 *Build date: 24 September 2026 · App version 1.0.0 · Plant data 2026.09.1*
 
+> **This is the original build report for version 1.0.0, kept as a record.** Much has changed since: the app has been built and run on Android, many of the next steps below are done (photos, a garden map, a full postcode list, closed-app weather alerts, more fruit trees), and there's a browser version. For the current state see the [README](README.md) and the [changelog](CHANGELOG.md).
+
 ## Summary
 
 I built a complete Expo / React Native app in TypeScript. It has a **tested, dependency-free gardening engine**, a sourced Australian plant catalogue of 52 plants, local-first storage that survives corrupt records, safe backup and restore, local reminders, and 23 connected screens. **150 automated tests pass.**

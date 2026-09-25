@@ -5,7 +5,7 @@ folder and is built, checked and released on its own.
 
 | Project | What it is | Releases |
 |---|---|---|
-| [`garden_app`](garden_app/) | **Sow by Season** — Australian garden-planning phone app (Android APK) | tags `garden_app-v…` |
+| [`garden_app`](garden_app/) | **Sow by Season** — Australian garden-planning app: Android APK, plus a browser version published to the personal site ([`/sow-by-season/`](https://daydreaminginthecloud.bearynatural.dev/sow-by-season/)) | tags `garden_app-v…` |
 
 ## How projects are kept apart
 
