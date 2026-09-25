@@ -76,10 +76,10 @@ describe('companion planting', () => {
   it('finds relationships between plants growing in the same area', () => {
     const bed = area();
     const ps = [
-      planting({ plantId: 'tomato', areaId: bed.id, stage: 'established' }),
-      planting({ plantId: 'potato', areaId: bed.id, stage: 'established' }),
-      planting({ plantId: 'basil', areaId: bed.id, stage: 'established' }),
-      planting({ plantId: 'carrot', areaId: 'other', stage: 'established' }),
+      planting({ plantId: 'tomato', areaIds: [bed.id], stage: 'established' }),
+      planting({ plantId: 'potato', areaIds: [bed.id], stage: 'established' }),
+      planting({ plantId: 'basil', areaIds: [bed.id], stage: 'established' }),
+      planting({ plantId: 'carrot', areaIds: ['other'], stage: 'established' }),
     ];
     const notes = areaCompanionNotes(bed.id, ps, getPlant, COMPANIONS);
     const ids = notes.map((n) => n.relation.id).sort();
@@ -108,7 +108,7 @@ describe('garden space and site checks', () => {
 
   it('reports overcrowding in an existing area', () => {
     const bed = area({ lengthM: 1, widthM: 1 });
-    const ps = [planting({ plantId: 'zucchini', areaId: bed.id, quantity: 4, stage: 'established' })];
+    const ps = [planting({ plantId: 'zucchini', areaIds: [bed.id], quantity: 4, stage: 'established' })];
     assert.ok(areaUsage(bed, ps, getPlant).ratio! > 1);
     assert.match(overcrowdingWarning(bed, ps, getPlant)!, /capacity/);
   });
@@ -126,13 +126,13 @@ describe('garden space and site checks', () => {
 describe('crop rotation groundwork', () => {
   it('warns when a related crop grew in the same area within a year', () => {
     const bed = area();
-    const past = [planting({ plantId: 'potato', areaId: bed.id, plantedDate: '2026-03-01', stage: 'finished' })];
+    const past = [planting({ plantId: 'potato', areaIds: [bed.id], plantedDate: '2026-03-01', stage: 'finished' })];
     const w = rotationWarnings(plant('tomato'), bed.id, past, getPlant, '2026-09-24');
     assert.equal(w.length, 1);
     assert.match(w[0].message, /nightshade/);
     assert.equal(rotationWarnings(plant('bean-bush'), bed.id, past, getPlant, '2026-09-24').length, 0);
     assert.equal(rotationWarnings(plant('tomato'), 'elsewhere', past, getPlant, '2026-09-24').length, 0);
-    const old = [planting({ plantId: 'potato', areaId: bed.id, plantedDate: '2025-01-01', stage: 'finished' })];
+    const old = [planting({ plantId: 'potato', areaIds: [bed.id], plantedDate: '2025-01-01', stage: 'finished' })];
     assert.equal(rotationWarnings(plant('tomato'), bed.id, old, getPlant, '2026-09-24').length, 0);
   });
 });

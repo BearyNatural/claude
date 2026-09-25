@@ -4,7 +4,7 @@
  * the gardener can always save.
  */
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { COMPANIONS } from '../../src/data/companions';
 import { areaCompanionNotes, EVIDENCE_LABELS } from '../../src/domain/companions';
@@ -12,6 +12,7 @@ import { diffDays, formatDay } from '../../src/domain/dates';
 import { estimateQuantity, formatRange, productionLevelFromGoals } from '../../src/domain/production';
 import { rotationWarnings } from '../../src/domain/rotation';
 import { checkFit, containerCheck, sunCheck } from '../../src/domain/space';
+import { toAreaIds } from '../../src/domain/plantingAreas';
 import { isSuccessionSuited } from '../../src/domain/succession';
 import type { DateAccuracy, GrowthStage, Planting, StartMethod } from '../../src/domain/types';
 import { describeMonths, primaryWindow, windowPosition } from '../../src/domain/windows';
@@ -19,6 +20,7 @@ import { getPlant } from '../../src/state/gardenStore';
 import { useGardenView } from '../../src/state/hooks';
 import { DateField, InfoTip, PlantPicker } from '../../src/ui/components/garden';
 import { Button, Chip, Choice, Field, Notice, Row, Screen, Stepper, T } from '../../src/ui/components/primitives';
+import { AreaPicker, resolveAreaIds, useSelectNewAreas, type NewPot } from '../../src/ui/forms/areaPicker';
 import { METHOD_LABELS } from '../../src/ui/labels';
 import { space } from '../../src/ui/theme/theme';
 
@@ -32,7 +34,9 @@ export default function NewPlanting() {
   const plant = plantId ? getPlant(plantId) : undefined;
   const [status, setStatus] = useState<'now' | 'planned'>('now');
   const [method, setMethod] = useState<StartMethod | undefined>((params.method as StartMethod) ?? plant?.startMethods[0]);
-  const [areaId, setAreaId] = useState<string | undefined>(params.areaId);
+  const [areaIds, setAreaIds] = useState<string[]>(params.areaId ? [params.areaId] : []);
+  const [newPot, setNewPot] = useState<NewPot>({ enabled: false });
+  useSelectNewAreas(data.areas, useCallback((ids: string[]) => setAreaIds((cur) => [...cur, ...ids]), []));
   const [variety, setVariety] = useState('');
   const [date, setDate] = useState(today);
   const [accuracy, setAccuracy] = useState<DateAccuracy>('exact');
@@ -56,24 +60,27 @@ export default function NewPlanting() {
       const pos = windowPosition(win.months, date);
       out.push(pos.inWindow ? { tone: 'good', text: `${formatDay(date)} is within the recommended period for your area (${describeMonths(win.months)}).` } : { tone: 'caution', text: `${formatDay(date)} is outside the usual period for your area (${describeMonths(win.months)}). That's your call — it may still work, especially in a sheltered spot.` });
     }
-    const area = data.areas.find((a) => a.id === areaId);
-    if (area) {
-      const fit = checkFit(area, plant, qty, data.plantings, getPlant);
+    const chosen = data.areas.filter((a) => areaIds.includes(a.id));
+    // Plants are shared evenly between the chosen areas (a new pot counts as one).
+    const share = Math.max(1, Math.round(qty / Math.max(1, chosen.length + (newPot.enabled ? 1 : 0))));
+    for (const area of chosen) {
+      const fit = checkFit(area, plant, share, data.plantings, getPlant);
       if (fit.fits === false && fit.message) out.push({ tone: 'caution', text: fit.message });
       const sun = sunCheck(area, plant);
       if (sun) out.push({ tone: 'caution', text: sun });
       const pot = containerCheck(area, plant);
       if (pot) out.push({ tone: 'caution', text: pot });
       for (const w of rotationWarnings(plant, area.id, data.plantings, getPlant, date)) out.push({ tone: 'info', text: w.message });
-      const fake: Planting = { id: '__new', plantId: plant.id, quantity: qty, areaId: area.id, startMethod: effMethod, plantedDate: date, dateAccuracy: accuracy, stage: 'established', stageIsManual: false, events: [], createdAt: '', updatedAt: '' };
+      const fake: Planting = { id: '__new', plantId: plant.id, quantity: share, areaIds: [area.id], startMethod: effMethod, plantedDate: date, dateAccuracy: accuracy, stage: 'established', stageIsManual: false, events: [], createdAt: '', updatedAt: '' };
       for (const n of areaCompanionNotes(area.id, [...data.plantings, fake], getPlant, COMPANIONS)) {
         if (!n.plants.some((p) => p.id === plant.id)) continue;
         const other = n.plants.find((p) => p.id !== plant.id)!;
         out.push({ tone: n.relation.effect === 'beneficial' ? 'good' : 'info', text: `${n.relation.effect === 'beneficial' ? 'Good neighbour' : 'Consider keeping apart'}: ${other.commonName} — ${n.relation.note} (${EVIDENCE_LABELS[n.relation.evidence]})` });
       }
     }
+    if (newPot.enabled && share > 1) out.push({ tone: 'info', text: `That's about ${share} plants in the new pot. Most plants do best one to a pot unless it's large.` });
     return out;
-  }, [plant, zone, date, areaId, qty, data, effMethod, accuracy]);
+  }, [plant, zone, date, areaIds, newPot.enabled, qty, data, effMethod, accuracy]);
 
   const save = async () => {
     if (!plant) return setError('Choose a plant first.');
@@ -86,7 +93,7 @@ export default function NewPlanting() {
         plantId: plant.id,
         variety: variety.trim() || undefined,
         quantity: qty,
-        areaId,
+        areaIds: toAreaIds(await resolveAreaIds(store, plant.commonName, areaIds, newPot, data.areas)),
         startMethod: effMethod,
         plantedDate: date,
         dateAccuracy: status === 'planned' ? 'exact' : accuracy,
@@ -132,15 +139,7 @@ export default function NewPlanting() {
               {isSuccessionSuited(plant) ? <InfoTip termId="succession-planting" /> : null}
             </Row>
           ) : null}
-          <View style={{ gap: space.sm }}>
-            <T variant="small" style={{ fontWeight: '600' }}>Where?</T>
-            <Row wrap>
-              <Chip label="No particular area" selected={!areaId} onPress={() => setAreaId(undefined)} />
-              {data.areas.filter((a) => !a.archived).map((a) => (
-                <Chip key={a.id} label={a.name} selected={areaId === a.id} onPress={() => setAreaId(a.id)} />
-              ))}
-            </Row>
-          </View>
+          <AreaPicker areas={data.areas} value={areaIds} onChange={setAreaIds} newPot={newPot} onNewPotChange={setNewPot} />
           <DateField label={status === 'planned' ? 'Planned date' : 'Date sown or planted'} value={date} onChange={setDate} />
           {status === 'now' ? (
             <>

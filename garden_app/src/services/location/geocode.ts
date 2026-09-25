@@ -4,6 +4,8 @@
  * converted to rounded coordinates; no device GPS is used.
  */
 import { LOCALITIES } from '../../data/localities';
+import { postcodePlaces } from '../../data/postcodes';
+import { postcodeCentre, searchPostcodePlaces, type PostcodePlace } from '../../domain/postcodes';
 import {
   inferClimateFromCoordinates,
   locationFromLocality,
@@ -35,19 +37,63 @@ const STATE_NAMES: Record<string, AustralianState> = {
   'western australia': 'WA',
 };
 
-export function offlineCandidates(query: string): LocationCandidate[] {
-  return searchLocalities(LOCALITIES, query).map((l) => ({
+/** A suburb from the full postcode table, with its climate inferred from the nearest reference town. */
+export function locationFromPostcodePlace(p: PostcodePlace): GardenLocation {
+  const inf = inferClimateFromCoordinates(LOCALITIES, p.lat, p.lon, undefined, p.state);
+  return {
+    suburb: p.name,
+    state: p.state,
+    postcode: p.postcode,
+    timezone: timezoneFor(p.state, p.postcode),
+    approxLatitude: roundCoordinate(p.lat),
+    approxLongitude: roundCoordinate(p.lon),
+    suggestedZone: inf?.zone,
+    suggestedZoneReason: inf?.reason,
+    suggestedFrostRisk: inf?.frost,
+    source: 'offline-list',
+  };
+}
+
+/**
+ * Offline search: the curated reference towns first (their climate zones are
+ * checked against gardening references), then every other suburb/postcode.
+ */
+export function offlineCandidates(query: string, limit = 12): LocationCandidate[] {
+  const ref = searchLocalities(LOCALITIES, query).map((l) => ({
     key: `off-${l.postcode}-${l.name}`,
     label: l.name,
     sublabel: `${l.state} ${l.postcode}`,
     source: 'offline-list' as const,
     location: locationFromLocality(l),
   }));
+  const seen = new Set(ref.map((c) => `${c.label.toLowerCase()}|${c.location.postcode}`));
+  const more = searchPostcodePlaces(postcodePlaces(), query, limit)
+    .filter((p) => !seen.has(`${p.name.toLowerCase()}|${p.postcode}`))
+    .map((p) => ({
+      key: `pc-${p.postcode}-${p.name}`,
+      label: p.name,
+      sublabel: `${p.state} ${p.postcode}`,
+      source: 'offline-list' as const,
+      location: locationFromPostcodePlace(p),
+    }));
+  // A full postcode lists its own suburbs ahead of reference towns with nearby postcodes.
+  const pc = /^\d{3,4}$/.test(query.trim()) ? normalisePostcode(query) : null;
+  const exact = pc ? [...ref, ...more].filter((c) => c.location.postcode === pc) : [];
+  const rest = [...ref, ...more].filter((c) => !exact.includes(c));
+  return [...exact, ...rest].slice(0, limit);
+}
+
+/** Approximate coordinates for a postcode, for locations saved without them (e.g. set manually). */
+export function coordinatesForPostcode(postcode: string | undefined): { lat: number; lon: number } | null {
+  if (!postcode) return null;
+  const c = postcodeCentre(postcodePlaces(), postcode);
+  return c ? { lat: c.lat, lon: c.lon } : null;
 }
 
 export async function onlineCandidates(query: string, fetchImpl: FetchLike): Promise<LocationCandidate[]> {
   const q = query.trim();
-  if (q.length < 3) return [];
+  // Open-Meteo searches place names only; postcodes are covered by the offline table.
+  if (q.length < 3 || /^\d+$/.test(q)) return [];
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10&language=en&countryCode=AU&format=json`;
   const res = await fetchImpl(url);
   if (!res.ok) throw new Error(`Location search failed (${res.status})`);

@@ -10,6 +10,7 @@
  * their window; important ones are phrased as "still worth doing".
  */
 import { addDays, describeOffset, diffDays, formatDay, monthOf, weekdayOf } from './dates';
+import { areaNames, isInArea, primaryAreaId } from './plantingAreas';
 import type { PlantRecord } from './plantTypes';
 import { isActive } from './space';
 import { nextPlannedBatch } from './succession';
@@ -82,6 +83,12 @@ function areaName(ctx: TaskContext, id?: string): string {
   return a ? ` in ${a.name}` : '';
 }
 
+/** " in Squash bed and Pots" for every area a planting is in. */
+function plantingWhere(ctx: TaskContext, p: Planting): string {
+  const names = areaNames(p, ctx.areas);
+  return names ? ` in ${names}` : '';
+}
+
 /** Latest response per task id. */
 export function responseIndex(responses: readonly TaskResponse[]): Map<string, TaskResponse> {
   const m = new Map<string, TaskResponse>();
@@ -119,7 +126,7 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
     const age = diffDays(p.plantedDate, today);
     if (age < 0) continue;
     const name = lower(plant);
-    const where = areaName(ctx, p.areaId);
+    const where = plantingWhere(ctx, p);
     const hasEvent = (t: string) => p.events.some((e) => e.type === t);
     const stage = tl.estimatedStage;
 
@@ -141,7 +148,7 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
           minutes: Math.min(40, TASK_MINUTES.transplantBase + TASK_MINUTES.transplantPerPlant * p.quantity),
           plantingId: p.id,
           plantId: plant.id,
-          areaId: p.areaId,
+          areaId: primaryAreaId(p),
         });
       }
     }
@@ -164,7 +171,7 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
           minutes: TASK_MINUTES.thin,
           plantingId: p.id,
           plantId: plant.id,
-          areaId: p.areaId,
+          areaId: primaryAreaId(p),
         });
       }
     }
@@ -198,7 +205,7 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
         minutes: TASK_MINUTES.harvest,
         plantingId: p.id,
         plantId: plant.id,
-        areaId: p.areaId,
+        areaId: primaryAreaId(p),
       });
     }
     // Long-lived plants: seasonal harvest months.
@@ -217,7 +224,7 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
         minutes: TASK_MINUTES.harvest,
         plantingId: p.id,
         plantId: plant.id,
-        areaId: p.areaId,
+        areaId: primaryAreaId(p),
       });
     }
 
@@ -240,7 +247,7 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
           minutes: TASK_MINUTES.feed,
           plantingId: p.id,
           plantId: plant.id,
-          areaId: p.areaId,
+          areaId: primaryAreaId(p),
         });
       }
     }
@@ -259,7 +266,7 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
         minutes: TASK_MINUTES.stake,
         plantingId: p.id,
         plantId: plant.id,
-        areaId: p.areaId,
+        areaId: primaryAreaId(p),
       });
     }
 
@@ -278,7 +285,7 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
         minutes: TASK_MINUTES.mulch,
         plantingId: p.id,
         plantId: plant.id,
-        areaId: p.areaId,
+        areaId: primaryAreaId(p),
       });
     }
 
@@ -298,7 +305,7 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
         minutes: TASK_MINUTES.hill,
         plantingId: p.id,
         plantId: plant.id,
-        areaId: p.areaId,
+        areaId: primaryAreaId(p),
       });
     }
   }
@@ -422,7 +429,7 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
       kind: p.system ? 'system-step' : 'sow',
       section: 'plant',
       priority: until <= 0 ? 'important' : 'soon',
-      title: `${p.startMethod === 'direct-sow' || p.startMethod === 'seed-tray' ? 'Sow' : 'Plant'} ${lower(plant)}${areaName(ctx, p.areaId)}`,
+      title: `${p.startMethod === 'direct-sow' || p.startMethod === 'seed-tray' ? 'Sow' : 'Plant'} ${lower(plant)}${plantingWhere(ctx, p)}`,
       short: `${p.startMethod === 'direct-sow' || p.startMethod === 'seed-tray' ? 'sow' : 'plant'} ${lower(plant)}`,
       detail: trigger,
       why: p.system ? 'Next step in your planting system.' : `You planned this for ${formatDay(p.plantedDate)}.`,
@@ -430,13 +437,13 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
       minutes: sowMinutes(p.quantity),
       plantingId: p.id,
       plantId: plant.id,
-      areaId: p.areaId,
+      areaId: primaryAreaId(p),
     });
   }
 
   // Wish list.
   const growing = new Set(active.map((p) => p.plantId));
-  const hasEmptyArea = ctx.areas.some((a) => !a.archived && !active.some((p) => p.areaId === a.id));
+  const hasEmptyArea = ctx.areas.some((a) => !a.archived && !active.some((p) => isInArea(p, a.id)));
   for (const w of ctx.wishlist) {
     const plant = ctx.getPlant(w.plantId);
     if (!plant || growing.has(plant.id)) continue;

@@ -5,6 +5,7 @@ import { getPlant } from '../src/state/gardenStore';
 import { useGardenView } from '../src/state/hooks';
 import { DateField } from '../src/ui/components/garden';
 import { Button, Card, Chip, EmptyState, Field, IconButton, Row, Screen, Section, T } from '../src/ui/components/primitives';
+import { primaryAreaId } from '../src/domain/plantingAreas';
 
 export default function Journal() {
   const { data, store, today } = useGardenView();
@@ -36,7 +37,7 @@ export default function Journal() {
           disabled={!text.trim()}
           onPress={async () => {
             const pl = data.plantings.find((p) => p.id === plantingId);
-            await store.addJournal(text, date, { plantingId, areaId: pl?.areaId });
+            await store.addJournal(text, date, { plantingId, areaId: pl ? primaryAreaId(pl) : undefined });
             setText('');
           }}
         />

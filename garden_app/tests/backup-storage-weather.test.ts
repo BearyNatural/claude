@@ -16,8 +16,8 @@ function sampleData(): GardenData {
   d.profile = profile();
   d.areas = [bed];
   d.plantings = [
-    planting({ id: 'p1', plantId: 'tomato', areaId: 'bed1', startMethod: 'seedling', plantedDate: '2026-09-02', dateAccuracy: 'approx-week', events: [{ id: 'e1', type: 'transplanted', date: '2026-09-02' }] }),
-    planting({ id: 'p2', plantId: 'carrot', areaId: 'bed1' }),
+    planting({ id: 'p1', plantId: 'tomato', areaIds: ['bed1'], startMethod: 'seedling', plantedDate: '2026-09-02', dateAccuracy: 'approx-week', events: [{ id: 'e1', type: 'transplanted', date: '2026-09-02' }] }),
+    planting({ id: 'p2', plantId: 'carrot', areaIds: ['bed1'] }),
   ];
   d.journal = [{ id: 'j1', date: '2026-09-18', text: 'first flowers appeared', plantingId: 'p1', createdAt: NOW_ISO }];
   d.wishlist = [{ id: 'w1', plantId: 'garlic', addedAt: NOW_ISO }];
@@ -49,7 +49,7 @@ describe('backup format', () => {
   it('does not include the static plant catalogue or weather', () => {
     const text = backupText();
     assert.doesNotMatch(text, /botanicalName|daysToMaturity|temperature_2m/);
-    assert.match(text, /"schemaVersion": 2/);
+    assert.match(text, /"schemaVersion": 3/);
     assert.match(text, /"format": "sow-by-season-backup"/);
   });
 
@@ -105,7 +105,7 @@ describe('restore safety', () => {
     const r = parseBackup(backupText(d));
     assert.equal(r.ok, true);
     if (r.ok) {
-      assert.equal(r.data.plantings[0].areaId, undefined);
+      assert.equal(r.data.plantings[0].areaIds, undefined);
       assert.ok(r.warnings.some((w) => /garden area/.test(w)));
     }
   });
@@ -134,7 +134,7 @@ describe('restore safety', () => {
     assert.equal(r.ok, true);
     if (!r.ok) return;
     assert.equal(r.migratedFrom, 1);
-    assert.deepEqual(r.migrations, ['v1 → v2']);
+    assert.deepEqual(r.migrations, ['v1 → v2', 'v2 → v3']);
     assert.equal(r.data.profile!.location.overrideZone, 'cool-temperate');
     assert.equal(r.data.profile!.householdSize, 2);
     assert.equal(r.data.profile!.timeBudget, '2to4');

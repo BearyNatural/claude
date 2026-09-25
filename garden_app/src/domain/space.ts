@@ -9,6 +9,7 @@
  */
 import type { PlantRecord } from './plantTypes';
 import { ACTIVE_STAGES } from './types';
+import { isInArea, quantityInArea } from './plantingAreas';
 import type { GardenArea, Planting } from './types';
 
 /** Usable growing area of a garden area in m², or null when unknown. */
@@ -59,11 +60,11 @@ export function areaUsage(area: GardenArea, plantings: readonly Planting[], getP
   let usedM2 = 0;
   const unknownFootprint: string[] = [];
   for (const p of plantings) {
-    if (p.areaId !== area.id || !isActive(p)) continue;
+    if (!isInArea(p, area.id) || !isActive(p)) continue;
     const plant = getPlant(p.plantId);
     const fp = plant ? footprintPerPlantM2(plant) : null;
     if (fp === null) unknownFootprint.push(p.id);
-    else usedM2 += fp * p.quantity;
+    else usedM2 += fp * quantityInArea(p, area.id);
   }
   const freeM2 = capacityM2 === null ? null : Math.max(0, capacityM2 - usedM2);
   return { capacityM2, usedM2, unknownFootprint, freeM2, ratio: capacityM2 ? usedM2 / capacityM2 : null };

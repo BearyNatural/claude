@@ -112,10 +112,10 @@ describe('garden store (actions wire domain + storage)', () => {
   it('removing an area keeps plantings but unlinks them', async () => {
     const { store } = await makeStore();
     const a = await store.saveArea({ name: 'Bed', type: 'raised-bed', lengthM: 2, widthM: 1 });
-    await store.savePlanting({ plantId: 'lettuce', quantity: 4, areaId: a.id, startMethod: 'seedling', plantedDate: '2026-09-20', dateAccuracy: 'exact', stage: 'transplanted', stageIsManual: false });
+    await store.savePlanting({ plantId: 'lettuce', quantity: 4, areaIds: [a.id], startMethod: 'seedling', plantedDate: '2026-09-20', dateAccuracy: 'exact', stage: 'transplanted', stageIsManual: false });
     await store.deleteArea(a.id);
     assert.equal(store.state.data.areas.length, 0);
-    assert.equal(store.state.data.plantings[0].areaId, undefined);
+    assert.equal(store.state.data.plantings[0].areaIds, undefined);
   });
 
   it('restores and deletes all data', async () => {

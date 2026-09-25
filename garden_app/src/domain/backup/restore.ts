@@ -145,12 +145,11 @@ export function parseBackup(text: string): ImportPreview | ImportError {
   const areaIds = new Set(data.areas.map((a) => a.id));
   let dangling = 0;
   data.plantings = data.plantings.map((p) => {
-    if (p.areaId && !areaIds.has(p.areaId)) {
-      dangling++;
-      const { areaId: _drop, ...rest } = p;
-      return rest;
-    }
-    return p;
+    const kept = (p.areaIds ?? []).filter((id) => areaIds.has(id));
+    if (kept.length === (p.areaIds ?? []).length) return p;
+    dangling++;
+    const { areaIds: _drop, ...rest } = p;
+    return kept.length ? { ...rest, areaIds: kept } : rest;
   });
   if (dangling) warnings.push(`${dangling} planting${dangling > 1 ? 's referred' : ' referred'} to a garden area that isn't in the backup; they'll be shown without an area.`);
   if (skipped.length) warnings.push(`${skipped.length} record${skipped.length > 1 ? 's' : ''} could not be read and will be left out.`);

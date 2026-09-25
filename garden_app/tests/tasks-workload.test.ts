@@ -214,7 +214,7 @@ describe('integrated scenario from the brief', () => {
   // wants carrots, about 2 hours a week, warm weather approaching.
   const prof = profile({ householdSize: 3, timeBudget: '1to2', goals: ['fresh-veg'] });
   const bed = area({ name: 'Vegetable bed', lengthM: 4, widthM: 1, sunHours: 8 });
-  const lettuce = planting({ id: 'lettuce1', plantId: 'lettuce', areaId: bed.id, startMethod: 'direct-sow', plantedDate: '2026-07-25', stage: 'established' });
+  const lettuce = planting({ id: 'lettuce1', plantId: 'lettuce', areaIds: [bed.id], startMethod: 'direct-sow', plantedDate: '2026-07-25', stage: 'established' });
   const weather = assessWeather(snapshot(today, [{ maxC: 30 }, { maxC: 31 }, { maxC: 33 }, {}, {}, {}, {}], { soilC: 21 }), today, now);
 
   it('combines location, household, space, existing plants, wish list, time and weather', () => {

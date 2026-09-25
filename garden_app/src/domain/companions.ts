@@ -6,6 +6,7 @@
  * such rather than presented as established science.
  */
 import type { PlantCategory, PlantRecord } from './plantTypes';
+import { isInArea } from './plantingAreas';
 import type { Planting } from './types';
 import { isActive } from './space';
 
@@ -110,7 +111,7 @@ export function areaCompanionNotes(
   relations: readonly CompanionRelation[],
 ): AreaCompanionNote[] {
   const plants = [
-    ...new Set(plantings.filter((p) => p.areaId === areaId && isActive(p)).map((p) => p.plantId)),
+    ...new Set(plantings.filter((p) => isInArea(p, areaId) && isActive(p)).map((p) => p.plantId)),
   ]
     .map(getPlant)
     .filter((p): p is PlantRecord => !!p);

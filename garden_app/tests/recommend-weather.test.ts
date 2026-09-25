@@ -100,7 +100,7 @@ describe('climate-zone recommendations', () => {
 
   it('notices when the garden has no room', () => {
     const bed = area({ lengthM: 1, widthM: 1 });
-    const full = [planting({ plantId: 'pumpkin', areaId: bed.id, quantity: 2, stage: 'established' })];
+    const full = [planting({ plantId: 'pumpkin', areaIds: [bed.id], quantity: 2, stage: 'established' })];
     const r = recommendPlant(plant('zucchini'), ctx('subtropical', '2026-09-24', { areas: [bed], plantings: full }));
     assert.ok(r.reasons.some((x) => x.kind === 'space'));
   });

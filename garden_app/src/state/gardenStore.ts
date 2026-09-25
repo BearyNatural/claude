@@ -43,6 +43,8 @@ import {
   type TaskResponseStatus,
 } from '../domain/types';
 import type { WeatherSnapshot } from '../domain/weather';
+import { areaIdsOf, isInArea, toAreaIds } from '../domain/plantingAreas';
+import { coordinatesForPostcode } from '../services/location/geocode';
 import type { CollectionName, GardenRepository, LoadProblem } from '../services/storage/gardenRepository';
 import type { WeatherService } from '../services/weather/weatherService';
 
@@ -53,6 +55,8 @@ export interface WeatherState {
   snapshot: WeatherSnapshot | null;
   loading: boolean;
   error?: string;
+  /** True when the saved location has no suburb or postcode to get a forecast for. */
+  needsLocation?: boolean;
 }
 
 export interface StoreState {
@@ -135,10 +139,16 @@ export class GardenStore {
   async refreshWeather(force = false) {
     const p = this.state.data.profile;
     const s = this.state.data.settings;
-    const lat = p?.location.approxLatitude;
-    const lon = p?.location.approxLongitude;
-    if (!p || !s.weatherEnabled || lat === undefined || lon === undefined) return;
-    this.set({ weather: { ...this.state.weather, loading: true } });
+    if (!p || !s.weatherEnabled) return;
+    // Locations set manually may only have a postcode: use its approximate centre.
+    const fromPc = p.location.approxLatitude === undefined ? coordinatesForPostcode(p.location.postcode) : null;
+    const lat = p.location.approxLatitude ?? fromPc?.lat;
+    const lon = p.location.approxLongitude ?? fromPc?.lon;
+    if (lat === undefined || lon === undefined) {
+      this.set({ weather: { snapshot: null, loading: false, needsLocation: true } });
+      return;
+    }
+    this.set({ weather: { ...this.state.weather, loading: true, needsLocation: false } });
     const r = await this.weatherService.get(lat, lon, p.location.timezone, { force });
     this.set({ weather: { snapshot: r.snapshot, loading: false, error: r.error }, now: this.clock() });
   }
@@ -199,9 +209,10 @@ export class GardenStore {
 
   async deleteArea(id: string) {
     // Plantings keep their history; they just lose the area link.
-    for (const p of this.state.data.plantings.filter((x) => x.areaId === id)) {
-      const { areaId: _gone, ...rest } = p;
-      await this.putRecord('plantings', { ...rest, updatedAt: this.nowIso() });
+    for (const p of this.state.data.plantings.filter((x) => isInArea(x, id))) {
+      const { areaIds: _gone, ...rest } = p;
+      const left = toAreaIds(areaIdsOf(p).filter((a) => a !== id));
+      await this.putRecord('plantings', { ...rest, ...(left ? { areaIds: left } : {}), updatedAt: this.nowIso() });
     }
     await this.removeRecord('areas', id);
   }
@@ -359,7 +370,7 @@ export class GardenStore {
     const planting = await this.savePlanting({
       plantId: plan.plantId,
       quantity: quantity ?? batch.quantity,
-      areaId: plan.areaId,
+      areaIds: toAreaIds(plan.areaId ? [plan.areaId] : []),
       startMethod: method,
       plantedDate: date,
       dateAccuracy: 'exact',
@@ -414,7 +425,7 @@ export class GardenStore {
       await this.savePlanting({
         plantId: step.plant.id,
         quantity: qty,
-        areaId: opts.areaId,
+        areaIds: toAreaIds(opts.areaId ? [opts.areaId] : []),
         startMethod: 'direct-sow',
         plantedDate: anchor ? opts.startDate : step.suggested,
         dateAccuracy: anchor ? 'exact' : 'approx-week',

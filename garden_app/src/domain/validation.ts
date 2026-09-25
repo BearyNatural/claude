@@ -262,6 +262,14 @@ function parseEvent(v: unknown, p: string): PlantingEvent {
   });
 }
 
+/** `areaIds`, or the single `areaId` saved by earlier versions. Duplicates are dropped; none → undefined. */
+function plantingAreaIds(r: R): string[] | undefined {
+  const ids = r.arr('areaIds', STRING(200), true, 50);
+  const legacy = r.str('areaId', true, 200);
+  const all = [...new Set([...ids, ...(legacy ? [legacy] : [])])];
+  return all.length ? all : undefined;
+}
+
 export function validatePlanting(v: unknown): Result<Planting> {
   return run(() => {
     const r = reader(v, 'planting');
@@ -271,7 +279,7 @@ export function validatePlanting(v: unknown): Result<Planting> {
       plantId: r.id('plantId'),
       variety: r.str('variety', true, 120),
       quantity: r.num('quantity', false, 0, 100000),
-      areaId: r.str('areaId', true, 200),
+      areaIds: plantingAreaIds(r),
       startMethod: r.oneOf('startMethod', METHODS),
       plantedDate: r.date('plantedDate'),
       dateAccuracy: r.oneOf('dateAccuracy', ['exact', 'approx-week', 'approx-month'] as const),

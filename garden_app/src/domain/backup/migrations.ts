@@ -7,7 +7,8 @@
  *       profile.location.climateZone (single field, no override/suggestion split),
  *       profile.household (number), profile.hoursPerWeek (number),
  *       planting.datePlanted, no taskResponses/observations, no checksum.
- *  v2 — current: see format.ts.
+ *  v2 — planting.areaId (a single garden area).
+ *  v3 — current: planting.areaIds (any number of areas); see format.ts.
  */
 
 type Json = Record<string, unknown>;
@@ -65,8 +66,23 @@ function migrateV1toV2(doc: Json): Json {
   return { ...doc, schemaVersion: 2, data, app: doc.app ?? { name: 'Sow by Season', version: 'unknown' } };
 }
 
+function migrateV2toV3(doc: Json): Json {
+  const data = isObj(doc.data) ? { ...doc.data } : {};
+  if (Array.isArray(data.plantings)) {
+    data.plantings = data.plantings.map((pl: unknown) => {
+      if (!isObj(pl)) return pl;
+      const n: Json = { ...pl };
+      if (typeof n.areaId === 'string' && n.areaId && n.areaIds === undefined) n.areaIds = [n.areaId];
+      delete n.areaId;
+      return n;
+    });
+  }
+  return { ...doc, schemaVersion: 3, data };
+}
+
 export const MIGRATIONS: Record<number, (doc: Json) => Json> = {
   1: migrateV1toV2,
+  2: migrateV2toV3,
 };
 
 export function migrate(doc: Json, from: number, to: number): { doc: Json; applied: string[] } {

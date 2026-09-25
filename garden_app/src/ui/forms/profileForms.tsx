@@ -10,7 +10,7 @@ import { WEEKDAY_SHORT } from '../../domain/dates';
 import { inferClimateFromPostcode, normalisePostcode, stateForPostcode, STATES, timezoneFor } from '../../domain/location';
 import type { AustralianState, ClimateZoneId, FrostRisk, GardenLocation, GardeningGoal, ReminderPreferences, TimeBudget, Weekday } from '../../domain/types';
 import { TIME_BUDGET_LABELS } from '../../domain/workload';
-import { offlineCandidates, onlineCandidates, type LocationCandidate } from '../../services/location/geocode';
+import { coordinatesForPostcode, offlineCandidates, onlineCandidates, type LocationCandidate } from '../../services/location/geocode';
 import { InfoTip } from '../components/garden';
 import { Badge, Button, Card, Chip, Choice, Field, Notice, Row, T } from '../components/primitives';
 import { space } from '../theme/theme';
@@ -42,6 +42,8 @@ export function LocationPicker({ value, onChange }: { value: GardenLocation | nu
   };
 
   const candidates = [...offline, ...(online ?? []).filter((o) => !offline.some((f) => f.label === o.label && f.sublabel === o.sublabel))];
+  const isPostcode = /^\d+$/.test(q.trim());
+  const pc = isPostcode ? normalisePostcode(q) : null;
 
   return (
     <View style={{ gap: space.md }}>
@@ -56,7 +58,8 @@ export function LocationPicker({ value, onChange }: { value: GardenLocation | nu
       {candidates.slice(0, 8).map((c) => (
         <Button key={c.key} variant="secondary" label={`${c.label} — ${c.sublabel}`} icon={c.source === 'online-geocoder' ? 'globe-outline' : 'location-outline'} onPress={() => { onChange(c.location); setQ(''); setOnline(null); }} />
       ))}
-      {q.trim().length >= 3 ? <Button variant="ghost" icon="search" label={searching ? 'Searching…' : 'Search more places online'} onPress={searchOnline} loading={searching} accessibilityHint="Sends your search text to the Open-Meteo place search service" /> : null}
+      {pc && !offline.length ? <Notice tone="caution">{`We couldn't find postcode ${pc}. Check the number, try your suburb name, or set your area manually.`}</Notice> : null}
+      {q.trim().length >= 3 && !isPostcode ? <Button variant="ghost" icon="search" label={searching ? 'Searching…' : 'Search more places online'} onPress={searchOnline} loading={searching} accessibilityHint="Sends your search text to the Open-Meteo place search service" /> : null}
       {error ? <Notice tone="caution">{error}</Notice> : null}
       <Button variant="ghost" icon="create-outline" label={manual ? 'Hide manual setup' : 'Set my area manually'} onPress={() => setManual((m) => !m)} />
       {manual ? <ManualLocation onChange={onChange} /> : null}
@@ -71,9 +74,11 @@ function ManualLocation({ onChange }: { onChange: (loc: GardenLocation) => void 
   const pcState = pc ? stateForPostcode(pc) : null;
   const effectiveState = state ?? pcState ?? undefined;
   const inference = pc ? inferClimateFromPostcode(LOCALITIES, pc) : null;
+  // Approximate postcode centre, so live weather works for manually set areas too.
+  const coords = pc ? coordinatesForPostcode(pc) : null;
   return (
     <Card>
-      <Field label="Postcode (optional)" value={postcode} onChangeText={setPostcode} keyboardType="number-pad" error={postcode && !pcState ? 'That doesn\'t look like an Australian postcode.' : null} />
+      <Field label="Postcode (optional)" value={postcode} onChangeText={setPostcode} keyboardType="number-pad" hint="Add your postcode to get live weather for your area." error={postcode && !pcState ? 'That doesn\'t look like an Australian postcode.' : null} />
       <T variant="small" style={{ fontWeight: '600' }}>State or territory</T>
       <Row wrap>
         {STATES.map((s) => (
@@ -92,6 +97,8 @@ function ManualLocation({ onChange }: { onChange: (loc: GardenLocation) => void 
             suggestedZone: inference?.zone,
             suggestedZoneReason: inference?.reason ?? 'Choose the climate zone that best matches your area below.',
             suggestedFrostRisk: inference?.frost,
+            approxLatitude: coords?.lat,
+            approxLongitude: coords?.lon,
             source: 'manual',
           })
         }

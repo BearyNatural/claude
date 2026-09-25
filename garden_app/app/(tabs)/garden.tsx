@@ -14,6 +14,7 @@ import { useGardenView } from '../../src/state/hooks';
 import { Badge, Button, Card, EmptyState, ListRow, Row, Screen, Section, T } from '../../src/ui/components/primitives';
 import { AREA_TYPE_LABELS } from '../../src/ui/forms/areaForm';
 import { space, usePalette } from '../../src/ui/theme/theme';
+import { isInArea } from '../../src/domain/plantingAreas';
 
 function UsageBar({ ratio }: { ratio: number }) {
   const p = usePalette();
@@ -72,7 +73,7 @@ export default function Garden() {
         ) : (
           activeAreas.map((a) => {
             const u = areaUsage(a, data.plantings, getPlant);
-            const count = data.plantings.filter((p) => p.areaId === a.id && isActive(p)).length;
+            const count = data.plantings.filter((p) => isInArea(p, a.id) && isActive(p)).length;
             const warn = overcrowdingWarning(a, data.plantings, getPlant);
             return (
               <Card key={a.id} onPress={() => router.push(`/area/${a.id}`)} accessibilityLabel={`${a.name}, ${count} plantings`}>

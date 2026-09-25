@@ -122,8 +122,15 @@ export function MonthStrip({ label, months, today, tone = 'good' }: { label: str
 // Weather
 // ---------------------------------------------------------------------------
 
-export function WeatherCard({ w, loading, error, onRefresh, zone }: { w: WeatherAssessment; loading?: boolean; error?: string; onRefresh?: () => void; zone: ClimateZoneId | null }) {
+export function WeatherCard({ w, loading, error, onRefresh, zone, needsLocation, onSetLocation }: { w: WeatherAssessment; loading?: boolean; error?: string; onRefresh?: () => void; zone: ClimateZoneId | null; needsLocation?: boolean; onSetLocation?: () => void }) {
   const p = usePalette();
+  if (w.freshness === 'unavailable' && needsLocation) {
+    return (
+      <Notice tone="neutral" icon="location-outline" title="Live weather needs your area" action={onSetLocation ? <Button compact variant="ghost" icon="create-outline" label="Add suburb or postcode" onPress={onSetLocation} /> : undefined}>
+        {`Your garden location doesn't include a suburb or postcode, so there's nowhere to get a forecast for. Advice is based on seasonal information${zone ? ` for ${CLIMATE_ZONES[zone].name.toLowerCase()} areas` : ''} until you add one.`}
+      </Notice>
+    );
+  }
   if (w.freshness === 'unavailable') {
     return (
       <Notice tone="neutral" icon="cloud-offline-outline" title="Live weather unavailable" action={onRefresh ? <Button compact variant="ghost" icon="refresh" label={loading ? 'Checking…' : 'Try again'} onPress={onRefresh} loading={loading} /> : undefined}>

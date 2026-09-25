@@ -3,15 +3,17 @@
  * recording events and journal notes, stage override, editing and removal.
  */
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { formatDay } from '../../src/domain/dates';
+import { areaIdsOf, areaNames, primaryAreaId, toAreaIds } from '../../src/domain/plantingAreas';
 import { buildTimeline, describeProgress, STAGE_LABELS } from '../../src/domain/timeline';
 import type { GrowthStage, PlantingEventType } from '../../src/domain/types';
 import { getPlant } from '../../src/state/gardenStore';
 import { useGardenView } from '../../src/state/hooks';
 import { DateField, InfoTip, TimelineList } from '../../src/ui/components/garden';
 import { Badge, Button, Card, Chip, EmptyState, Field, Notice, Row, Screen, Section, Stepper, T } from '../../src/ui/components/primitives';
+import { AreaPicker, resolveAreaIds, useSelectNewAreas, type NewPot } from '../../src/ui/forms/areaPicker';
 import { METHOD_LABELS } from '../../src/ui/labels';
 import { space } from '../../src/ui/theme/theme';
 
@@ -45,9 +47,13 @@ export default function PlantingDetail() {
   const [variety, setVariety] = useState(p?.variety ?? '');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [startDate, setStartDate] = useState(today);
+  const [movingAreas, setMovingAreas] = useState(false);
+  const [areaIds, setAreaIds] = useState<string[]>(p ? areaIdsOf(p) : []);
+  const [newPot, setNewPot] = useState<NewPot>({ enabled: false });
+  useSelectNewAreas(data.areas, useCallback((ids: string[]) => setAreaIds((cur) => [...cur, ...ids]), []));
 
   if (!p || !tl) return <EmptyState title="Planting not found" body="It may have been deleted." />;
-  const area = data.areas.find((a) => a.id === p.areaId);
+  const where = areaNames(p, data.areas);
   const name = plant?.commonName ?? p.plantId;
 
   return (
@@ -56,7 +62,7 @@ export default function PlantingDetail() {
       <View style={{ gap: 4 }}>
         <T variant="title">{`${name}${p.variety ? ` '${p.variety}'` : ''}`}</T>
         <T variant="small" muted>
-          {[`${p.quantity} × ${METHOD_LABELS[p.startMethod].toLowerCase()}`, area?.name, `${p.stage === 'planned' ? 'planned for' : 'started'} ${formatDay(p.plantedDate, today)}${p.dateAccuracy !== 'exact' ? ' (approx.)' : ''}`].filter(Boolean).join(' · ')}
+          {[`${p.quantity} × ${METHOD_LABELS[p.startMethod].toLowerCase()}`, where || undefined, `${p.stage === 'planned' ? 'planned for' : 'started'} ${formatDay(p.plantedDate, today)}${p.dateAccuracy !== 'exact' ? ' (approx.)' : ''}`].filter(Boolean).join(' · ')}
         </T>
         <Row wrap gap={6}>
           <Badge tone="good" icon="leaf-outline" label={STAGE_LABELS[tl.estimatedStage]} />
@@ -120,7 +126,7 @@ export default function PlantingDetail() {
           label="Add to journal"
           disabled={!note.trim()}
           onPress={async () => {
-            await store.addJournal(note, noteDate, { plantingId: p.id, areaId: p.areaId });
+            await store.addJournal(note, noteDate, { plantingId: p.id, areaId: primaryAreaId(p) });
             setNote('');
           }}
         />
@@ -140,6 +146,34 @@ export default function PlantingDetail() {
           </Row>
         </Section>
       ) : null}
+
+      <Section
+        title="Where it's growing"
+        action={<Button compact variant="ghost" label={movingAreas ? 'Cancel' : 'Change'} onPress={() => { setAreaIds(areaIdsOf(p)); setNewPot({ enabled: false }); setMovingAreas((m) => !m); }} />}
+      >
+        {movingAreas ? (
+          <Card>
+            <AreaPicker areas={data.areas} value={areaIds} onChange={setAreaIds} newPot={newPot} onNewPotChange={setNewPot} />
+            <Button
+              label="Save"
+              icon="checkmark"
+              onPress={async () => {
+                const ids = toAreaIds(await resolveAreaIds(store, name, areaIds, newPot, data.areas));
+                const { areaIds: _old, ...rest } = p;
+                await store.savePlanting({ ...rest, ...(ids ? { areaIds: ids } : {}) });
+                setMovingAreas(false);
+              }}
+            />
+          </Card>
+        ) : (
+          <Card>
+            <T variant="small">{where || 'No particular area.'}</T>
+            {areaIdsOf(p).map((id) => data.areas.find((a) => a.id === id)).filter((a) => !!a).map((a) => (
+              <Button key={a!.id} compact variant="ghost" icon="grid-outline" label={`Open ${a!.name}`} onPress={() => router.push(`/area/${a!.id}`)} />
+            ))}
+          </Card>
+        )}
+      </Section>
 
       <Section title="Details" action={<Button compact variant="ghost" label={editing ? 'Cancel' : 'Edit'} onPress={() => setEditing((e) => !e)} />}>
         {editing ? (

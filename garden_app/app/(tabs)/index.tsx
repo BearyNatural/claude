@@ -67,7 +67,7 @@ export default function ThisWeek() {
         </Notice>
       ) : null}
 
-      <WeatherCard w={weather} zone={zone} loading={weatherState.loading} error={weatherState.error} onRefresh={data.settings.weatherEnabled ? () => store.refreshWeather(true) : undefined} />
+      <WeatherCard w={weather} zone={zone} loading={weatherState.loading} error={weatherState.error} onRefresh={data.settings.weatherEnabled ? () => store.refreshWeather(true) : undefined} needsLocation={weatherState.needsLocation} onSetLocation={() => router.push('/profile')} />
 
       <Card tone="good">
         <T variant="h3">{week.summary}</T>

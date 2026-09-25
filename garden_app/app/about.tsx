@@ -45,6 +45,12 @@ export default function About() {
           <Button compact variant="ghost" icon="open-outline" label="open-meteo.com" onPress={() => Linking.openURL('https://open-meteo.com/')} />
         </Card>
       </Section>
+      <Section title="Places and postcodes">
+        <Card>
+          <T variant="small">Suburb and postcode search works offline using the GeoNames Australian postal code list (CC BY 4.0). Coordinates are approximate area centres, used only for weather and climate suggestions.</T>
+          <Button compact variant="ghost" icon="open-outline" label="geonames.org" onPress={() => Linking.openURL('https://www.geonames.org/')} />
+        </Card>
+      </Section>
     </Screen>
   );
 }

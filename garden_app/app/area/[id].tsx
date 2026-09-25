@@ -10,6 +10,7 @@ import { useGardenView } from '../../src/state/hooks';
 import { Badge, Button, Card, EmptyState, ListRow, Notice, Row, Screen, Section, T } from '../../src/ui/components/primitives';
 import { AREA_TYPE_LABELS, soilAdvice } from '../../src/ui/forms/areaForm';
 import { space } from '../../src/ui/theme/theme';
+import { isInArea } from '../../src/domain/plantingAreas';
 
 export default function AreaDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,7 +18,7 @@ export default function AreaDetail() {
   const [confirm, setConfirm] = useState(false);
   const area = data.areas.find((a) => a.id === id);
   if (!area) return <EmptyState title="Area not found" />;
-  const plantings = data.plantings.filter((p) => p.areaId === area.id);
+  const plantings = data.plantings.filter((p) => isInArea(p, area.id));
   const active = plantings.filter((p) => isActive(p) || p.stage === 'planned');
   const usage = areaUsage(area, data.plantings, getPlant);
   const cap = areaCapacityM2(area);

@@ -8,6 +8,7 @@
  */
 import { diffDays } from './dates';
 import type { PlantFamily, PlantRecord } from './plantTypes';
+import { isInArea } from './plantingAreas';
 import type { ISODate, Planting } from './types';
 
 export const FAMILY_COMMON_NAMES: Partial<Record<PlantFamily, string>> = {
@@ -45,7 +46,7 @@ export function rotationWarnings(
   const out: RotationWarning[] = [];
   for (const p of plantings) {
     // Only past crops matter for rotation; plants growing together now are a companion question.
-    if (p.areaId !== areaId || !['finished', 'removed', 'failed'].includes(p.stage)) continue;
+    if (!isInArea(p, areaId) || !['finished', 'removed', 'failed'].includes(p.stage)) continue;
     const other = getPlant(p.plantId);
     if (!other || other.family !== plant.family) continue;
     const since = diffDays(p.plantedDate, today);

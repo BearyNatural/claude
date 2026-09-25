@@ -223,7 +223,12 @@ export interface Planting {
   plantId: string;
   variety?: string;
   quantity: number;
-  areaId?: string;
+  /**
+   * Garden areas this planting is in (none = no particular area). Several areas
+   * share the quantity evenly, e.g. marigolds spread through three beds.
+   * Replaces the single `areaId` of schema v2 (converted when read).
+   */
+  areaIds?: string[];
   startMethod: StartMethod;
   /** Date sown/planted (or planned). */
   plantedDate: ISODate;
