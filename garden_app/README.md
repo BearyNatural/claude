@@ -24,7 +24,7 @@ It runs as an **Android app** and in any **web browser** (which also works on iP
 | Where | How |
 |---|---|
 | **Android** | Install the APK from the latest release (steps below). Includes reminders, the home-screen widget, automatic cloud backup and update notices. |
-| **Any browser** | Open **https://daydreaminginthecloud.bearynatural.dev/garden/** (also linked from the Hobbies page). Works on computers, tablets and phones, and keeps working offline once opened. |
+| **Any browser** | Open **https://daydreaminginthecloud.bearynatural.dev/sow-by-season/** (also linked from the Hobbies page). Works on computers, tablets and phones, and keeps working offline once opened. |
 | **iPhone / iPad** | Open that address in **Safari**, tap **Share → Add to Home Screen**. It opens like an app — no App Store or Apple account needed. (Phone reminders and the widget aren't available on iPhone.) |
 
 ### Your garden stays on your device — keep a backup in your own cloud storage
@@ -42,6 +42,14 @@ To protect your garden, and to use the same garden in both places, **back it up 
 - **Android:** when a new version is released, the app shows **"Sow by Season x.y is available — Download"** on the This Week screen. Tap it, download the file and tap **Install**. Your garden is kept. (Android always asks you to confirm installs from outside the Play Store — the app can't update itself silently.)
 - **Browser:** always up to date — just reload the page.
 - **Plant information** (new plants and corrections) updates on its own between versions: about daily in the Android app, and whenever the website is updated in the browser.
+
+### More than one garden
+
+Keep separate gardens — for example home, a community garden plot or a relative's place — under **More › Gardens**. Each garden has its own location, weather, areas, plantings and notes; switch between them with the garden name at the top of This Week, My Garden and More. Your wish list, your own plants and your settings are shared. All gardens are in the same backup.
+
+### Weather alerts when the app is closed (Android)
+
+Turn on **Reminders › Weather alerts when the app is closed**. A few times a day, when the phone allows, the app checks each garden's forecast and sends a notification about **frost, extreme heat or heavy rain today or tomorrow** — each warning once. Android decides exactly when these checks run (battery saving can delay them), so they're a helpful extra, not a guarantee. Only rounded coordinates are sent to the weather service, as when the app is open. Not available in the browser.
 
 ### Home-screen widget (Android)
 
@@ -293,17 +301,16 @@ Gardeners can also add their own plants ("Add a plant that isn't listed"). These
 
 ## Known limitations
 
-- **Not yet run on a physical phone or in Expo's own tooling.** The build environment couldn't reach the npm registry, so `npm install`, `expo start` and the native builds haven't run here. Everything that doesn't need React Native is tested. The screens were type-checked against my own component interfaces and rendered in a headless browser through a React Native stand-in. See the development report.
-- **Background execution isn't guaranteed.** Reminders are planned from the garden and forecast as they were when the app was last opened (see `docs/ARCHITECTURE.md`).
+- **Background execution isn't guaranteed.** Reminders are planned from the garden and forecast as they were when the app was last opened, and Android decides when closed-app weather checks and widget refreshes run (see `docs/ARCHITECTURE.md`).
 - Climate zones are **5 broad zones** plus a frost-exposure setting. Microclimates need the manual override.
 - The offline town list has about 155 reference towns. Other suburbs use online search, or a postcode-based guess marked as low confidence.
 - Arid-zone windows from Gardening Australia are very broad. The frost check reduces the risk, but arid advice is the least precise.
 - The date input is a validated text field with ±1-week buttons. A native date picker is a planned improvement.
-- The starter catalogue has 52 plants.
+- The built-in plant list has 65 plants (more arrive with plant list updates); anything else can be added as your own plant.
 
 ## Future development
 
-The architecture already has places for these: photos (attach to plantings or journal entries), pest and disease identification, IoT sensors (the `Observation` records already support sensors tied to an area, planting, device and timestamp, and they're included in backups), weather stations, visual garden maps (areas have dimensions and plants have mature sizes), seed inventory and expiry, harvest weights (an `Observation` kind already exists), preserving reminders, seed saving, optional moon-planting as a labelled traditional system, more planting systems (guilds, rotations, pollinator strips), a fuller rotation planner, multiple properties and shared households. The recommended next steps are in the [development report](DEVELOPMENT_REPORT.md#recommended-next-work).
+The architecture already has places for these: pest and disease identification, IoT sensors (the `Observation` records already support sensors tied to an area, planting, device and timestamp, and they're included in backups), weather stations, seed inventory and expiry, harvest weights (an `Observation` kind already exists), preserving reminders, seed saving, optional moon-planting as a labelled traditional system, more planting systems (guilds, rotations, pollinator strips), a fuller rotation planner and shared households. The recommended next steps are in the [development report](DEVELOPMENT_REPORT.md#recommended-next-work).
 
 ---
 

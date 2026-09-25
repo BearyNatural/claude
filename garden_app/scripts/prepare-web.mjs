@@ -6,11 +6,11 @@
 //   - a small service worker: the page itself is always fetched fresh when
 //     online (so updates arrive on the next open); app files are cached so it
 //     still opens offline. Garden data lives in the browser, not in this cache.
-// Run: node scripts/prepare-web.mjs <dist-dir> <base-path e.g. /garden>
+// Run: node scripts/prepare-web.mjs <dist-dir> <base-path e.g. /sow-by-season>
 import { copyFileSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-const [dist = 'dist', basePath = '/garden'] = process.argv.slice(2);
+const [dist = 'dist', basePath = '/sow-by-season'] = process.argv.slice(2);
 const base = basePath.replace(/\/$/, '');
 const app = JSON.parse(readFileSync(new URL('../app.json', import.meta.url), 'utf8')).expo;
 const theme = '#2F6B3F';

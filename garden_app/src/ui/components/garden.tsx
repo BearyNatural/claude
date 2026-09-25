@@ -121,6 +121,22 @@ export function MonthStrip({ label, months, today, tone = 'good' }: { label: str
 }
 
 // ---------------------------------------------------------------------------
+// Garden switcher (shown when there is more than one garden)
+// ---------------------------------------------------------------------------
+
+export function GardenSwitcher({ gardens, activeId, onSwitch }: { gardens: { id: string; name: string }[]; activeId?: string; onSwitch: (id: string) => void }) {
+  if (gardens.length < 2) return null;
+  return (
+    <Row wrap gap={6}>
+      {gardens.map((g) => (
+        <Chip key={g.id} icon={g.id === activeId ? 'leaf' : 'leaf-outline'} label={g.name} selected={g.id === activeId} onPress={() => onSwitch(g.id)} />
+      ))}
+      <Chip icon="settings-outline" label="Gardens" onPress={() => router.push('/gardens')} />
+    </Row>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Home banner
 // ---------------------------------------------------------------------------
 

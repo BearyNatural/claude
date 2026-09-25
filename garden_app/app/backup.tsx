@@ -17,7 +17,8 @@ import { Button, Card, Choice, Notice, Row, Screen, Section, T } from '../src/ui
 import { space } from '../src/ui/theme/theme';
 
 export default function Backup() {
-  const { store, data, today } = useGardenView();
+  // Backups cover every garden, so counts use all the data, not just the garden shown.
+  const { store, allData: data, today } = useGardenView();
   const [status, setStatus] = useState<{ tone: 'good' | 'danger' | 'caution'; text: string } | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [busy, setBusy] = useState(false);

@@ -8,6 +8,8 @@ import { appStore, autoBackup } from '../src/state/appStore';
 import { useAutoBackupRunner } from '../src/state/autoBackup';
 import { StoreProvider, useGardenState, useGardenView, useReminderSync } from '../src/state/hooks';
 import { CLIMATE_ZONES, seasonFor } from '../src/domain/climate';
+import { syncWeatherAlerts } from '../src/services/alerts/backgroundAlerts';
+import { WEB_BASE } from '../src/services/webBase';
 import { buildWidgetSnapshot } from '../src/widget/snapshot';
 import { pushWidgetSnapshot } from '../src/widget/widgetStore';
 import { Loading, Notice, Screen, T } from '../src/ui/components/primitives';
@@ -15,16 +17,16 @@ import { usePalette } from '../src/ui/theme/theme';
 
 /**
  * Browser version: the website's 404 page sends deep links back to the app as
- * "/garden/?to=/garden/plant/tomato" (static hosting has no per-page files).
- * Open the page they asked for.
+ * "/sow-by-season/?to=/sow-by-season/plant/tomato" (static hosting has no
+ * per-page files). Open the page they asked for.
  */
 function WebDeepLink() {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
     const to = new URLSearchParams(window.location.search).get('to');
-    if (!to || !to.startsWith('/garden/')) return;
-    const path = to.slice('/garden'.length);
-    window.history.replaceState(null, '', `/garden${path}`);
+    if (!to || !to.startsWith(`${WEB_BASE}/`)) return;
+    const path = to.slice(WEB_BASE.length);
+    window.history.replaceState(null, '', `${WEB_BASE}${path}`);
     if (/^\/[\w\-/[\]%.?=&]*$/.test(path) && path !== '/') router.replace(path as never);
   }, []);
   return null;
@@ -55,6 +57,16 @@ function WidgetSync() {
   return null;
 }
 
+/** Keeps the background weather-alert check registered (or not) to match the setting. */
+function WeatherAlertSync() {
+  const state = useGardenState();
+  const on = !!state.data.settings.backgroundAlerts && state.data.settings.weatherEnabled;
+  useEffect(() => {
+    if (Platform.OS === 'android' && state.status === 'ready') void syncWeatherAlerts(on);
+  }, [on, state.status]);
+  return null;
+}
+
 function AutoBackupRunner() {
   const state = useGardenState();
   useAutoBackupRunner(autoBackup, state.data);
@@ -82,6 +94,7 @@ function Gate() {
       <WebDeepLink />
       <AutoBackupRunner />
       <WidgetSync />
+      <WeatherAlertSync />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: p.bg },
@@ -100,6 +113,7 @@ function Gate() {
         <Stack.Screen name="area/edit" options={{ title: 'Garden area', presentation: 'modal' }} />
         <Stack.Screen name="area/[id]" options={{ title: 'Garden area' }} />
         <Stack.Screen name="garden-map" options={{ title: 'Garden map' }} />
+        <Stack.Screen name="gardens" options={{ title: 'Your gardens' }} />
         <Stack.Screen name="succession/new" options={{ title: 'Succession planting', presentation: 'modal' }} />
         <Stack.Screen name="succession/[id]" options={{ title: 'Succession plan' }} />
         <Stack.Screen name="three-sisters" options={{ title: 'Three Sisters' }} />

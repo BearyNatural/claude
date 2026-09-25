@@ -11,7 +11,7 @@ import { SECTION_LABELS } from '../../src/domain/tasks';
 import type { GardenTask, TaskSection } from '../../src/domain/types';
 import { roundMinutes } from '../../src/domain/workload';
 import { useGardenView } from '../../src/state/hooks';
-import { BrandHeader, GardenBanner, TaskCard, WeatherCard } from '../../src/ui/components/garden';
+import { BrandHeader, GardenBanner, GardenSwitcher, TaskCard, WeatherCard } from '../../src/ui/components/garden';
 import { Badge, Button, Card, EmptyState, Notice, Row, Screen, Section, T } from '../../src/ui/components/primitives';
 import { completeTask, deferToGardeningDay, snoozeTask } from '../../src/ui/taskActions';
 import { space } from '../../src/ui/theme/theme';
@@ -69,8 +69,9 @@ export default function ThisWeek() {
       ) : null}
       <GardenBanner
         title={`${season.label} in ${profile?.location.suburb ?? 'your garden'}`}
-        subtitle={`${formatDay(today)}${zone ? ` · ${CLIMATE_ZONES[zone].name}` : ''}`}
+        subtitle={`${formatDay(today)}${zone ? ` · ${CLIMATE_ZONES[zone].name}` : ''}${v.gardens.length > 1 ? ` · ${v.garden?.name}` : ''}`}
       />
+      <GardenSwitcher gardens={v.gardens} activeId={v.garden?.id} onSwitch={(id) => void v.store.setActiveGarden(id)} />
 
       {v.state.problems.length ? (
         <Notice tone="caution" title="Some saved records couldn't be read">

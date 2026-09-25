@@ -7,6 +7,7 @@ import React, { createContext, useContext, useEffect, useMemo, useSyncExternalSt
 import { AppState } from 'react-native';
 import { effectiveFrostRisk, effectiveZone } from '../domain/climate';
 import { hourInTimeZone } from '../domain/dates';
+import { activeGarden, allGardens, scopeToGarden } from '../domain/gardens';
 import { buildPlantNow, type RecommendContext } from '../domain/recommend';
 import { planReminders } from '../domain/reminders';
 import { generateTasks } from '../domain/tasks';
@@ -50,8 +51,17 @@ export function useGardenState(): StoreState {
 export function useGardenView() {
   const store = useStore();
   const state = useGardenState();
-  const { data, weather, now, catalogueRev } = state;
-  const profile = data.profile;
+  const { weather, now, catalogueRev } = state;
+  const allData = state.data;
+  // Everything below sees the garden currently shown: its own areas, plantings,
+  // notes and plans, and its location (zone, weather, timezone).
+  const garden = useMemo(() => activeGarden(allData), [allData]);
+  const gardens = useMemo(() => allGardens(allData), [allData]);
+  const data = useMemo(() => (garden ? scopeToGarden(allData, garden.id) : allData), [allData, garden]);
+  const profile = useMemo(
+    () => (allData.profile && garden ? { ...allData.profile, location: garden.location, property: garden.property, gardenName: garden.name } : allData.profile),
+    [allData.profile, garden],
+  );
   const today = store.today();
   const zone = effectiveZone(profile?.location);
   const frostRisk = effectiveFrostRisk(profile?.location);
@@ -100,7 +110,7 @@ export function useGardenView() {
     () => planWeek(tasks, { timeBudget: profile?.timeBudget ?? '1to2', gardeningDays: profile?.reminders.gardeningDays ?? [], today }),
     [tasks, profile, today],
   );
-  return { store, state, data, profile, today, zone, frostRisk, weather: assessment, weatherState: weather, recCtx, plantNow, tasks, week };
+  return { store, state, data, allData, profile, garden, gardens, today, zone, frostRisk, weather: assessment, weatherState: weather, recCtx, plantNow, tasks, week };
 }
 
 /**

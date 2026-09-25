@@ -9,6 +9,7 @@
 import { isClimateZone } from './climate';
 import { isISODate } from './dates';
 import { isAustralianState } from './location';
+import type { GardenSite } from './gardens';
 import { LIFECYCLES, PLANT_CATEGORIES, SUN_NEEDS, SUPPORT_NEEDS, type PlantCategory } from './plantTypes';
 import type {
   AppSettings,
@@ -240,6 +241,8 @@ export function validateSettings(v: unknown): Result<AppSettings> {
       lastBackupAt: r.dateTime('lastBackupAt', true),
       hiddenPlantIds: r.arr('hiddenPlantIds', STRING(100), true, 1000),
       plantListUpdates: r.bool('plantListUpdates', true),
+      activeGardenId: r.str('activeGardenId', true, 200),
+      backgroundAlerts: r.bool('backgroundAlerts', true),
     });
   });
 }
@@ -250,6 +253,7 @@ export function validateArea(v: unknown): Result<GardenArea> {
     const c = r.obj('container', true);
     return clean({
       id: r.id('id'),
+      gardenId: r.str('gardenId', true, 200),
       name: r.str('name', false, 120),
       type: r.oneOf('type', AREA_TYPES),
       lengthM: r.num('lengthM', true, 0, 10000),
@@ -303,6 +307,7 @@ export function validatePlanting(v: unknown): Result<Planting> {
     const s = r.obj('system', true);
     return clean({
       id: r.id('id'),
+      gardenId: r.str('gardenId', true, 200),
       plantId: r.id('plantId'),
       variety: r.str('variety', true, 120),
       quantity: r.num('quantity', false, 0, 100000),
@@ -338,6 +343,7 @@ export function validateJournal(v: unknown): Result<JournalEntry> {
     const r = reader(v, 'journal');
     return clean({
       id: r.id('id'),
+      gardenId: r.str('gardenId', true, 200),
       date: r.date('date'),
       text: r.str('text', false, 5000),
       plantingId: r.str('plantingId', true, 200),
@@ -371,6 +377,7 @@ export function validateSuccessionPlan(v: unknown): Result<SuccessionPlan> {
     const r = reader(v, 'successionPlan');
     return clean({
       id: r.id('id'),
+      gardenId: r.str('gardenId', true, 200),
       plantId: r.id('plantId'),
       areaId: r.str('areaId', true, 200),
       intervalDays: r.num('intervalDays', false, 1, 365, true),
@@ -392,6 +399,22 @@ export function validateTaskResponse(v: unknown): Result<TaskResponse> {
       status: r.oneOf('status', ['done', 'skipped', 'snoozed', 'irrelevant'] as const),
       until: r.date('until', true),
       at: r.dateTime('at'),
+    });
+  });
+}
+
+export function validateGarden(v: unknown): Result<GardenSite> {
+  return run(() => {
+    const r = reader(v, 'garden');
+    const id = r.id('id');
+    if (id === 'home') throw new ValidationError('garden.id: reserved');
+    return clean({
+      id,
+      name: r.str('name', false, 80),
+      location: parseLocation(r.obj('location')!),
+      property: parseProperty(r.obj('property', true)),
+      createdAt: r.dateTime('createdAt'),
+      updatedAt: r.dateTime('updatedAt'),
     });
   });
 }
@@ -442,6 +465,7 @@ export function validateObservation(v: unknown): Result<Observation> {
     const r = reader(v, 'observation');
     return clean({
       id: r.id('id'),
+      gardenId: r.str('gardenId', true, 200),
       kind: r.oneOf('kind', OBS_KINDS),
       value: r.num('value'),
       unit: r.str('unit', false, 20),

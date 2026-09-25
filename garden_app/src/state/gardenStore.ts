@@ -17,6 +17,7 @@ import type { ParsedFeed } from '../domain/catalogueUpdate';
 import { CUSTOM_PREFIX, customToPlantRecord } from '../domain/customPlants';
 import { effectiveZone } from '../domain/climate';
 import { addDays, todayInTimeZone } from '../domain/dates';
+import { activeGarden, gardenContents, HOME_GARDEN, type ActiveGarden, type GardenSite } from '../domain/gardens';
 import { outlineDimensionsM, polygonAreaM2, roundTenth, type LatLon } from '../domain/geometry';
 import { newId } from '../domain/ids';
 import { productionLevelFromGoals } from '../domain/production';
@@ -155,6 +156,19 @@ export class GardenStore {
     this.set({ data: fn(this.state.data) });
   }
 
+  /** The garden currently shown (home unless the gardener switched). */
+  get garden(): ActiveGarden | null {
+    return activeGarden(this.state.data);
+  }
+
+  /** New records belong to the garden currently shown; existing ones keep theirs. */
+  private stamp<T extends { gardenId?: string }>(rec: T, existing?: { gardenId?: string }): T {
+    const g = this.garden;
+    const gid = existing ? existing.gardenId : g && !g.isHome ? g.id : undefined;
+    const { gardenId: _drop, ...rest } = rec;
+    return (gid ? { ...rest, gardenId: gid } : rest) as T;
+  }
+
   // -------------------------------------------------------------------------
   // Lifecycle
   // -------------------------------------------------------------------------
@@ -181,7 +195,7 @@ export class GardenStore {
   }
 
   today(): ISODate {
-    return todayInTimeZone(this.state.data.profile?.location.timezone ?? 'Australia/Sydney', this.state.now);
+    return todayInTimeZone(this.garden?.location.timezone ?? 'Australia/Sydney', this.state.now);
   }
 
   nowIso() {
@@ -189,19 +203,19 @@ export class GardenStore {
   }
 
   async refreshWeather(force = false) {
-    const p = this.state.data.profile;
+    const loc = this.garden?.location;
     const s = this.state.data.settings;
-    if (!p || !s.weatherEnabled) return;
+    if (!loc || !s.weatherEnabled) return;
     // Locations set manually may only have a postcode: use its approximate centre.
-    const fromPc = p.location.approxLatitude === undefined ? coordinatesForPostcode(p.location.postcode) : null;
-    const lat = p.location.approxLatitude ?? fromPc?.lat;
-    const lon = p.location.approxLongitude ?? fromPc?.lon;
+    const fromPc = loc.approxLatitude === undefined ? coordinatesForPostcode(loc.postcode) : null;
+    const lat = loc.approxLatitude ?? fromPc?.lat;
+    const lon = loc.approxLongitude ?? fromPc?.lon;
     if (lat === undefined || lon === undefined) {
       this.set({ weather: { snapshot: null, loading: false, needsLocation: true } });
       return;
     }
     this.set({ weather: { ...this.state.weather, loading: true, needsLocation: false } });
-    const r = await this.weatherService.get(lat, lon, p.location.timezone, { force });
+    const r = await this.weatherService.get(lat, lon, loc.timezone, { force });
     this.set({ weather: { snapshot: r.snapshot, loading: false, error: r.error }, now: this.clock() });
   }
 
@@ -255,7 +269,7 @@ export class GardenStore {
   /** Send any plants the gardener chose to share that haven't gone yet (e.g. added while offline). */
   async sendPendingShares() {
     if (!this.shareSuggestion) return;
-    const zone = effectiveZone(this.state.data.profile?.location);
+    const zone = effectiveZone(this.garden?.location);
     for (const c of this.state.data.customPlants.filter((x) => x.share?.status === 'pending')) {
       try {
         const ref = await this.shareSuggestion(c, zone);
@@ -316,6 +330,17 @@ export class GardenStore {
     if (locationChanged) void this.refreshWeather(true);
   }
 
+  /**
+   * Change some profile fields (reminders, household…) on the stored profile.
+   * Use this rather than saving a profile from a screen's view, which shows the
+   * garden currently selected and so may carry another garden's location.
+   */
+  async updateProfile(patch: Partial<Omit<GardenProfile, 'id' | 'createdAt' | 'updatedAt' | 'location'>>) {
+    const prev = this.state.data.profile;
+    if (!prev) return;
+    await this.saveProfile({ ...prev, ...patch });
+  }
+
   async saveSettings(patch: Partial<AppSettings>) {
     const settings = { ...this.state.data.settings, ...patch, id: 'settings' as const };
     await this.repo.saveSettings(settings);
@@ -329,7 +354,7 @@ export class GardenStore {
   async saveArea(a: Omit<GardenArea, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
     const now = this.nowIso();
     const existing = a.id ? this.state.data.areas.find((x) => x.id === a.id) : undefined;
-    const area: GardenArea = { ...a, id: a.id ?? newId('area'), createdAt: existing?.createdAt ?? now, updatedAt: now };
+    const area: GardenArea = this.stamp({ ...a, id: a.id ?? newId('area'), createdAt: existing?.createdAt ?? now, updatedAt: now }, existing);
     return this.putRecord('areas', area);
   }
 
@@ -401,13 +426,62 @@ export class GardenStore {
   }
 
   // -------------------------------------------------------------------------
+  // Several gardens
+  // -------------------------------------------------------------------------
+
+  /** Add or update an extra garden (the home garden lives in the profile). */
+  async saveGarden(input: Omit<GardenSite, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<GardenSite> {
+    const now = this.nowIso();
+    const existing = input.id ? this.state.data.gardens.find((g) => g.id === input.id) : undefined;
+    const site: GardenSite = { ...input, name: input.name.trim() || 'Garden', id: existing?.id ?? newId('gdn'), createdAt: existing?.createdAt ?? now, updatedAt: now };
+    const saved = await this.putRecord('gardens', site);
+    if (this.garden?.id === saved.id && existing && JSON.stringify(existing.location) !== JSON.stringify(saved.location)) void this.refreshWeather(true);
+    return saved;
+  }
+
+  /** Rename any garden, including home (whose name is the profile's garden name). */
+  async renameGarden(id: string, name: string) {
+    if (id === HOME_GARDEN) {
+      const prev = this.state.data.profile;
+      if (prev) await this.saveProfile({ ...prev, gardenName: name.trim() || undefined });
+      return;
+    }
+    const site = this.state.data.gardens.find((g) => g.id === id);
+    if (site) await this.saveGarden({ ...site, name });
+  }
+
+  /** Remove an extra garden — only once it's empty (move or remove its areas and plantings first). */
+  async deleteGarden(id: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+    if (id === HOME_GARDEN) return { ok: false, reason: 'The home garden can\'t be removed.' };
+    const c = gardenContents(this.state.data, id);
+    const total = c.areas + c.plantings + c.notes + c.plans;
+    if (total) return { ok: false, reason: `It still has ${c.areas} area(s), ${c.plantings} planting(s), ${c.notes} note(s) and ${c.plans} plan(s). Remove those first.` };
+    if (this.state.data.settings.activeGardenId === id) await this.setActiveGarden(HOME_GARDEN);
+    await this.removeRecord('gardens', id);
+    return { ok: true };
+  }
+
+  /** Switch the garden shown everywhere (tasks, weather, map, plantings). */
+  async setActiveGarden(id: string) {
+    if (id !== HOME_GARDEN && !this.state.data.gardens.some((g) => g.id === id)) return;
+    await this.saveSettings({ activeGardenId: id === HOME_GARDEN ? undefined : id });
+    void this.refreshWeather(true);
+  }
+
+  // -------------------------------------------------------------------------
   // Garden map (optional; precise locations stay on this device)
   // -------------------------------------------------------------------------
 
+  /** Save the map location of the garden currently shown. */
   async setProperty(property: PropertyLocation) {
+    const g = this.garden;
     const prev = this.state.data.profile;
-    if (!prev) return;
-    await this.saveProfile({ ...prev, property });
+    if (!g || !prev) return;
+    if (g.isHome) await this.saveProfile({ ...prev, property });
+    else {
+      const site = this.state.data.gardens.find((x) => x.id === g.id);
+      if (site) await this.saveGarden({ ...site, property });
+    }
   }
 
   /** Save an outline traced on the map, and the size measured from it. */
@@ -466,6 +540,10 @@ export class GardenStore {
       const { property: _gone, ...rest } = prev;
       await this.saveProfile(rest);
     }
+    for (const site of this.state.data.gardens.filter((x) => x.property)) {
+      const { property: _p, ...rest } = site;
+      await this.saveGarden(rest);
+    }
     for (const a of this.state.data.areas.filter((x) => x.outline)) {
       const { outline: _o, ...rest } = a;
       await this.saveArea(rest);
@@ -480,13 +558,16 @@ export class GardenStore {
       !existing && p.stage !== 'planned'
         ? [{ id: newId('ev'), type: p.startMethod === 'direct-sow' || p.startMethod === 'seed-tray' ? 'sown' : 'planted', date: p.plantedDate }]
         : [];
-    const planting: Planting = {
-      ...p,
-      id: p.id ?? newId('pl'),
-      events: [...events, ...initial],
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    };
+    const planting: Planting = this.stamp(
+      {
+        ...p,
+        id: p.id ?? newId('pl'),
+        events: [...events, ...initial],
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      },
+      existing,
+    );
     return this.putRecord('plantings', planting);
   }
 
@@ -547,7 +628,7 @@ export class GardenStore {
   }
 
   async addJournal(text: string, date: ISODate, links: { plantingId?: string; areaId?: string } = {}) {
-    const entry: JournalEntry = { id: newId('jn'), date, text: text.trim(), ...links, createdAt: this.nowIso() };
+    const entry = this.stamp<JournalEntry>({ id: newId('jn'), date, text: text.trim(), ...links, createdAt: this.nowIso() });
     return this.putRecord('journal', entry);
   }
 
@@ -587,7 +668,7 @@ export class GardenStore {
 
   private recalcCtx(plantId: string) {
     const plant = getPlant(plantId)!;
-    return { zone: effectiveZone(this.state.data.profile?.location), plant, now: this.nowIso() };
+    return { zone: effectiveZone(this.garden?.location), plant, now: this.nowIso() };
   }
 
   async createSuccessionPlan(plantId: string, areaId: string | undefined, startDate: ISODate, freeAreaM2: number | null) {
@@ -603,7 +684,7 @@ export class GardenStore {
       freeAreaM2,
     });
     if (!proposal.suitable) throw new Error(proposal.reason ?? 'This crop is not suited to succession planting.');
-    const plan = planFromProposal(proposal, { id: newId('sp'), plantId, areaId, now: this.nowIso() });
+    const plan = this.stamp(planFromProposal(proposal, { id: newId('sp'), plantId, areaId, now: this.nowIso() }));
     return this.putRecord('successionPlans', plan);
   }
 
@@ -668,7 +749,7 @@ export class GardenStore {
 
   /** Start a Three Sisters planting: the corn is sown now; later steps are planned plantings. */
   async startThreeSisters(opts: { startDate: ISODate; areaId?: string; mounds: number; cornAlreadySown: boolean }) {
-    const zone = effectiveZone(this.state.data.profile?.location);
+    const zone = effectiveZone(this.garden?.location);
     const plan = planSystem(THREE_SISTERS, opts.startDate, zone, getPlant);
     const planId = newId('sys');
     const perMound: Record<string, number> = { support: 6, climber: 4, groundcover: 4 };

@@ -3,7 +3,7 @@
     "name": "Sow by Season",
     "slug": "sow-by-season",
     "scheme": "sowbyseason",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -79,11 +79,12 @@
             }
           ]
         }
-      ]
+      ],
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": false,
-      "baseUrl": "/garden"
+      "baseUrl": "/sow-by-season"
     }
   }
 }

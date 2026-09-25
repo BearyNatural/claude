@@ -5,6 +5,7 @@
  * Everything in src/domain is pure TypeScript so it can be unit-tested in Node
  * and reused by any UI (mobile, web, a future server-side tool, etc).
  */
+import type { GardenSite } from './gardens';
 import type { Lifecycle, PlantCategory, SunNeed, SupportNeed } from './plantTypes';
 
 /** A local calendar date in the gardener's timezone, formatted YYYY-MM-DD. */
@@ -151,6 +152,8 @@ export interface ContainerDimensions {
 
 export interface GardenArea {
   id: string;
+  /** Which garden it belongs to; absent = the home garden. */
+  gardenId?: string;
   name: string;
   type: AreaType;
   lengthM?: number;
@@ -238,6 +241,8 @@ export interface PlantingEvent {
 
 export interface Planting {
   id: string;
+  /** Which garden it belongs to; absent = the home garden. */
+  gardenId?: string;
   plantId: string;
   variety?: string;
   quantity: number;
@@ -275,6 +280,8 @@ export interface PlantingPhoto {
 
 export interface JournalEntry {
   id: string;
+  /** Which garden it belongs to; absent = the home garden. */
+  gardenId?: string;
   date: ISODate;
   text: string;
   plantingId?: string;
@@ -307,6 +314,8 @@ export interface SuccessionBatch {
 
 export interface SuccessionPlan {
   id: string;
+  /** Which garden it belongs to; absent = the home garden. */
+  gardenId?: string;
   plantId: string;
   areaId?: string;
   intervalDays: number;
@@ -395,6 +404,8 @@ export type ObservationKind =
 
 export interface Observation {
   id: string;
+  /** Which garden it belongs to; absent = the home garden. */
+  gardenId?: string;
   kind: ObservationKind;
   value: number;
   unit: string;
@@ -418,6 +429,10 @@ export interface AppSettings {
   hiddenPlantIds: string[];
   /** Download plant list updates between app releases (default on). */
   plantListUpdates?: boolean;
+  /** The garden currently shown when there are several (absent = home). */
+  activeGardenId?: string;
+  /** Android: check the forecast in the background and alert about frost, heat or heavy rain (default off). */
+  backgroundAlerts?: boolean;
 }
 
 /**
@@ -473,6 +488,8 @@ export interface GardenData {
   taskResponses: TaskResponse[];
   observations: Observation[];
   customPlants: CustomPlant[];
+  /** Gardens besides the home garden (whose location is in the profile). */
+  gardens: GardenSite[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -493,5 +510,6 @@ export function emptyGardenData(): GardenData {
     taskResponses: [],
     observations: [],
     customPlants: [],
+    gardens: [],
   };
 }

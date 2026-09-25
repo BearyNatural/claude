@@ -7,7 +7,7 @@ import { space } from '../src/ui/theme/theme';
 import { GoalsPicker, LocationPicker, TimeBudgetPicker, ZonePicker } from '../src/ui/forms/profileForms';
 
 export default function Profile() {
-  const { profile, store, data } = useGardenView();
+  const { profile, store, data, allData, garden, gardens } = useGardenView();
   const [location, setLocation] = useState<GardenLocation | null>(profile?.location ?? null);
   const [household, setHousehold] = useState(profile?.householdSize ?? 2);
   const [time, setTime] = useState<TimeBudget>(profile?.timeBudget ?? '1to2');
@@ -22,7 +22,15 @@ export default function Profile() {
 
   const save = async () => {
     try {
-      await store.saveProfile({ ...profile, gardenName: gardenName.trim() || undefined, location, householdSize: household, timeBudget: time, goals });
+      // Household, time and goals are for the gardener; name and location belong to the garden shown.
+      const home = allData.profile!;
+      if (!garden || garden.isHome) {
+        await store.saveProfile({ ...home, gardenName: gardenName.trim() || undefined, location, householdSize: household, timeBudget: time, goals });
+      } else {
+        await store.saveProfile({ ...home, householdSize: household, timeBudget: time, goals });
+        const site = allData.gardens.find((g) => g.id === garden.id);
+        if (site) await store.saveGarden({ ...site, name: gardenName.trim() || site.name, location });
+      }
       setSaved(true);
       setTimeout(() => router.back(), 600);
     } catch (e) {
@@ -33,7 +41,9 @@ export default function Profile() {
   return (
     <Screen>
       <T variant="small" muted>Your Garden Profile is stored only on this device. It personalises planting times, quantities and weekly jobs.</T>
-      <Field label="Garden name (optional)" value={gardenName} onChangeText={setGardenName} placeholder="e.g. Home garden" />
+      <Field label={gardens.length > 1 ? 'This garden\'s name' : 'Garden name (optional)'} value={gardenName} onChangeText={setGardenName} placeholder="e.g. Home garden" />
+      {gardens.length > 1 ? <T variant="tiny" muted>{`Editing “${garden?.name}”. Location, climate and map settings below are for this garden; household, time and goals apply to all your gardens.`}</T> : null}
+      <Button compact variant="ghost" icon="leaf-outline" label={gardens.length > 1 ? 'Switch or add gardens' : 'Add another garden'} onPress={() => router.push('/gardens')} />
       <Section title="Location">
         {changeLocation ? (
           <LocationPicker value={location} onChange={(l) => { setLocation(l); setChangeLocation(false); }} />

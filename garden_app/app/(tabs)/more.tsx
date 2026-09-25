@@ -7,7 +7,7 @@ import { BrandHeader } from '../../src/ui/components/garden';
 import { Card, ListRow, Screen, Section, T } from '../../src/ui/components/primitives';
 
 export default function More() {
-  const { profile, zone, data } = useGardenView();
+  const { profile, zone, data, gardens, garden } = useGardenView();
   return (
     <Screen>
       <BrandHeader />
@@ -15,6 +15,7 @@ export default function More() {
       <Section title="Your garden">
         <Card>
           <ListRow icon="person-circle-outline" title="Garden Profile" subtitle={`${describeLocation(profile?.location)}${zone ? ` · ${CLIMATE_ZONES[zone].name}` : ''} · ${profile?.householdSize ?? 1} people`} onPress={() => router.push('/profile')} />
+          <ListRow icon="leaf-outline" title="Gardens" subtitle={gardens.length > 1 ? `${gardens.length} gardens · showing ${garden?.name}` : 'Add another garden, e.g. a community plot'} onPress={() => router.push('/gardens')} />
           <ListRow icon="notifications-outline" title="Reminders & gardening days" subtitle={profile?.reminders.enabled ? 'On' : 'Off'} onPress={() => router.push('/reminders')} />
           <ListRow icon="calendar-outline" title="Seasonal calendar" onPress={() => router.push('/calendar')} />
           <ListRow icon="heart-outline" title="Wish list" subtitle={`${data.wishlist.length} plants`} onPress={() => router.push('/wishlist')} />

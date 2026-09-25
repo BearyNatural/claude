@@ -1,8 +1,12 @@
 # ── garden_app (Sow by Season) — publish the browser version ─────────────────
-# Builds the web version of the app and publishes it to the /garden/ folder of
-# BearyNatural/BearyNatural.github.io (daydreaminginthecloud.bearynatural.dev/garden/).
-# Only that folder is replaced; the rest of the site is untouched except for a
-# small script in its 404 page that sends /garden/... links back into the app.
+# Builds the web version of the app and publishes it to the /sow-by-season/
+# folder of BearyNatural/BearyNatural.github.io
+# (daydreaminginthecloud.bearynatural.dev/sow-by-season/). Only that folder is
+# replaced; the rest of the site is untouched except for:
+#   - a small script in its 404 page that sends /sow-by-season/... links back
+#     into the app (static hosting has no per-page files),
+#   - /garden/, the first address used, which now just redirects,
+#   - .nojekyll, so folders starting with "_" (the app's _expo files) are served.
 #
 # The browser build never contains private tokens — its files are public.
 # It includes the latest plant list at build time, so plant data changes on
@@ -59,8 +63,8 @@ jobs:
         # No EXPO_PUBLIC_PLANT_DATA_TOKEN here on purpose: web files are public.
         run: |
           npx expo export --platform web --output-dir dist
-          node scripts/prepare-web.mjs dist /garden
-      - name: Publish to daydreaminginthecloud.bearynatural.dev/garden/
+          node scripts/prepare-web.mjs dist /sow-by-season
+      - name: Publish to daydreaminginthecloud.bearynatural.dev/sow-by-season/
         env:
           DEPLOY_KEY: ${{ secrets.SITE_DEPLOY_KEY }}
         run: |
@@ -75,26 +79,33 @@ jobs:
           export GIT_SSH_COMMAND="ssh -i ~/.ssh/site_key -o IdentitiesOnly=yes"
           SITE="$RUNNER_TEMP/site"
           git clone --depth 1 git@github.com:BearyNatural/BearyNatural.github.io.git "$SITE"
+          rm -rf "$SITE/sow-by-season"
+          mkdir -p "$SITE/sow-by-season"
+          cp -R dist/. "$SITE/sow-by-season/"
+          # The first address (/garden/) now only redirects to the new one.
           rm -rf "$SITE/garden"
           mkdir -p "$SITE/garden"
-          cp -R dist/. "$SITE/garden/"
-          # Deep links: the site's 404 page must send /garden/... back into the app.
-          if [ -f "$SITE/404.html" ] && ! grep -q "Sow by Season (/garden/)" "$SITE/404.html"; then
+          printf '%s\n' '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Sow by Season has moved</title><meta http-equiv="refresh" content="0; url=/sow-by-season/"><link rel="canonical" href="/sow-by-season/"></head><body><p>Sow by Season has moved to <a href="/sow-by-season/">/sow-by-season/</a>.</p></body></html>' > "$SITE/garden/index.html"
+          # 404 page: replace any earlier Sow by Season script with the current one.
+          if [ -f "$SITE/404.html" ]; then
             node -e '
               const fs = require("fs"); const f = process.argv[1];
-              const s = fs.readFileSync(f, "utf8");
-              const tag = "<script>/* Sow by Season (/garden/): reopen links to pages inside the app. */(function(){var p=location.pathname;if(p.indexOf(\"/garden/\")===0&&p!==\"/garden/\")location.replace(\"/garden/?to=\"+encodeURIComponent(p+location.search));})();</script>";
+              let s = fs.readFileSync(f, "utf8");
+              s = s.replace(/\s*<script>(?:(?!<\/script>)[\s\S])*?Sow by Season \([\s\S]*?<\/script>/g, "");
+              const tag = "<script>/* Sow by Season (/sow-by-season/): reopen links to pages inside the app. */(function(){var p=location.pathname,b=\"/sow-by-season/\";if(p.indexOf(\"/garden/\")===0)p=b+p.slice(8);if(p.indexOf(b)===0&&p!==b)location.replace(b+\"?to=\"+encodeURIComponent(p+location.search));})();</script>";
               fs.writeFileSync(f, s.replace(/<head>/i, "<head>\n    " + tag));
             ' "$SITE/404.html"
           fi
+          # GitHub Pages' Jekyll step skips folders starting with "_" (like sow-by-season/_expo); serve files as-is.
+          touch "$SITE/.nojekyll"
           cd "$SITE"
-          git add -A garden 404.html
+          git add -A sow-by-season garden 404.html .nojekyll
           if git diff --cached --quiet; then echo "Browser version unchanged."; exit 0; fi
           VERSION=$(node -p 'require(process.env.GITHUB_WORKSPACE + "/garden_app/app.json").expo.version')
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -q -m "Sow by Season browser version ${VERSION}"
           git push origin HEAD:main
-          echo "Published Sow by Season ${VERSION} to /garden/."
+          echo "Published Sow by Season ${VERSION} to /sow-by-season/."
       - name: Remove the deploy key
         if: always()
         run: rm -f ~/.ssh/site_key

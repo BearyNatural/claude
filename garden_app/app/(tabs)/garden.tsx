@@ -16,6 +16,7 @@ import { AREA_TYPE_LABELS } from '../../src/ui/forms/areaForm';
 import { space, usePalette } from '../../src/ui/theme/theme';
 import { isInArea } from '../../src/domain/plantingAreas';
 import { latestPhotoUri } from '../../src/ui/components/photos';
+import { GardenSwitcher } from '../../src/ui/components/garden';
 
 function UsageBar({ ratio }: { ratio: number }) {
   const p = usePalette();
@@ -32,7 +33,7 @@ function UsageBar({ ratio }: { ratio: number }) {
 }
 
 export default function Garden() {
-  const { data, today, store } = useGardenView();
+  const { data, today, store, gardens, garden } = useGardenView();
   const [showPast, setShowPast] = useState(false);
 
   const rows = useMemo(
@@ -62,8 +63,9 @@ export default function Garden() {
 
   return (
     <Screen>
+      <GardenSwitcher gardens={gardens} activeId={garden?.id} onSwitch={(id) => void store.setActiveGarden(id)} />
       <Row style={{ justifyContent: 'space-between' }}>
-        <T variant="small" muted style={{ flex: 1 }}>What&apos;s growing, where, and what happens next.</T>
+        <T variant="small" muted style={{ flex: 1 }}>{gardens.length > 1 ? `${garden?.name}: what's growing, where, and what happens next.` : 'What\'s growing, where, and what happens next.'}</T>
         <Button compact icon="add" label="Add planting" onPress={() => router.push('/planting/new')} />
       </Row>
 

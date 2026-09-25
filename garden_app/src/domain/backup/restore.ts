@@ -8,6 +8,7 @@ import { emptyGardenData, type GardenData } from '../types';
 import {
   validateArea,
   validateCustomPlant,
+  validateGarden,
   validateJournal,
   validateObservation,
   validatePlanting,
@@ -163,6 +164,28 @@ export function parseBackup(text: string): ImportPreview | ImportError {
   data.taskResponses = collect('taskResponses', d.taskResponses, validateTaskResponse, skipped);
   data.observations = collect('observations', d.observations, validateObservation, skipped);
   data.customPlants = collect('customPlants', d.customPlants, validateCustomPlant, skipped);
+  data.gardens = collect('gardens', d.gardens, validateGarden, skipped);
+
+  // Records for a garden that isn't in the backup go to the home garden.
+  const gardenIds = new Set(data.gardens.map((g) => g.id));
+  let homeless = 0;
+  const rehome = <T extends { gardenId?: string }>(xs: T[]): T[] =>
+    xs.map((x) => {
+      if (!x.gardenId || gardenIds.has(x.gardenId)) return x;
+      homeless++;
+      const { gardenId: _g, ...rest } = x;
+      return rest as T;
+    });
+  data.areas = rehome(data.areas);
+  data.plantings = rehome(data.plantings);
+  data.journal = rehome(data.journal);
+  data.successionPlans = rehome(data.successionPlans);
+  data.observations = rehome(data.observations);
+  if (homeless) warnings.push(`${homeless} record${homeless > 1 ? 's belonged' : ' belonged'} to a garden that isn't in the backup; they'll be shown in your home garden.`);
+  if (data.settings.activeGardenId && !gardenIds.has(data.settings.activeGardenId)) {
+    const { activeGardenId: _a, ...rest } = data.settings;
+    data.settings = rest;
+  }
 
   // Referential tidy-up: dangling area references are cleared, not fatal.
   const areaIds = new Set(data.areas.map((a) => a.id));
@@ -197,6 +220,7 @@ export function parseBackup(text: string): ImportPreview | ImportError {
     wishlist: data.wishlist.length,
     successionPlans: data.successionPlans.length,
     customPlants: data.customPlants.length,
+    gardens: data.gardens.length,
   };
   const total = Object.values(counts).reduce((s, n) => s + n, 0);
   if (total === 0 && !data.profile) return fail('no-data', 'The backup contains no readable garden data. Nothing was changed.');
