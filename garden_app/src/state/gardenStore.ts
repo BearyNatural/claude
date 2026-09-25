@@ -54,6 +54,8 @@ import { areaIdsOf, isInArea, toAreaIds } from '../domain/plantingAreas';
 import { coordinatesForPostcode } from '../services/location/geocode';
 import { memoryPhotoFiles, type PhotoFiles } from '../services/photos/photoFiles';
 import type { CatalogueUpdates } from '../services/catalogue/catalogueUpdates';
+import type { SuggestionSender } from '../services/plants/plantSuggestions';
+import type { AppRelease, AppUpdates } from '../services/updates/appUpdates';
 import type { CollectionName, GardenRepository, LoadProblem } from '../services/storage/gardenRepository';
 import type { WeatherService } from '../services/weather/weatherService';
 
@@ -91,6 +93,8 @@ export interface StoreState {
   /** Bumped whenever the catalogue changes (own plants added, plant list updated). */
   catalogueRev: number;
   catalogueInfo: CatalogueInfo;
+  /** A newer version of the phone app, when one has been released. */
+  appUpdate: AppRelease | null;
 }
 
 const EVENT_STAGE: Partial<Record<PlantingEventType, GrowthStage>> = {
@@ -117,6 +121,7 @@ export class GardenStore {
     now: new Date(),
     catalogueRev: 0,
     catalogueInfo: { version: CATALOGUE_VERSION, fromUpdate: false, added: 0 },
+    appUpdate: null,
   };
   private feed: ParsedFeed | null = null;
 
@@ -126,7 +131,15 @@ export class GardenStore {
     private clock: () => Date = () => new Date(),
     private photos: PhotoFiles = memoryPhotoFiles(),
     private plantList: CatalogueUpdates | null = null,
+    private appUpdates: AppUpdates | null = null,
+    /** Sends an opted-in plant to the plant list suggestions inbox (absent where sharing isn't available). */
+    private shareSuggestion: SuggestionSender | null = null,
   ) {}
+
+  /** Whether plants can be shared from this copy of the app. */
+  get canSharePlants(): boolean {
+    return !!this.shareSuggestion;
+  }
 
   subscribe = (fn: () => void) => {
     this.listeners.add(fn);
@@ -149,12 +162,15 @@ export class GardenStore {
   async init() {
     try {
       const { data, problems } = await this.repo.load();
+      await this.photos.ready?.();
       const cached = await this.weatherService.cached();
       this.feed = (await this.plantList?.cached()) ?? null;
       this.set({ status: 'ready', data, problems, weather: { snapshot: cached, loading: false }, now: this.clock() });
       this.applyCatalogue();
       void this.refreshWeather();
       if (data.settings.plantListUpdates !== false) void this.checkPlantList();
+      void this.checkAppUpdate();
+      void this.sendPendingShares();
     } catch (e) {
       this.set({ status: 'error', loadError: e instanceof Error ? e.message : String(e) });
     }
@@ -210,6 +226,13 @@ export class GardenStore {
     });
   }
 
+  /** Look for a newer version of the phone app (daily at most, unless forced). */
+  async checkAppUpdate(force = false) {
+    if (!this.appUpdates) return;
+    const appUpdate = await this.appUpdates.check(force);
+    this.set({ appUpdate });
+  }
+
   /** Download a newer plant list if there is one (daily at most, unless forced). */
   async checkPlantList(force = false) {
     if (!this.plantList) return;
@@ -225,7 +248,23 @@ export class GardenStore {
     const rec: CustomPlant = { ...input, id: existing?.id ?? newId(CUSTOM_PREFIX.slice(0, -1)), createdAt: existing?.createdAt ?? now, updatedAt: now };
     const saved = await this.putRecord('customPlants', rec);
     this.applyCatalogue();
+    if (saved.share?.status === 'pending') void this.sendPendingShares();
     return saved;
+  }
+
+  /** Send any plants the gardener chose to share that haven't gone yet (e.g. added while offline). */
+  async sendPendingShares() {
+    if (!this.shareSuggestion) return;
+    const zone = effectiveZone(this.state.data.profile?.location);
+    for (const c of this.state.data.customPlants.filter((x) => x.share?.status === 'pending')) {
+      try {
+        const ref = await this.shareSuggestion(c, zone);
+        const latest = this.state.data.customPlants.find((x) => x.id === c.id);
+        if (latest?.share?.status === 'pending') await this.putRecord('customPlants', { ...latest, share: { status: 'shared', sharedAt: this.nowIso(), ...(ref ? { ref } : {}) } });
+      } catch {
+        // Stays pending; tried again next time the app opens.
+      }
+    }
   }
 
   /** Remove one of the gardener's own plants — refused while plantings or the wish list still use it. */

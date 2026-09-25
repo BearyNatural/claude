@@ -1,9 +1,9 @@
 {
   "name": "sow-by-season",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "description": "Sow by Season by BearyNatural — an Australian garden-planning assistant.",
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -37,6 +37,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-android-widget": "^0.22.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-web": "^0.21.2"

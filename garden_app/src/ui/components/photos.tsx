@@ -1,6 +1,6 @@
 /**
  * Photos kept with a planting: take one, add from the gallery, add a caption,
- * or remove. Files live in the app's own storage on this phone.
+ * or remove. Files live in the app's own storage on this device.
  */
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
@@ -13,7 +13,7 @@ import { Button, Card, Field, Notice, Row, T } from './primitives';
 
 const THUMB = 84;
 
-/** The newest photo of a planting that is on this phone, for list thumbnails. */
+/** The newest photo of a planting that is on this device, for list thumbnails. */
 export function latestPhotoUri(p: Planting, store: { photoExists(f: string): boolean; photoUri(f: string): string }): string | undefined {
   const ph = [...(p.photos ?? [])].reverse().find((x) => store.photoExists(x.file));
   return ph ? store.photoUri(ph.file) : undefined;
@@ -67,7 +67,7 @@ export function PlantingPhotos({ planting, store, today }: { planting: Planting;
                 <Image source={{ uri: store.photoUri(ph.file) }} style={{ width: THUMB, height: THUMB, backgroundColor: p.primarySoft }} />
               ) : (
                 <View style={{ width: THUMB, height: THUMB, backgroundColor: p.primarySoft, alignItems: 'center', justifyContent: 'center', padding: 4 }}>
-                  <T variant="tiny" muted style={{ textAlign: 'center' }}>Not on this phone</T>
+                  <T variant="tiny" muted style={{ textAlign: 'center' }}>Not on this device</T>
                 </View>
               )}
             </Pressable>
@@ -82,7 +82,7 @@ export function PlantingPhotos({ planting, store, today }: { planting: Planting;
           {store.photoExists(open.file) ? (
             <Image source={{ uri: store.photoUri(open.file) }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: 10, backgroundColor: p.primarySoft }} resizeMode="contain" accessibilityIgnoresInvertColors />
           ) : (
-            <Notice tone="caution">This photo isn&apos;t on this phone — it may have been left out of a backup you restored.</Notice>
+            <Notice tone="caution">This photo isn&apos;t on this device — it may have been left out of a backup you restored.</Notice>
           )}
           <T variant="tiny" muted>{`Added ${formatDay(open.takenAt.slice(0, 10), today)}`}</T>
           <Field label="Caption (optional)" value={caption} onChangeText={setCaption} placeholder="e.g. First flowers, north side" />
@@ -105,7 +105,7 @@ export function PlantingPhotos({ planting, store, today }: { planting: Planting;
         <Button compact variant="secondary" icon="images-outline" label="Add from gallery" onPress={() => void add('library')} disabled={busy} />
       </Row>
       {message ? <Notice tone="caution">{message}</Notice> : null}
-      <T variant="tiny" muted>Photos stay on this phone (in the app&apos;s own storage, not your gallery) and are shrunk to save space. You can include them in backups.</T>
+      <T variant="tiny" muted>Photos stay on this device (in the app&apos;s own storage, not your gallery) and are shrunk to save space. You can include them in backups.</T>
     </View>
   );
 }

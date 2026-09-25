@@ -427,6 +427,10 @@ export function validateCustomPlant(v: unknown): Result<CustomPlant> {
       support: r.oneOf('support', SUPPORT_NEEDS, true),
       potOk: r.bool('potOk', true),
       notes: r.str('notes', true, 2000),
+      share: (() => {
+        const s = r.obj('share', true);
+        return s ? clean({ status: s.oneOf('status', ['pending', 'shared'] as const), sharedAt: s.dateTime('sharedAt', true), ref: s.num('ref', true, 1, 1e9, true) }) : undefined;
+      })(),
       createdAt: r.dateTime('createdAt'),
       updatedAt: r.dateTime('updatedAt'),
     });

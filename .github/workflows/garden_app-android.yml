@@ -24,6 +24,9 @@ on:
       # Workflows that don't change the app itself.
       - '!garden_app/ci/garden_app-plant-data.yml'
       - '!garden_app/ci/garden_app-token-check.yml'
+      - '!garden_app/ci/garden_app-plant-suggestions.yml'
+      - '!garden_app/scripts/check-plant-suggestions.ts'
+      - '!garden_app/ci/garden_app-web.yml'
   workflow_dispatch:
     inputs:
       reason:
@@ -181,3 +184,34 @@ jobs:
             4. To update later, install the newest release over the top — your garden data is kept.
 
             Trigger: ${{ github.event_name }} ${{ github.event.inputs.reason }} · Signing: `${{ env.SIGNING }}` · Commit: ${{ github.sha }}
+
+      # Tells installed apps a new version exists (read with their read-only
+      # plant list token). Written to the private plant data repository.
+      - name: Announce the new version to installed apps
+        env:
+          DEPLOY_KEY: ${{ secrets.PLANT_DATA_DEPLOY_KEY }}
+          TAG: garden_app-v${{ env.VERSION }}-build${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOY_KEY:-}" ]; then echo "::warning title=garden_app update notice::PLANT_DATA_DEPLOY_KEY missing — installed apps won't be told about this version."; exit 0; fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/plant_data_key
+          chmod 600 ~/.ssh/plant_data_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/plant_data_key -o IdentitiesOnly=yes"
+          git clone --depth 1 git@github.com:BearyNatural/sow-by-season-plant-data.git "$RUNNER_TEMP/plant-data"
+          cd "$RUNNER_TEMP/plant-data"
+          node -e '
+            const fs = require("fs");
+            fs.writeFileSync("app-version.json", JSON.stringify({
+              version: process.env.VERSION,
+              build: Number(process.env.GITHUB_RUN_NUMBER),
+              url: `https://github.com/BearyNatural/claude/releases/tag/${process.env.TAG}`,
+              publishedAt: new Date().toISOString(),
+            }, null, 2) + "\n");
+          '
+          git add app-version.json
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "App version ${VERSION} (build ${GITHUB_RUN_NUMBER})"
+          git push -q origin HEAD:main
+          rm -f ~/.ssh/plant_data_key
+          echo "Installed apps will be told about ${VERSION}."

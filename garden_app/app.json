@@ -3,7 +3,7 @@
     "name": "Sow by Season",
     "slug": "sow-by-season",
     "scheme": "sowbyseason",
-    "version": "1.5.1",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -58,10 +58,32 @@
           "cameraPermission": "Take photos of your plants to keep with your garden records.",
           "microphonePermission": false
         }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "ThisWeek",
+              "label": "Sow by Season",
+              "description": "This week's garden jobs, weather and what to plant",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "maxResizeWidth": "480dp",
+              "maxResizeHeight": "320dp",
+              "resizeMode": "horizontal|vertical",
+              "previewImage": "./assets/widget-preview.png",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
       ]
     ],
     "experiments": {
-      "typedRoutes": false
+      "typedRoutes": false,
+      "baseUrl": "/garden"
     }
   }
 }

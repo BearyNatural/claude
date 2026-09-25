@@ -1,5 +1,5 @@
 import React from 'react';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { SOURCES } from '../src/data/sources';
 import { formatDay } from '../src/domain/dates';
 import { ENV } from '../src/services/env';
@@ -18,6 +18,7 @@ export default function About() {
     expert: listed.filter((p) => p.review.status === 'expert-reviewed').length,
   };
   const updatesOn = data.settings.plantListUpdates !== false;
+  const web = Platform.OS === 'web';
   return (
     <Screen>
       <BrandHeader />
@@ -26,6 +27,11 @@ export default function About() {
         Planting windows, quantities and dates are typical ranges from Australian references and planning estimates. Local conditions, varieties, weather and pests all change results. You can always plant outside the suggestions.
       </Notice>
       <Section title="Plant list updates">
+        {web ? (
+          <Card>
+            <T variant="small">The browser version always has the latest plant list — it&apos;s updated whenever the website is, so just reload the page.</T>
+          </Card>
+        ) : (
         <Card>
           <T variant="small">
             {updatesOn
@@ -51,6 +57,7 @@ export default function About() {
             />
           </Row>
         </Card>
+        )}
       </Section>
       <Section title="Plant data quality">
         <Card>
@@ -88,6 +95,12 @@ export default function About() {
         <Card>
           <T variant="small">Satellite imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community. Address search © OpenStreetMap contributors (Photon by Komoot, Nominatim; ODbL). Map display by Leaflet. Sizes measured from satellite photos are approximate.</T>
           <Button compact variant="ghost" icon="open-outline" label="openstreetmap.org/copyright" onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')} />
+        </Card>
+      </Section>
+      <Section title="Photography">
+        <Card>
+          <T variant="small">Home screen photo by Markus Spiske on Unsplash (Unsplash Licence).</T>
+          <Button compact variant="ghost" icon="open-outline" label="View on Unsplash" onPress={() => Linking.openURL('https://unsplash.com/photos/bk11wZwb9F4')} />
         </Card>
       </Section>
     </Screen>

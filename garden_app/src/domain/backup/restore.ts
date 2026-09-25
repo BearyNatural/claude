@@ -184,8 +184,8 @@ export function parseBackup(text: string): ImportPreview | ImportError {
   if (referenced.length && missing) {
     warnings.push(
       missing === referenced.length
-        ? 'This backup was saved without photos. Plant records are restored; any photos already on this phone for those plants are kept.'
-        : `${missing} photo${missing > 1 ? 's are' : ' is'} not in this backup; ${missing > 1 ? 'they' : 'it'} will only show if already on this phone.`,
+        ? 'This backup was saved without photos. Plant records are restored; any photos already on this device for those plants are kept.'
+        : `${missing} photo${missing > 1 ? 's are' : ' is'} not in this backup; ${missing > 1 ? 'they' : 'it'} will only show if already on this device.`,
     );
   }
 

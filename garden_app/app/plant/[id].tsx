@@ -91,6 +91,11 @@ export default function PlantDetail() {
       {plant.origin === 'yours' ? (
         <Card tone="info">
           <T variant="small">A plant you added. Its details are the ones you entered, and it&apos;s kept in your backups.</T>
+          {(() => {
+            const own = data.customPlants.find((c) => c.id === plant.id);
+            if (!own?.share) return null;
+            return <T variant="tiny" muted>{own.share.status === 'shared' ? 'Shared with the plant list — it will be checked before being added for everyone.' : 'Waiting to be shared with the plant list (sends when online).'}</T>;
+          })()}
           <Button compact variant="secondary" icon="create-outline" label="Edit your plant" onPress={() => router.push({ pathname: '/plant/custom', params: { id: plant.id } })} />
         </Card>
       ) : plant.origin === 'update' ? (

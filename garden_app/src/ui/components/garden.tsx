@@ -5,7 +5,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, ImageBackground, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GLOSSARY } from '../../data/glossary';
 import { searchByText } from '../../domain/catalogue';
 import { CLIMATE_ZONES } from '../../domain/climate';
@@ -18,7 +18,7 @@ import { describeAge, describeSoilTemperature, type WeatherAssessment } from '..
 import { catalogue } from '../../state/gardenStore';
 import { useGardenState } from '../../state/hooks';
 import { radius, space, TOUCH, type, usePalette } from '../theme/theme';
-import { Badge, Button, Card, Chip, IconButton, Notice, Row, T, toneColors, type IconName, type Tone } from './primitives';
+import { Badge, Button, Card, Chip, IconButton, Notice, Row, T, toneColors, useWideLayout, type IconName, type Tone } from './primitives';
 
 // ---------------------------------------------------------------------------
 // Brand
@@ -117,6 +117,32 @@ export function MonthStrip({ label, months, today, tone = 'good' }: { label: str
         })}
       </View>
     </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Home banner
+// ---------------------------------------------------------------------------
+
+/** Photo: Markus Spiske on Unsplash (Unsplash Licence) — lettuce and chives in a raised bed. */
+const HERO = require('../../../assets/hero-garden.jpg');
+
+export function GardenBanner({ title, subtitle }: { title: string; subtitle?: string }) {
+  const wide = useWideLayout();
+  return (
+    <ImageBackground
+      source={HERO}
+      resizeMode="cover"
+      style={{ height: wide ? 220 : 140, borderRadius: radius.lg, overflow: 'hidden', justifyContent: 'flex-end' }}
+      imageStyle={{ borderRadius: radius.lg }}
+      accessibilityRole="image"
+      accessibilityLabel="Lettuces and chives growing in a raised garden bed"
+    >
+      <View style={{ padding: space.md, backgroundColor: 'rgba(12, 30, 18, 0.45)' }}>
+        <Text style={[type.h2, { color: '#FFFFFF' }]}>{title}</Text>
+        {subtitle ? <Text style={[type.small, { color: '#F1F5EC' }]}>{subtitle}</Text> : null}
+      </View>
+    </ImageBackground>
   );
 }
 

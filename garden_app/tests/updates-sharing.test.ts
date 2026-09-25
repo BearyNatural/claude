@@ -1,0 +1,119 @@
+/// <reference types="node" />
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import type { CustomPlant } from '../src/domain/types';
+import { validateCustomPlant } from '../src/domain/validation';
+import { submitSuggestion, suggestionIssue, suggestionPayload } from '../src/services/plants/plantSuggestions';
+import { MemoryStore } from '../src/services/storage/keyValueStore';
+import { AppUpdates, compareVersions, parseAppRelease } from '../src/services/updates/appUpdates';
+import { GardenRepository } from '../src/services/storage/gardenRepository';
+import { WeatherService } from '../src/services/weather/weatherService';
+import { GardenStore } from '../src/state/gardenStore';
+import { NOW_ISO, profile } from './helpers';
+
+const NOW = new Date(NOW_ISO);
+const RELEASE = { version: '1.7.0', url: 'https://github.com/BearyNatural/claude/releases/tag/garden_app-v1.7.0-build20' };
+
+describe('new version notice', () => {
+  it('only offers newer releases with a link to this app\'s own release pages', () => {
+    assert.ok(compareVersions('1.10.0', '1.9.9') > 0);
+    assert.deepEqual(parseAppRelease(RELEASE, '1.6.0')?.version, '1.7.0');
+    assert.equal(parseAppRelease(RELEASE, '1.7.0'), null, 'same version');
+    assert.equal(parseAppRelease(RELEASE, '1.8.0'), null, 'older');
+    assert.equal(parseAppRelease({ ...RELEASE, url: 'https://evil.example/app.apk' }, '1.6.0'), null, 'links elsewhere are ignored');
+    assert.equal(parseAppRelease({ version: 'latest', url: RELEASE.url }, '1.6.0'), null);
+  });
+
+  it('checks at most daily with the read-only token, and remembers what it found', async () => {
+    let calls = 0;
+    const kv = new MemoryStore();
+    const svc = new AppUpdates(kv, '1.6.0', { now: () => NOW, token: 't', fetch: async () => { calls++; return { ok: true, status: 200, json: async () => RELEASE }; } });
+    assert.equal((await svc.check())?.version, '1.7.0');
+    assert.equal((await svc.check())?.version, '1.7.0');
+    assert.equal(calls, 1);
+    const noToken = new AppUpdates(new MemoryStore(), '1.6.0', { now: () => NOW, fetch: async () => { calls++; return { ok: true, status: 200, json: async () => RELEASE }; } });
+    assert.equal(await noToken.check(true), null);
+    assert.equal(calls, 1, 'no request without a token');
+  });
+});
+
+const PLANT: CustomPlant = {
+  id: 'custom_abc',
+  commonName: 'Lilly pilly',
+  botanicalName: 'Syzygium australe',
+  familyName: 'Myrtaceae',
+  categories: ['native', 'tree'],
+  lifecycle: 'perennial',
+  startMethods: ['tree'],
+  plantMonths: [9, 10],
+  notes: 'Hedges well.',
+  share: { status: 'pending' },
+  createdAt: NOW_ISO,
+  updatedAt: NOW_ISO,
+};
+
+describe('sharing plants with the plant list (opt-in)', () => {
+  it('sends only plant details, notes and the climate zone', () => {
+    const p = suggestionPayload(PLANT, 'subtropical', '1.6.0');
+    assert.deepEqual(Object.keys(p).sort(), ['appVersion', 'climateZone', 'formatVersion', 'kind', 'plant']);
+    const sent = JSON.stringify(p);
+    for (const notSent of ['custom_abc', 'share', 'createdAt', 'pending']) assert.ok(!sent.includes(notSent), notSent);
+    const issue = suggestionIssue(PLANT, 'subtropical', '1.6.0');
+    assert.match(issue.title, /Lilly pilly \(Syzygium australe\)/);
+    assert.match(issue.body, /Unverified/);
+    assert.deepEqual(issue.labels, ['plant-suggestion']);
+  });
+
+  it('files a suggestion with the token, and refuses without one', async () => {
+    let sent: { url: string; auth?: string; body: string } | null = null;
+    const ref = await submitSuggestion(PLANT, 'subtropical', {
+      token: 'tok',
+      appVersion: '1.6.0',
+      fetch: async (url, init) => {
+        sent = { url, auth: init.headers.Authorization, body: init.body };
+        return { ok: true, status: 201, json: async () => ({ number: 42 }) };
+      },
+    });
+    assert.equal(ref, 42);
+    assert.match(sent!.url, /sow-by-season-plant-data\/issues$/);
+    assert.equal(sent!.auth, 'Bearer tok');
+    await assert.rejects(submitSuggestion(PLANT, null, { appVersion: '1', fetch: async () => ({ ok: true, status: 201, json: async () => ({}) }) }));
+  });
+
+  it('keeps an opted-in plant pending while offline and sends it later', async () => {
+    let online = false;
+    const sentNames: string[] = [];
+    const kv = new MemoryStore();
+    const store = new GardenStore(new GardenRepository(kv, () => NOW), new WeatherService(kv, { fetch: async () => { throw new Error('offline'); }, now: () => NOW }), () => NOW, undefined, null, null, async (c) => {
+      if (!online) throw new Error('offline');
+      sentNames.push(c.commonName);
+      return 7;
+    });
+    await store.init();
+    const { createdAt: _c, updatedAt: _u, id: _i, ...p } = profile();
+    await store.saveProfile(p);
+    const { id: _id, createdAt: _cr, updatedAt: _up, ...input } = PLANT;
+    const saved = await store.saveCustomPlant(input);
+    await store.sendPendingShares();
+    assert.equal(store.state.data.customPlants[0].share?.status, 'pending');
+    online = true;
+    await store.sendPendingShares();
+    const after = store.state.data.customPlants.find((c) => c.id === saved.id)!;
+    assert.deepEqual([after.share?.status, after.share?.ref], ['shared', 7]);
+    assert.deepEqual(sentNames, ['Lilly pilly']);
+    await store.sendPendingShares();
+    assert.equal(sentNames.length, 1, 'sent once only');
+    assert.ok(validateCustomPlant(after).ok, 'share status is stored validly');
+  });
+
+  it('never shares a plant that wasn\'t opted in', async () => {
+    let calls = 0;
+    const kv = new MemoryStore();
+    const store = new GardenStore(new GardenRepository(kv, () => NOW), new WeatherService(kv, { fetch: async () => { throw new Error('offline'); }, now: () => NOW }), () => NOW, undefined, null, null, async () => { calls++; return 1; });
+    await store.init();
+    const { id: _id, createdAt: _cr, updatedAt: _up, share: _s, ...input } = PLANT;
+    await store.saveCustomPlant(input);
+    await store.sendPendingShares();
+    assert.equal(calls, 0);
+  });
+});

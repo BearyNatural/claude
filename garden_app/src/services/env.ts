@@ -11,5 +11,5 @@ export const ENV = {
    * repository's plant data. Absent in local builds: updates are then skipped.
    */
   plantDataToken: process.env.EXPO_PUBLIC_PLANT_DATA_TOKEN || undefined,
-  appVersion: '1.5.1',
+  appVersion: '1.6.0',
 };

@@ -4,14 +4,14 @@
  */
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { CLIMATE_ZONES, seasonFor } from '../../src/domain/climate';
 import { formatDay } from '../../src/domain/dates';
 import { SECTION_LABELS } from '../../src/domain/tasks';
 import type { GardenTask, TaskSection } from '../../src/domain/types';
 import { roundMinutes } from '../../src/domain/workload';
 import { useGardenView } from '../../src/state/hooks';
-import { BrandHeader, TaskCard, WeatherCard } from '../../src/ui/components/garden';
+import { BrandHeader, GardenBanner, TaskCard, WeatherCard } from '../../src/ui/components/garden';
 import { Badge, Button, Card, EmptyState, Notice, Row, Screen, Section, T } from '../../src/ui/components/primitives';
 import { completeTask, deferToGardeningDay, snoozeTask } from '../../src/ui/taskActions';
 import { space } from '../../src/ui/theme/theme';
@@ -56,10 +56,21 @@ export default function ThisWeek() {
     <Screen safeTop>
       <View style={{ gap: 4 }}>
         <BrandHeader compact />
-        <T variant="small" muted>
-          {`${formatDay(today)} · ${season.label}${zone ? ` · ${CLIMATE_ZONES[zone].name}` : ''}${profile?.location.suburb ? ` · ${profile.location.suburb}` : ''}`}
-        </T>
       </View>
+      {v.state.appUpdate ? (
+        <Notice
+          tone="info"
+          icon="arrow-up-circle-outline"
+          title={`Sow by Season ${v.state.appUpdate.version} is available`}
+          action={<Button compact icon="download-outline" label="Download" onPress={() => void Linking.openURL(v.state.appUpdate!.url)} />}
+        >
+          Opens the release page. Download the new file and tap Install — your garden data is kept.
+        </Notice>
+      ) : null}
+      <GardenBanner
+        title={`${season.label} in ${profile?.location.suburb ?? 'your garden'}`}
+        subtitle={`${formatDay(today)}${zone ? ` · ${CLIMATE_ZONES[zone].name}` : ''}`}
+      />
 
       {v.state.problems.length ? (
         <Notice tone="caution" title="Some saved records couldn't be read">

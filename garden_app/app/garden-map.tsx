@@ -144,7 +144,7 @@ export default function GardenMapScreen() {
         <Stack.Screen options={{ title: 'Garden map' }} />
         <T variant="title">Map your garden (optional)</T>
         <T variant="small">Find your place on a satellite map, then tap around each garden bed to measure it. The app works out the size for you.</T>
-        <Notice tone="info" icon="lock-closed-outline" title="Your address stays on this phone">
+        <Notice tone="info" icon="lock-closed-outline" title="Your address stays on this device">
           {'Your address and the outlines you draw are saved only on this device (and in backups you make). The search text is sent to an OpenStreetMap address search (Photon by Komoot, or Nominatim) to find it, and map images are loaded from Esri. Weather and climate still use your rounded suburb location. You can remove the address at any time.'}
         </Notice>
         <Field label="Street address" value={query} onChangeText={(t) => { setQuery(t); setResults(null); }} placeholder="e.g. 12 Example St, Strathpine" />

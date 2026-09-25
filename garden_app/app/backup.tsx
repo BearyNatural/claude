@@ -3,12 +3,15 @@
  * pick → validate → preview & warn → confirm → atomic replace.
  */
 import React, { useState } from 'react';
+import { Platform } from 'react-native';
 import { CATALOGUE_VERSION } from '../src/data/plants';
 import { backupFileName, createBackup, serialiseBackup } from '../src/domain/backup/format';
 import { parseBackup, type ImportPreview } from '../src/domain/backup/restore';
 import { formatDay } from '../src/domain/dates';
 import { canSaveToFolder, pickBackupFile, saveBackupToFolder, shareBackup } from '../src/services/backup/fileAccess';
 import { ENV } from '../src/services/env';
+import { autoBackup } from '../src/state/appStore';
+import { useAutoBackupSettings } from '../src/state/autoBackup';
 import { useGardenView } from '../src/state/hooks';
 import { Button, Card, Choice, Notice, Row, Screen, Section, T } from '../src/ui/components/primitives';
 import { space } from '../src/ui/theme/theme';
@@ -20,6 +23,7 @@ export default function Backup() {
   const [busy, setBusy] = useState(false);
   const photoCount = data.plantings.reduce((n, p) => n + (p.photos?.length ?? 0), 0);
   const [withPhotos, setWithPhotos] = useState(true);
+  const auto = useAutoBackupSettings(autoBackup);
 
   const makeJson = async () => {
     const photos = withPhotos && photoCount ? await store.photoFilesForBackup() : undefined;
@@ -76,9 +80,48 @@ export default function Backup() {
 
   return (
     <Screen>
-      <Notice tone="info" title="Your garden lives on this phone">
-        BearyNatural doesn&apos;t keep a copy. Clearing the app&apos;s data, uninstalling, or losing your phone can remove your garden records. A backup file protects them.
+      <Notice tone="info" title="Your garden lives on this device">
+        BearyNatural doesn&apos;t keep a copy — your garden and any personal details stay on your own device. Clearing the app&apos;s data, uninstalling, or losing your device can remove your garden records. Keep your backup in your own cloud storage (Google Drive, OneDrive or iCloud Drive): it protects your records and lets you open the same garden in the phone app and the browser version by restoring it there.
       </Notice>
+      <Section title="Automatic backup" subtitle={autoBackup.supported ? undefined : Platform.OS === 'web' ? 'Available in the Android app' : undefined}>
+        <Card>
+          {!autoBackup.supported ? (
+            <T variant="small">
+              {Platform.OS === 'web'
+                ? 'Browsers don\'t let websites save to your cloud storage by themselves, so in the browser use "Back up now" below and keep the file in Google Drive, OneDrive or iCloud Drive. The Android app can keep a backup up to date automatically.'
+                : 'Automatic backup isn\'t available on this device. Use "Back up now" below.'}
+            </T>
+          ) : auto ? (
+            <>
+              <T variant="small">{`On — keeping ${'SowBySeason-AutoBackup.json'} up to date in ${auto.folderName ? `“${auto.folderName}”` : 'your chosen folder'} whenever your garden changes.`}</T>
+              <T variant="tiny" muted>{auto.lastSavedAt ? `Last saved ${formatDay(auto.lastSavedAt.slice(0, 10), today)} at ${new Date(auto.lastSavedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : 'Not saved yet.'}</T>
+              {auto.lastError ? <Notice tone="caution">{auto.lastError}</Notice> : null}
+              {photoCount ? (
+                <Choice<'yes' | 'no'>
+                  label="Photos in the automatic backup"
+                  options={[
+                    { value: 'yes', label: 'Include photos' },
+                    { value: 'no', label: 'Records only (smaller file)' },
+                  ]}
+                  value={auto.includePhotos ? 'yes' : 'no'}
+                  onChange={(v) => void autoBackup.setIncludePhotos(v === 'yes')}
+                />
+              ) : null}
+              <Row wrap gap={space.sm}>
+                <Button compact icon="cloud-upload-outline" label={autoBackup.busy ? 'Saving…' : 'Save now'} loading={autoBackup.busy} onPress={() => void autoBackup.run(true)} />
+                <Button compact variant="secondary" icon="folder-outline" label="Change folder" onPress={() => void autoBackup.enable()} />
+                <Button compact variant="ghost" label="Turn off" onPress={() => void autoBackup.disable()} />
+              </Row>
+            </>
+          ) : (
+            <>
+              <T variant="small">Choose a folder once — for example in Google Drive or OneDrive — and the app keeps a backup there automatically whenever your garden changes. To use your garden in the browser or on a new phone, restore from that file.</T>
+              <Button icon="cloud-outline" label="Choose a backup folder" onPress={() => void autoBackup.enable()} />
+              <T variant="tiny" muted>Android asks you to pick the folder and gives the app access to that folder only.</T>
+            </>
+          )}
+        </Card>
+      </Section>
       <Section title="Make a backup" subtitle={data.settings.lastBackupAt ? `Last backup: ${formatDay(data.settings.lastBackupAt.slice(0, 10), today)}` : 'No backup yet'}>
         <Card>
           <T variant="small">Includes your Garden Profile, areas, plantings and their history, journal, wish list, succession plans, reminder settings, task history and — if you choose — your plant photos. If you use the garden map, your saved address and outlines are included too. The plant catalogue and weather aren&apos;t included — the app recreates them.</T>
@@ -87,7 +130,7 @@ export default function Backup() {
               label={`Photos (${photoCount})`}
               options={[
                 { value: 'yes', label: 'Include photos', description: `Keeps everything together. Adds roughly ${Math.max(1, Math.round(photoCount * 0.4))} MB to the backup file.` },
-                { value: 'no', label: 'Leave photos out', description: 'A small file with your records only. Photos stay on this phone.' },
+                { value: 'no', label: 'Leave photos out', description: 'A small file with your records only. Photos stay on this device.' },
               ]}
               value={withPhotos ? 'yes' : 'no'}
               onChange={(v) => setWithPhotos(v === 'yes')}

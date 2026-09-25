@@ -9,7 +9,7 @@ Sow by Season is a garden-planning app for Australian gardeners. It helps you an
 3. **What is happening in my garden?** Your plantings, their estimated growth stages, and a timeline of expected flowering and harvest that updates as you record what really happens.
 4. **What should I plant next?** Seasonal and succession-planting plans, your wish list, and structured systems such as Three Sisters.
 
-It runs on Android and iPhone, and in a browser for development. It is **local-first**: there's no account, BearyNatural keeps no server copy of your garden, and all the core features work offline.
+It runs as an **Android app** and in any **web browser** (which also works on iPhone — see below). It is **local-first**: there's no account, BearyNatural keeps no server copy of your garden, and your garden and any personal details stay on your own device.
 
 | This Week | Plant Now | Planting timeline | Plant detail |
 |---|---|---|---|
@@ -18,6 +18,42 @@ It runs on Android and iPhone, and in a browser for development. It is **local-f
 > **About these screenshots:** they come from a headless verification build that runs the app's real code (screens, store, gardening engine and storage) in Chromium, with a thin stand-in for React Native. The weather is mocked for the demo. They are **not** from a phone or from Expo's own web build. The development report explains why.
 
 ---
+
+## Getting the app
+
+| Where | How |
+|---|---|
+| **Android** | Install the APK from the latest release (steps below). Includes reminders, the home-screen widget, automatic cloud backup and update notices. |
+| **Any browser** | Open **https://daydreaminginthecloud.bearynatural.dev/garden/** (also linked from the Hobbies page). Works on computers, tablets and phones, and keeps working offline once opened. |
+| **iPhone / iPad** | Open that address in **Safari**, tap **Share → Add to Home Screen**. It opens like an app — no App Store or Apple account needed. (Phone reminders and the widget aren't available on iPhone.) |
+
+### Your garden stays on your device — keep a backup in your own cloud storage
+
+Everything you enter (your garden, plantings, photos, notes, address if you use the garden map) is stored **only on the device or browser you're using**. BearyNatural never receives it. That's private, but it also means the phone app and the browser each have **their own copy** — they don't sync by themselves.
+
+To protect your garden, and to use the same garden in both places, **back it up to your own cloud storage** (Google Drive, OneDrive, iCloud Drive or Dropbox):
+
+- **Android app — automatic:** More › **Backup & restore** › **Choose a backup folder**, and pick a folder in Google Drive or OneDrive. The app then keeps `SowBySeason-AutoBackup.json` up to date whenever your garden changes. You can include or leave out photos.
+- **Browser (and iPhone):** More › **Backup & restore** › **Back up now**, then save the file to your cloud storage. (Browsers can't save to cloud storage by themselves.)
+- **To move your garden** to a new phone or into the browser: More › **Backup & restore** › **Choose backup file**, and pick your latest backup from cloud storage. Restoring replaces what's on that device.
+
+### Updates
+
+- **Android:** when a new version is released, the app shows **"Sow by Season x.y is available — Download"** on the This Week screen. Tap it, download the file and tap **Install**. Your garden is kept. (Android always asks you to confirm installs from outside the Play Store — the app can't update itself silently.)
+- **Browser:** always up to date — just reload the page.
+- **Plant information** (new plants and corrections) updates on its own between versions: about daily in the Android app, and whenever the website is updated in the browser.
+
+### Home-screen widget (Android)
+
+Long-press your home screen › **Widgets** › **Sow by Season**. The widget shows this week's most important jobs, today's weather and what's good to plant now; tap it to open the app. It refreshes when you open the app and about every half hour.
+
+### Plants you add, and the shared plant list
+
+If a plant isn't in the list, add it with **"Add a plant that isn't listed"**. When adding a plant you can choose **"Share this plant to help grow the plant list"** (ticked by default — untick it to keep the plant to yourself). Shared plants are used to expand the Sow by Season plant list for everyone:
+
+- **Only plant information is shared** — the plant's name, type, planting months, sun/frost/pot details, your notes about it, and your climate zone (e.g. "subtropical"). **Never photos**, your location, address, garden, name or anything personal. Please keep personal details out of plant notes.
+- Nothing is added automatically: every shared plant is checked, and its growing details are **verified against reliable Australian sources** before it's added to the plant list.
+- Sharing needs the Android app; the browser version can't share.
 
 ## Install on an Android phone
 
@@ -30,7 +66,7 @@ New releases are built automatically by GitHub Actions (`ci/garden_app-android.y
 
 Every week the repository's **Weekly maintenance** workflow also scans this project (secrets, static analysis, vulnerable or badly-licensed dependencies, tests, type-check), updates dependencies to the newest Expo-compatible versions and, if tests still pass, bumps the patch version and publishes a new release. Problems are flagged in the run summary and in a GitHub issue named *Weekly maintenance: garden_app*.
 
-iPhone isn't packaged yet. Installing on an iPhone needs an Apple Developer account (TestFlight or the App Store).
+There's no native iPhone app (that needs an Apple Developer account); iPhone users use the browser version added to the home screen, as above.
 
 ## Contents
 
@@ -195,8 +231,11 @@ Copy `.env.example` to `.env`:
 
 In plain language, as it appears on the in-app **Privacy & your data** screen:
 
-- Your garden data is stored locally on your phone.
+- Your garden data is stored locally on your device (or in your browser, for the browser version). The phone app and the browser keep separate copies; move between them with a backup file in your own cloud storage.
 - BearyNatural doesn't maintain an online garden account or database.
+- **Plant sharing (optional, per plant):** plants you choose to share — plant details, your notes about them and your climate zone only; never photos or personal information — may be used to expand the Sow by Season plant list after being verified against reliable sources.
+- **Optional garden map:** your street address and garden outlines stay on your device.
+- **Photos** stay on your device and are only in backups if you choose.
 - Your location is used only for climate and weather advice. It's approximate (suburb or postcode, rounded coordinates), and the app never asks for GPS or background location.
 - Weather and place-search services receive the information they need to answer each request (approximate coordinates or search text, plus your IP address, as with any web request).
 - Clearing the app's data or uninstalling can remove your garden records. Make backups if you want extra protection.

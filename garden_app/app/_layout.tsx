@@ -1,16 +1,63 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { configureNotifications } from '../src/services/notifications/notificationService';
-import { appStore } from '../src/state/appStore';
-import { StoreProvider, useGardenState, useReminderSync } from '../src/state/hooks';
+import { appStore, autoBackup } from '../src/state/appStore';
+import { useAutoBackupRunner } from '../src/state/autoBackup';
+import { StoreProvider, useGardenState, useGardenView, useReminderSync } from '../src/state/hooks';
+import { CLIMATE_ZONES, seasonFor } from '../src/domain/climate';
+import { buildWidgetSnapshot } from '../src/widget/snapshot';
+import { pushWidgetSnapshot } from '../src/widget/widgetStore';
 import { Loading, Notice, Screen, T } from '../src/ui/components/primitives';
 import { usePalette } from '../src/ui/theme/theme';
 
+/**
+ * Browser version: the website's 404 page sends deep links back to the app as
+ * "/garden/?to=/garden/plant/tomato" (static hosting has no per-page files).
+ * Open the page they asked for.
+ */
+function WebDeepLink() {
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const to = new URLSearchParams(window.location.search).get('to');
+    if (!to || !to.startsWith('/garden/')) return;
+    const path = to.slice('/garden'.length);
+    window.history.replaceState(null, '', `/garden${path}`);
+    if (/^\/[\w\-/[\]%.?=&]*$/.test(path) && path !== '/') router.replace(path as never);
+  }, []);
+  return null;
+}
+
 function ReminderSync() {
   useReminderSync();
+  return null;
+}
+
+/** Keeps the Android home-screen widget in step with this week's garden. */
+function WidgetSync() {
+  const { today, zone, profile, weather, tasks, plantNow } = useGardenView();
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const snapshot = buildWidgetSnapshot({
+      today,
+      hasProfile: !!profile?.onboardingComplete,
+      seasonLabel: seasonFor(today, zone).label,
+      suburb: profile?.location.suburb,
+      zoneName: zone ? CLIMATE_ZONES[zone].name : undefined,
+      weather,
+      tasks,
+      plantNowNames: (plantNow.groups.find((g) => g.category === 'great')?.items ?? []).map((r) => r.plant.commonName),
+    });
+    void pushWidgetSnapshot(snapshot, profile?.location.timezone ?? 'Australia/Sydney');
+  }, [today, zone, profile, weather, tasks, plantNow]);
+  return null;
+}
+
+function AutoBackupRunner() {
+  const state = useGardenState();
+  useAutoBackupRunner(autoBackup, state.data);
   return null;
 }
 
@@ -32,6 +79,9 @@ function Gate() {
   return (
     <View style={{ flex: 1, backgroundColor: p.bg }}>
       <ReminderSync />
+      <WebDeepLink />
+      <AutoBackupRunner />
+      <WidgetSync />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: p.bg },

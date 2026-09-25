@@ -8,12 +8,14 @@ import React, { type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
   type KeyboardTypeOptions,
   type StyleProp,
   type TextStyle,
@@ -66,10 +68,30 @@ export function T({
 // ---------------------------------------------------------------------------
 
 /** Scrollable screen body. `safeTop` pads for the status bar on screens without a header. */
+/** In a wide browser window, content sits in a centred column instead of stretching edge to edge. */
+export const WIDE_CONTENT_MAX = 960;
+
+export function useWideLayout(): boolean {
+  const { width } = useWindowDimensions();
+  return Platform.OS === 'web' && width >= 900;
+}
+
 export function Screen({ children, scroll = true, padded = true, safeTop = false }: { children: ReactNode; scroll?: boolean; padded?: boolean; safeTop?: boolean }) {
   const p = usePalette();
   const insets = useSafeAreaInsets();
-  const content = <View style={[padded && { padding: space.lg, gap: space.lg }, { paddingBottom: space.xxl * 2 }, safeTop && { paddingTop: insets.top + space.lg }]}>{children}</View>;
+  const wide = useWideLayout();
+  const content = (
+    <View
+      style={[
+        padded && { padding: space.lg, gap: space.lg },
+        { paddingBottom: space.xxl * 2 },
+        safeTop && { paddingTop: insets.top + space.lg },
+        wide && { width: '100%', maxWidth: WIDE_CONTENT_MAX, alignSelf: 'center', paddingHorizontal: space.xl },
+      ]}
+    >
+      {children}
+    </View>
+  );
   if (!scroll) return <View style={{ flex: 1, backgroundColor: p.bg }}>{content}</View>;
   return (
     <ScrollView style={{ flex: 1, backgroundColor: p.bg }} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="automatic">

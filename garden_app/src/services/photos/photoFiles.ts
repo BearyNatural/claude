@@ -6,6 +6,8 @@
 
 /** What the garden store needs from photo storage (a memory fake is used in tests). */
 export interface PhotoFiles {
+  /** Finish loading stored photos (the browser version keeps them in IndexedDB). */
+  ready?(): Promise<void>;
   /** Copy (and shrink) a picked or captured image into app storage; returns its file name. */
   importImage(sourceUri: string, size?: { width: number; height: number }): Promise<string>;
   uri(file: string): string;

@@ -443,8 +443,22 @@ export interface CustomPlant {
   support?: SupportNeed;
   potOk?: boolean;
   notes?: string;
+  /**
+   * Sharing with the Sow by Season plant list (opt-in per plant). Only the
+   * plant's details, notes and climate zone are sent — never photos, the
+   * garden's location or anything about the gardener.
+   */
+  share?: PlantShare;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
+}
+
+export interface PlantShare {
+  /** 'pending' = the gardener chose to share; not sent yet (e.g. offline). */
+  status: 'pending' | 'shared';
+  sharedAt?: ISODateTime;
+  /** Suggestion number in the plant list inbox, once received. */
+  ref?: number;
 }
 
 /** Everything the gardener created — the unit of backup/restore. */

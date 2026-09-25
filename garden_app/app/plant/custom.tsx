@@ -50,6 +50,8 @@ export default function CustomPlantScreen() {
   const [support, setSupport] = useState<SupportNeed>(existing?.support ?? 'none');
   const [pot, setPot] = useState<Pot>(existing?.potOk === true ? 'yes' : existing?.potOk === false ? 'no' : 'unsure');
   const [notes, setNotes] = useState(existing?.notes ?? '');
+  // Opt-in, per plant; on by default for new plants where sharing is available.
+  const [share, setShare] = useState(existing ? !!existing.share : store.canSharePlants);
 
   const [lookup, setLookup] = useState<AlaName[] | null>(null);
   const [looking, setLooking] = useState(false);
@@ -94,6 +96,7 @@ export default function CustomPlantScreen() {
         support,
         potOk: pot === 'unsure' ? undefined : pot === 'yes',
         notes: notes.trim() || undefined,
+        ...(existing?.share ? { share: existing.share } : share && store.canSharePlants ? { share: { status: 'pending' as const } } : {}),
       });
       router.back();
     } catch (e) {
@@ -208,6 +211,16 @@ export default function CustomPlantScreen() {
       </View>
       <Field label="Notes (optional)" value={notes} onChangeText={setNotes} multiline placeholder="Care tips, where you bought it, variety details…" />
 
+      {store.canSharePlants && !existing?.share ? (
+        <View style={{ gap: space.xs }}>
+          <Chip icon={share ? 'checkbox' : 'square-outline'} label="Share this plant to help grow the plant list" selected={share} onPress={() => setShare((s) => !s)} />
+          <T variant="tiny" muted>Sends only this plant&apos;s details and your notes about it, plus your climate zone (e.g. subtropical) — never photos, your location or anything about you or your garden. It&apos;s checked against reliable sources before being added for everyone. Leave personal details out of the notes.</T>
+        </View>
+      ) : existing?.share ? (
+        <T variant="tiny" muted>{existing.share.status === 'shared' ? 'Shared with the plant list — thank you. It will be checked before being added for everyone.' : 'Waiting to be shared (it will send next time you\'re online).'}</T>
+      ) : (
+        <T variant="tiny" muted>Sharing plants with the plant list is available in the phone app.</T>
+      )}
       {error ? <Notice tone="danger">{error}</Notice> : null}
       <Button icon="checkmark" label={existing ? 'Save changes' : 'Add plant'} onPress={save} loading={saving} disabled={!name.trim()} />
 

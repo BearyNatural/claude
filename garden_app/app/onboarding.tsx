@@ -78,7 +78,7 @@ export default function Onboarding() {
               climate and weather, and what you already grow.
             </T>
             <Card>
-              <T variant="h3">Your garden stays on this phone</T>
+              <T variant="h3">Your garden stays on this device</T>
               <T variant="small" muted>
                 No account or sign-up. BearyNatural does not keep an online copy of your garden. You can make backups whenever you like.
               </T>

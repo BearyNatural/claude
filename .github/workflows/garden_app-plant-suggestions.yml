@@ -1,0 +1,45 @@
+# ── garden_app (Sow by Season) — check plant suggestions ─────────────────────
+# Gardeners can opt in to share plants they add. Each becomes an issue labelled
+# "plant-suggestion" in the private repository BearyNatural/sow-by-season-plant-data.
+# This runs the automatic first checks daily (details readable, not already in
+# the list, botanical name confirmed) and labels each suggestion. It never
+# changes the plant list: a person verifies against reliable sources first.
+#
+# Uses PLANT_DATA_READ_TOKEN, which needs "Issues: Read and write" on that
+# repository in addition to "Contents: Read-only".
+
+name: "garden_app · check plant suggestions"
+
+on:
+  schedule:
+    - cron: '30 19 * * *'   # daily, 05:30 in Brisbane
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: garden_app-plant-suggestions
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: garden_app
+
+jobs:
+  check:
+    name: garden_app · check plant suggestions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else bash scripts/ci-install.sh; fi
+      - name: Check new suggestions
+        env:
+          PLANT_DATA_TOKEN: ${{ secrets.PLANT_DATA_READ_TOKEN }}
+        run: npx tsx scripts/check-plant-suggestions.ts
