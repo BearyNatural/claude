@@ -10,6 +10,8 @@
 #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
 # Without them the APK is signed with a temporary key (installable, but a later
 # build signed differently can't update it without uninstalling first).
+# Optional: PLANT_DATA_READ_TOKEN — fine-grained GitHub token, read-only access
+# to BearyNatural/sow-by-season-plant-data, for plant list updates in the app.
 
 name: "garden_app · Android build & release"
 
@@ -94,11 +96,28 @@ jobs:
         env:
           CI: 1
 
+      - name: Check plant list access
+        env:
+          TOKEN: ${{ secrets.PLANT_DATA_READ_TOKEN }}
+        run: |
+          if [ -z "${TOKEN:-}" ]; then
+            echo "::warning title=garden_app plant list::No PLANT_DATA_READ_TOKEN secret — this build won't receive plant list updates."; exit 0
+          fi
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github.raw+json" -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/BearyNatural/sow-by-season-plant-data/contents/catalogue.json)
+          if [ "$CODE" = "200" ]; then echo "Plant list token works."
+          else echo "::warning title=garden_app plant list::PLANT_DATA_READ_TOKEN can't read the plant list (HTTP $CODE) — it may have expired. Create a new read-only token and replace the secret."; fi
+
       # Real phones only (arm64 + armv7) — much faster. Passed as a -P flag rather
       # than appended to gradle.properties: prebuild writes that file without a
       # trailing newline, so appending corrupts its last property.
       - name: Build release APK
         working-directory: garden_app/android
+        env:
+          # Read-only token for the private plant list repository (see
+          # src/services/catalogue/catalogueUpdates.ts). Optional: without it the
+          # app skips plant list updates and uses its built-in list.
+          EXPO_PUBLIC_PLANT_DATA_TOKEN: ${{ secrets.PLANT_DATA_READ_TOKEN }}
         run: ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
       - name: Sign APK

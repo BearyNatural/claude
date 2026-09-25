@@ -167,7 +167,7 @@ Bundle identifiers are set in `app.json` (`au.com.bearynatural.sowbyseason`). Ch
 | Photon by Komoot / OpenStreetMap Nominatim | Optional garden map: finding a street address | The address typed, when "Find address" is pressed | No. The map can start from the suburb instead |
 | Esri World Imagery | Optional garden map: satellite images | Map tile requests for the area on screen | No |
 | Atlas of Living Australia species search (`api.ala.org.au`) | Optional botanical-name lookup for plants you add | The name typed, when "Look up" is pressed | No |
-| GitHub (`raw.githubusercontent.com`) | Plant list updates between releases (about daily; can be turned off in About) | Nothing — a plain file download | No. The built-in plant list is used offline |
+| GitHub API (`api.github.com`) | Plant list updates between releases (about daily; can be turned off in About) | Nothing about the garden — a file download using the app's read-only token | No. The built-in plant list is used offline or without a token |
 
 There is no BearyNatural server, analytics, advertising or push-notification service.
 
@@ -244,9 +244,9 @@ Restoring a backup goes through these steps:
 
 ### Plant list updates
 
-The plant list built into the app can be updated between releases. When plant data changes on `main`, the **garden_app · publish plant list** workflow rebuilds `catalogue.json` (`scripts/build-catalogue-json.ts`) and pushes it to the public repository [`BearyNatural/sow-by-season-plant-data`](https://github.com/BearyNatural/sow-by-season-plant-data), using the `PLANT_DATA_DEPLOY_KEY` deploy key (write access to that repository only).
+The plant list built into the app can be updated between releases. When plant data changes on `main`, the **garden_app · publish plant list** workflow rebuilds `catalogue.json` (`scripts/build-catalogue-json.ts`) and pushes it to the **private** repository `BearyNatural/sow-by-season-plant-data`, using the `PLANT_DATA_DEPLOY_KEY` deploy key (write access to that repository only).
 
-Installed apps download it at most once a day. They treat it as untrusted: every plant and source is validated (`src/domain/plantValidation.ts`, `src/domain/catalogueUpdate.ts`), invalid entries are dropped, and a list older than the one built into the app is ignored. The last good list is cached for offline use.
+Installed apps download it at most once a day through the GitHub API, using a fine-grained token that can only **read** that repository. The token comes from the `PLANT_DATA_READ_TOKEN` Actions secret and is embedded when the Android build runs (`EXPO_PUBLIC_PLANT_DATA_TOKEN`) — it is never in the source. Anyone who unpacks the APK could extract it, which exposes only the plant list. Tokens expire: when it does, the app keeps its current list and About says updates need renewing — create a new token and replace the secret, and the next build carries it. Without the secret, builds simply skip plant list updates. They treat it as untrusted: every plant and source is validated (`src/domain/plantValidation.ts`, `src/domain/catalogueUpdate.ts`), invalid entries are dropped, and a list older than the one built into the app is ignored. The last good list is cached for offline use.
 
 **When changing plant data, bump `CATALOGUE_VERSION`** in `src/data/plants/index.ts` (`YYYY.MM.N`).
 

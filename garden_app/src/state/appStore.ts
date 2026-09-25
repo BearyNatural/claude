@@ -18,5 +18,5 @@ export const appStore = new GardenStore(
   }),
   () => new Date(),
   devicePhotoFiles,
-  new CatalogueUpdates(asyncStorageStore, { version: CATALOGUE_VERSION, sources: { ...SOURCES } }, { fetch: (url, init) => fetch(url, init), now: () => new Date() }),
+  new CatalogueUpdates(asyncStorageStore, { version: CATALOGUE_VERSION, sources: { ...SOURCES } }, { fetch: (url, init) => fetch(url, init), now: () => new Date(), token: ENV.plantDataToken }),
 );

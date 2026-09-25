@@ -29,7 +29,7 @@ export default function About() {
         <Card>
           <T variant="small">
             {updatesOn
-              ? 'New and corrected plant information is downloaded between app updates, about once a day when you open the app. Only plant data is downloaded — nothing about your garden is sent.'
+              ? 'New and corrected plant information is downloaded between app updates from BearyNatural\'s private plant list, about once a day when you open the app. Only plant data is downloaded — nothing about your garden is sent.'
               : 'Plant list updates are off. New plants arrive only with app updates.'}
           </T>
           {info.fromUpdate ? (

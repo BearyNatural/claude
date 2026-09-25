@@ -88,6 +88,7 @@ describe('plant list updates (published between releases)', () => {
     let calls = 0;
     const svc = new CatalogueUpdates(kv, { version: CATALOGUE_VERSION, sources: SOURCES }, {
       now: () => now,
+      token: 'test-token',
       fetch: async () => {
         calls++;
         if (!online) throw new Error('offline');
@@ -105,12 +106,32 @@ describe('plant list updates (published between releases)', () => {
     assert.equal(offline.feed?.plants[0].id, 'lilly-pilly');
     assert.match(offline.error ?? '', /offline/);
   });
+
+  it('reads the private plant list with its read-only token, and says when access needs renewing', async () => {
+    const seen: (string | undefined)[] = [];
+    const svc = (token: string | undefined, status: number) =>
+      new CatalogueUpdates(new MemoryStore(), { version: CATALOGUE_VERSION, sources: SOURCES }, {
+        now: () => NOW,
+        token,
+        fetch: async (_url, init) => {
+          seen.push(init?.headers?.Authorization);
+          return { ok: status === 200, status, json: async () => feedJson([newPlant()]) };
+        },
+      });
+    const noToken = await svc(undefined, 200).check(true);
+    assert.equal(seen.length, 0, 'no request without a token');
+    assert.match(noToken.error ?? '', /aren't set up/);
+    assert.equal((await svc('abc', 200).check(true)).feed?.plants[0].id, 'lilly-pilly');
+    assert.equal(seen[0], 'Bearer abc');
+    assert.match((await svc('expired', 401).check(true)).error ?? '', /renewing/);
+  });
 });
 
 async function makeStore(feed?: unknown) {
   const kv = new MemoryStore();
   const updates = new CatalogueUpdates(kv, { version: CATALOGUE_VERSION, sources: SOURCES }, {
     now: () => NOW,
+    token: 'test-token',
     fetch: async () => (feed ? { ok: true, status: 200, json: async () => feed } : { ok: false, status: 404, json: async () => ({}) }),
   });
   const store = new GardenStore(new GardenRepository(kv, () => NOW), new WeatherService(kv, { fetch: async () => { throw new Error('offline'); }, now: () => NOW }), () => NOW, undefined, updates);
