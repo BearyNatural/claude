@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Get Sow by Season for Android</title>
+  <meta name="description" content="Download the latest Sow by Season app for Android." />
+  <link rel="icon" href="icon-192.png" />
+  <style>
+    :root { --bg: #F6F4EE; --card: #FFFFFF; --text: #1F2A22; --muted: #5B665E; --green: #2F6B3F; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #141A16; --card: #1E2621; --text: #E8EDE9; --muted: #A8B3AB; --green: #6FBF83; } }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 520px; margin: 32px auto; padding: 0 16px; }
+    .card { background: var(--card); border-radius: 16px; padding: 20px 24px; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    p, li { color: var(--muted); }
+    ol { padding-left: 20px; }
+    a.button { display: inline-block; margin: 8px 0; padding: 10px 20px; background: var(--green); color: #fff; border-radius: 10px; font-weight: 600; text-decoration: none; }
+    @media (prefers-color-scheme: dark) { a.button { color: #10180F; } }
+    a { color: var(--green); }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <h1>Sow by Season for Android</h1>
+      <p id="status">Finding the latest version…</p>
+      <a class="button" id="download" href="https://github.com/BearyNatural/claude/releases?q=garden_app&amp;expanded=true">Download the app</a>
+      <ol>
+        <li>Open the downloaded file (<strong>SowBySeason-….apk</strong>) from your notifications or <em>Downloads</em>.</li>
+        <li>If Android asks, allow your browser to <em>install unknown apps</em> — this app isn't from the Play Store.</li>
+        <li>Tap <strong>Install</strong>. Updating keeps your garden.</li>
+      </ol>
+      <p>Not on Android? <a href="./">Use Sow by Season in your browser</a> — on iPhone, open it in Safari and tap Share › <em>Add to Home Screen</em>.</p>
+    </div>
+  </main>
+  <script>
+    // Finds the newest Sow by Season release (tags garden_app-v…) and starts its APK download.
+    // If GitHub can't be reached, the button still opens the releases page.
+    (function () {
+      var status = document.getElementById('status');
+      var button = document.getElementById('download');
+      fetch('https://api.github.com/repos/BearyNatural/claude/releases?per_page=30', { headers: { Accept: 'application/vnd.github+json' } })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (releases) {
+          for (var i = 0; i < releases.length; i++) {
+            var rel = releases[i];
+            if (rel.draft || rel.prerelease || rel.tag_name.indexOf('garden_app-v') !== 0) continue;
+            var apk = rel.assets.filter(function (a) { return /\.apk$/i.test(a.name); })[0];
+            if (!apk || apk.browser_download_url.indexOf('https://github.com/BearyNatural/claude/releases/download/') !== 0) continue;
+            var version = rel.tag_name.replace(/^garden_app-v/, '').replace(/-build\d+$/, '');
+            button.href = apk.browser_download_url;
+            button.textContent = 'Download version ' + version;
+            status.textContent = 'Your download of version ' + version + ' should start now. If it doesn’t, tap the button.';
+            location.href = apk.browser_download_url;
+            return;
+          }
+          throw new Error('no release');
+        })
+        .catch(function () {
+          status.textContent = 'Tap the button to open the download page, then tap the .apk file under the newest version.';
+        });
+    })();
+  </script>
+</body>
+</html>

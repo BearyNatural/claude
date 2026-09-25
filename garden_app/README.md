@@ -23,7 +23,7 @@ It runs as an **Android app** and in any **web browser** (which also works on iP
 
 | Where | How |
 |---|---|
-| **Android** | Install the APK from the latest release (steps below). Includes reminders, the home-screen widget, automatic cloud backup and update notices. |
+| **Android** | Download from **https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html** — it always gets the latest version (also linked from the Hobbies page and the browser version's More screen) — or from the latest release (steps below). Includes reminders, the home-screen widget, automatic cloud backup and update notices. |
 | **Any browser** | Open **https://daydreaminginthecloud.bearynatural.dev/sow-by-season/** (also linked from the Hobbies page). Works on computers, tablets and phones, and keeps working offline once opened. |
 | **iPhone / iPad** | Open that address in **Safari**, tap **Share → Add to Home Screen**. It opens like an app — no App Store or Apple account needed. (Phone reminders and the widget aren't available on iPhone.) |
 

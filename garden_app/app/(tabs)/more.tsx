@@ -1,8 +1,10 @@
 import { router } from 'expo-router';
 import React from 'react';
+import { Linking, Platform } from 'react-native';
 import { CLIMATE_ZONES } from '../../src/domain/climate';
 import { describeLocation } from '../../src/domain/location';
 import { useGardenView } from '../../src/state/hooks';
+import { WEB_BASE } from '../../src/services/webBase';
 import { BrandHeader } from '../../src/ui/components/garden';
 import { Card, ListRow, Screen, Section, T } from '../../src/ui/components/primitives';
 
@@ -34,6 +36,13 @@ export default function More() {
           <ListRow icon="library-outline" title="About, sources & data quality" onPress={() => router.push('/about')} />
         </Card>
       </Section>
+      {Platform.OS === 'web' ? (
+        <Section title="On your phone">
+          <Card>
+            <ListRow icon="logo-android" title="Get the Android app" subtitle="Downloads the latest version — adds reminders, the home-screen widget and automatic backup" onPress={() => Linking.openURL(`${WEB_BASE}/android.html`)} />
+          </Card>
+        </Section>
+      ) : null}
     </Screen>
   );
 }

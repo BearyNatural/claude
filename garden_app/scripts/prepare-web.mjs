@@ -45,7 +45,7 @@ writeFileSync(
 const walk = (dir) => readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? walk(join(dir, n)) : [join(dir, n)]));
 const assets = walk(dist)
   .map((f) => `${base}/${relative(dist, f).split('\\').join('/')}`)
-  .filter((u) => !u.endsWith('/index.html') && !u.endsWith('/sw.js'));
+  .filter((u) => !u.endsWith('/index.html') && !u.endsWith('/sw.js') && !u.endsWith('/android.html'));
 const version = `${app.version}-${Date.now().toString(36)}`;
 
 writeFileSync(
@@ -65,7 +65,9 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   if (req.mode === 'navigate') {
     // Newest page when online; the cached copy when offline.
-    e.respondWith(fetch(req).then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(PAGE, copy)); return res; }).catch(() => caches.match(PAGE)));
+    // Only the app page itself is kept (not the site's 404 redirect page or other pages).
+    const isPage = new URL(req.url).pathname === PAGE;
+    e.respondWith(fetch(req).then((res) => { if (isPage && res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(PAGE, copy)); } return res; }).catch(() => caches.match(PAGE)));
     return;
   }
   e.respondWith(caches.match(req).then((hit) => hit || fetch(req)));
