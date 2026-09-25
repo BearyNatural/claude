@@ -5,7 +5,7 @@
  */
 import { LOCALITIES } from '../../data/localities';
 import { postcodePlaces } from '../../data/postcodes';
-import { postcodeCentre, searchPostcodePlaces, type PostcodePlace } from '../../domain/postcodes';
+import { findPlaces, parsePlaceQuery, postcodeCentre, type PostcodePlace } from '../../domain/postcodes';
 import {
   inferClimateFromCoordinates,
   locationFromLocality,
@@ -37,6 +37,8 @@ const STATE_NAMES: Record<string, AustralianState> = {
   'western australia': 'WA',
 };
 
+const STREET_TYPES = new Set(['road', 'rd', 'street', 'avenue', 'ave', 'drive', 'dr', 'court', 'ct', 'crt', 'place', 'pl', 'lane', 'ln', 'crescent', 'cres', 'terrace', 'tce', 'parade', 'pde', 'close', 'cl', 'circuit', 'cct', 'boulevard', 'bvd', 'highway', 'hwy', 'grove', 'gr', 'way']);
+
 /** A suburb from the full postcode table, with its climate inferred from the nearest reference town. */
 export function locationFromPostcodePlace(p: PostcodePlace): GardenLocation {
   const inf = inferClimateFromCoordinates(LOCALITIES, p.lat, p.lon, undefined, p.state);
@@ -59,7 +61,11 @@ export function locationFromPostcodePlace(p: PostcodePlace): GardenLocation {
  * checked against gardening references), then every other suburb/postcode.
  */
 export function offlineCandidates(query: string, limit = 12): LocationCandidate[] {
-  const ref = searchLocalities(LOCALITIES, query).map((l) => ({
+  // "Bray Park Qld 4500" or a street address: search the place words, within that state.
+  const parsed = parsePlaceQuery(query);
+  const refQuery = parsed.words.length ? parsed.words.join(' ') : query;
+  const refs = searchLocalities(LOCALITIES, refQuery).filter((l) => !parsed.state || l.state === parsed.state);
+  const ref = (parsed.words.length > 1 && !refs.some((l) => l.name.toLowerCase() === refQuery) ? [] : refs).map((l) => ({
     key: `off-${l.postcode}-${l.name}`,
     label: l.name,
     sublabel: `${l.state} ${l.postcode}`,
@@ -67,7 +73,7 @@ export function offlineCandidates(query: string, limit = 12): LocationCandidate[
     location: locationFromLocality(l),
   }));
   const seen = new Set(ref.map((c) => `${c.label.toLowerCase()}|${c.location.postcode}`));
-  const more = searchPostcodePlaces(postcodePlaces(), query, limit)
+  const more = findPlaces(postcodePlaces(), query, limit)
     .filter((p) => !seen.has(`${p.name.toLowerCase()}|${p.postcode}`))
     .map((p) => ({
       key: `pc-${p.postcode}-${p.name}`,
@@ -91,9 +97,14 @@ export function coordinatesForPostcode(postcode: string | undefined): { lat: num
 }
 
 export async function onlineCandidates(query: string, fetchImpl: FetchLike): Promise<LocationCandidate[]> {
-  const q = query.trim();
-  // Open-Meteo searches place names only; postcodes are covered by the offline table.
-  if (q.length < 3 || /^\d+$/.test(q)) return [];
+  // Open-Meteo searches place names only: send just the place words (no state,
+  // postcode or house number); postcodes are covered by the offline table.
+  const parsed = parsePlaceQuery(query);
+  const words = parsed.words.filter((w) => !/\d/.test(w));
+  // "Francis Road Bray Park" → "Bray Park": drop a street name ending in a street type.
+  const street = words.reduce((last, w, i) => (STREET_TYPES.has(w) && i < words.length - 1 ? i : last), -1);
+  const q = words.slice(street + 1).join(' ');
+  if (q.length < 3) return [];
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10&language=en&countryCode=AU&format=json`;
   const res = await fetchImpl(url);
   if (!res.ok) throw new Error(`Location search failed (${res.status})`);
@@ -106,7 +117,8 @@ export async function onlineCandidates(query: string, fetchImpl: FetchLike): Pro
     const name = String(r.name ?? '');
     const state = STATE_NAMES[String(r.admin1 ?? '').toLowerCase()];
     const postcodes = Array.isArray(r.postcodes) ? (r.postcodes as unknown[]).map(String) : [];
-    const pcFromQuery = normalisePostcode(q);
+    if (parsed.state && state && state !== parsed.state) continue;
+    const pcFromQuery = parsed.postcode ?? null;
     const postcode = pcFromQuery && postcodes.includes(pcFromQuery) ? pcFromQuery : postcodes[0];
     const st = state ?? (postcode ? stateForPostcode(postcode) ?? undefined : undefined);
     const elevation = typeof r.elevation === 'number' ? r.elevation : undefined;

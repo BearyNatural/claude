@@ -243,6 +243,8 @@ export function validateSettings(v: unknown): Result<AppSettings> {
       plantListUpdates: r.bool('plantListUpdates', true),
       activeGardenId: r.str('activeGardenId', true, 200),
       backgroundAlerts: r.bool('backgroundAlerts', true),
+      backupPhotos: r.bool('backupPhotos', true),
+      sharePlants: r.bool('sharePlants', true),
     });
   });
 }
@@ -434,7 +436,7 @@ export function validateCustomPlant(v: unknown): Result<CustomPlant> {
         if (typeof c !== 'string' || !(PLANT_CATEGORIES as readonly string[]).includes(c)) throw new ValidationError(`${p}: unknown category`);
         return c as PlantCategory;
       }, true, 11),
-      lifecycle: r.oneOf('lifecycle', LIFECYCLES),
+      lifecycle: r.oneOf('lifecycle', LIFECYCLES, true),
       startMethods: r.arr('startMethods', (m, p) => {
         if (typeof m !== 'string' || !(METHODS as readonly string[]).includes(m)) throw new ValidationError(`${p}: unknown start method`);
         return m as StartMethod;
@@ -452,7 +454,7 @@ export function validateCustomPlant(v: unknown): Result<CustomPlant> {
       notes: r.str('notes', true, 2000),
       share: (() => {
         const s = r.obj('share', true);
-        return s ? clean({ status: s.oneOf('status', ['pending', 'shared'] as const), sharedAt: s.dateTime('sharedAt', true), ref: s.num('ref', true, 1, 1e9, true) }) : undefined;
+        return s ? clean({ status: s.oneOf('status', ['pending', 'shared'] as const), sharedAt: s.dateTime('sharedAt', true), ref: s.num('ref', true, 1, 1e9, true), lastError: s.str('lastError', true, 300) }) : undefined;
       })(),
       createdAt: r.dateTime('createdAt'),
       updatedAt: r.dateTime('updatedAt'),

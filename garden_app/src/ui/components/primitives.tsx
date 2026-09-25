@@ -54,6 +54,7 @@ export function T({
   const p = usePalette();
   return (
     <Text
+      textBreakStrategy="simple"
       accessibilityRole={accessibilityRole ?? (variant === 'title' || variant === 'h2' ? 'header' : undefined)}
       numberOfLines={numberOfLines}
       style={[type[variant], { color: color ?? (muted ? p.textMuted : p.text) }, center && { textAlign: 'center' }, style]}
@@ -165,7 +166,7 @@ export function Badge({ label, tone = 'neutral', icon }: { label: string; tone?:
   return (
     <View style={[styles.badge, { backgroundColor: c.bg }]} accessible accessibilityLabel={label}>
       {icon ? <Ionicons name={icon} size={14} color={c.fg} /> : null}
-      <Text style={[type.tiny, { color: c.fg, fontWeight: '600' }]}>{label}</Text>
+      <Text textBreakStrategy="simple" style={[type.tiny, { color: c.fg, fontWeight: '600' }]}>{label}</Text>
     </View>
   );
 }
@@ -178,8 +179,8 @@ export function Notice({ tone = 'info', icon, title, children, action }: { tone?
     <View style={[styles.notice, { backgroundColor: c.bg }]} accessibilityRole="summary">
       <Ionicons name={icon ?? defaultIcon} size={22} color={c.fg} style={{ marginTop: 1 }} />
       <View style={{ flex: 1, gap: 2 }}>
-        {title ? <Text style={[type.h3, { color: c.fg }]}>{title}</Text> : null}
-        {typeof children === 'string' ? <Text style={[type.small, { color: p.text }]}>{children}</Text> : children}
+        {title ? <Text textBreakStrategy="simple" style={[type.h3, { color: c.fg }]}>{title}</Text> : null}
+        {typeof children === 'string' ? <Text textBreakStrategy="simple" style={[type.small, { color: p.text }]}>{children}</Text> : children}
         {action}
       </View>
     </View>
@@ -234,7 +235,7 @@ export function Button({
       ]}
     >
       {loading ? <ActivityIndicator color={colors.fg} /> : icon ? <Ionicons name={icon} size={18} color={colors.fg} /> : null}
-      <Text style={[type.h3, { color: colors.fg, fontSize: compact ? 15 : 16 }]}>{label}</Text>
+      <Text textBreakStrategy="simple" style={[type.h3, { color: colors.fg, fontSize: compact ? 15 : 16 }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -262,7 +263,7 @@ export function Chip({ label, selected, onPress, icon }: { label: string; select
       ]}
     >
       {selected ? <Ionicons name="checkmark" size={16} color={p.primary} /> : icon ? <Ionicons name={icon} size={16} color={p.textMuted} /> : null}
-      <Text style={[type.small, { color: selected ? p.primary : p.text, fontWeight: selected ? '600' : '400' }]}>{label}</Text>
+      <Text textBreakStrategy="simple" style={[type.small, { color: selected ? p.primary : p.text, fontWeight: selected ? '600' : '400' }]}>{label}</Text>
     </Pressable>
   );
 }

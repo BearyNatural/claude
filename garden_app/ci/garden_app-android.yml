@@ -10,8 +10,9 @@
 #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
 # Without them the APK is signed with a temporary key (installable, but a later
 # build signed differently can't update it without uninstalling first).
-# Optional: PLANT_DATA_READ_TOKEN — fine-grained GitHub token, read-only access
-# to BearyNatural/sow-by-season-plant-data, for plant list updates in the app.
+# Optional: PLANT_DATA_READ_TOKEN — fine-grained GitHub token for
+# BearyNatural/sow-by-season-plant-data only: Contents read-only (plant list
+# updates, update notices) and Issues read/write (plant sharing). Embedded in the APK.
 
 name: "garden_app · Android build & release"
 
@@ -212,7 +213,7 @@ jobs:
           files: ${{ env.APK }}
           body_path: ${{ runner.temp }}/release-notes.md
 
-      # Tells installed apps a new version exists (read with their read-only
+      # Tells installed apps a new version exists (read with their plant data
       # plant list token). Written to the private plant data repository.
       - name: Announce the new version to installed apps
         env:

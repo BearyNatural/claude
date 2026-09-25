@@ -6,10 +6,11 @@ export const ENV = {
   /** Optional Open-Meteo commercial API key (required for commercial use). */
   openMeteoApiKey: process.env.EXPO_PUBLIC_OPEN_METEO_API_KEY || undefined,
   /**
-   * Read-only token for the private plant list repository, supplied at build
-   * time from the PLANT_DATA_READ_TOKEN Actions secret. It can only read that
-   * repository's plant data. Absent in local builds: updates are then skipped.
+   * Fine-grained token for the private plant data repository only, supplied at
+   * build time from the PLANT_DATA_READ_TOKEN Actions secret: Contents read-only
+   * (plant list, update notices) and Issues read/write (plant sharing). It can't
+   * change the plant list. Absent in local builds: these features are skipped.
    */
   plantDataToken: process.env.EXPO_PUBLIC_PLANT_DATA_TOKEN || undefined,
-  appVersion: '1.7.1',
+  appVersion: '1.8.0',
 };

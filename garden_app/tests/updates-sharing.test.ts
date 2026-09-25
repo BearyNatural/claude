@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CustomPlant } from '../src/domain/types';
-import { validateCustomPlant } from '../src/domain/validation';
+import { customToPlantRecord } from '../src/domain/customPlants';
+import { validateCustomPlant, validateSettings } from '../src/domain/validation';
 import { submitSuggestion, suggestionIssue, suggestionPayload } from '../src/services/plants/plantSuggestions';
 import { MemoryStore } from '../src/services/storage/keyValueStore';
 import { AppUpdates, compareVersions, parseAppRelease } from '../src/services/updates/appUpdates';
@@ -104,6 +105,37 @@ describe('sharing plants with the plant list (opt-in)', () => {
     await store.sendPendingShares();
     assert.equal(sentNames.length, 1, 'sent once only');
     assert.ok(validateCustomPlant(after).ok, 'share status is stored validly');
+  });
+
+  it('says why a share failed when the plant list inbox refuses it, and keeps it valid', async () => {
+    const kv = new MemoryStore();
+    const refuse = () => submitSuggestion(PLANT, 'subtropical', { fetch: async () => ({ ok: false, status: 403, json: async () => ({}) }), token: 't', appVersion: 'test' });
+    const store = new GardenStore(new GardenRepository(kv, () => NOW), new WeatherService(kv, { fetch: async () => { throw new Error('offline'); }, now: () => NOW }), () => NOW, undefined, null, null, () => refuse());
+    await store.init();
+    const { id: _id, createdAt: _cr, updatedAt: _up, ...input } = PLANT;
+    await store.saveCustomPlant(input);
+    await store.sendPendingShares();
+    const c = store.state.data.customPlants[0];
+    assert.equal(c.share?.status, 'pending');
+    assert.match(c.share?.lastError ?? '', /isn't allowed to share/);
+    assert.ok(validateCustomPlant(c).ok);
+  });
+
+  it('keeps unanswered details of your own plants unknown instead of guessing', () => {
+    const { lifecycle: _l, sun: _s, support: _su, ...rest } = PLANT;
+    const plain = { ...rest, startMethods: [], plantMonths: [9, 10] } as CustomPlant;
+    const v = validateCustomPlant(plain);
+    assert.ok(v.ok);
+    if (!v.ok) return;
+    assert.equal(v.value.lifecycle, undefined);
+    const rec = customToPlantRecord(v.value);
+    assert.equal(rec.site.minSunHours, undefined, 'no sun warnings from a guess');
+    assert.ok(rec.windows.subtropical?.plant && !rec.windows.subtropical.sow, 'months without a start method count as planting, not sowing');
+  });
+
+  it('remembers the gardener\'s defaults for photo backups and sharing', () => {
+    const v = validateSettings({ id: 'settings', weatherEnabled: true, hiddenPlantIds: [], backupPhotos: false, sharePlants: true });
+    assert.ok(v.ok && v.value.backupPhotos === false && v.value.sharePlants === true);
   });
 
   it('never shares a plant that wasn\'t opted in', async () => {

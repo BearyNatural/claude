@@ -7,7 +7,7 @@ import { View } from 'react-native';
 import { LOCALITIES } from '../../data/localities';
 import { CLIMATE_ZONES, ZONE_IDS } from '../../domain/climate';
 import { WEEKDAY_SHORT } from '../../domain/dates';
-import { inferClimateFromPostcode, normalisePostcode, stateForPostcode, STATES, timezoneFor } from '../../domain/location';
+import { inferClimateFromCoordinates, inferClimateFromPostcode, normalisePostcode, stateForPostcode, STATES, timezoneFor } from '../../domain/location';
 import type { AustralianState, ClimateZoneId, FrostRisk, GardenLocation, GardeningGoal, ReminderPreferences, TimeBudget, Weekday } from '../../domain/types';
 import { TIME_BUDGET_LABELS } from '../../domain/workload';
 import { coordinatesForPostcode, offlineCandidates, onlineCandidates, type LocationCandidate } from '../../services/location/geocode';
@@ -73,9 +73,10 @@ function ManualLocation({ onChange }: { onChange: (loc: GardenLocation) => void 
   const pc = normalisePostcode(postcode);
   const pcState = pc ? stateForPostcode(pc) : null;
   const effectiveState = state ?? pcState ?? undefined;
-  const inference = pc ? inferClimateFromPostcode(LOCALITIES, pc) : null;
-  // Approximate postcode centre, so live weather works for manually set areas too.
+  // Approximate postcode centre (full postcode list), so live weather works and the
+  // climate comes from the nearest reference town rather than a numerically close postcode.
   const coords = pc ? coordinatesForPostcode(pc) : null;
+  const inference = coords ? inferClimateFromCoordinates(LOCALITIES, coords.lat, coords.lon, undefined, effectiveState) : pc ? inferClimateFromPostcode(LOCALITIES, pc) : null;
   return (
     <Card>
       <Field label="Postcode (optional)" value={postcode} onChangeText={setPostcode} keyboardType="number-pad" hint="Add your postcode to get live weather for your area." error={postcode && !pcState ? 'That doesn\'t look like an Australian postcode.' : null} />

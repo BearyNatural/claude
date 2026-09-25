@@ -2,6 +2,16 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `garden_app-v<version>-build<n>`). The newest Android version can always be downloaded from https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html.
 
+## 1.8.0 — 25 September 2026
+- **Location search understands what you type**: "Bray Park Qld", "Bray Park, QLD 4500" or a full street address now find the suburb (only the suburb is kept). Online search sends just the place name.
+- Setting your area manually uses the full postcode list, so postcodes like 4500 get their climate from the nearest reference town instead of a "couldn't find" guess.
+- **Garden Profile › General**: choose whether backups include photos, and whether plants you add start with "Share" ticked (off unless you turn it on — sharing is now truly opt-in).
+- The photo choices on the Backup screen are always shown, even before you've added photos.
+- Adding your own plant no longer pre-selects lifecycle, start method, sun or support — each starts as "Not sure". Backup schema v7.
+- If sharing a plant fails, its page now says why instead of always "waiting to be online".
+- Button and text fix for Android phones that cut off the last word of bold text (e.g. "Turn weather off").
+- Docs: the plant data token's permissions are described exactly; `.nvmrc` for Node 22.
+
 ## 1.7.1 — 25 September 2026
 - **Android download page** that always fetches the latest APK, linked from the Hobbies page and the browser version's More screen.
 - The browser's offline copy now only stores the real app page (it could keep the site's redirect page instead).

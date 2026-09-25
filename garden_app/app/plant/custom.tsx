@@ -42,16 +42,17 @@ export default function CustomPlantScreen() {
   const [family, setFamily] = useState(existing?.familyName ?? '');
   const [alaGuid, setAlaGuid] = useState(existing?.alaGuid);
   const [types, setTypes] = useState<PlantCategory[]>(existing?.categories ?? []);
-  const [lifecycle, setLifecycle] = useState<Lifecycle>(existing?.lifecycle ?? 'perennial');
-  const [methods, setMethods] = useState<StartMethod[]>(existing?.startMethods ?? ['seedling']);
+  // Nothing is pre-chosen: blanks are saved as "not sure", never as a guess.
+  const [lifecycle, setLifecycle] = useState<Lifecycle | 'unsure'>(existing?.lifecycle ?? 'unsure');
+  const [methods, setMethods] = useState<StartMethod[]>(existing?.startMethods ?? []);
   const [months, setMonths] = useState<Month[]>(existing?.plantMonths ?? []);
-  const [sun, setSun] = useState<SunNeed>(existing?.sun ?? 'full-sun');
+  const [sun, setSun] = useState<SunNeed | 'unsure'>(existing?.sun ?? 'unsure');
   const [frost, setFrost] = useState<Frost>(existing?.frost ?? 'unsure');
-  const [support, setSupport] = useState<SupportNeed>(existing?.support ?? 'none');
+  const [support, setSupport] = useState<SupportNeed | 'unsure'>(existing?.support ?? 'unsure');
   const [pot, setPot] = useState<Pot>(existing?.potOk === true ? 'yes' : existing?.potOk === false ? 'no' : 'unsure');
   const [notes, setNotes] = useState(existing?.notes ?? '');
-  // Opt-in, per plant; on by default for new plants where sharing is available.
-  const [share, setShare] = useState(existing ? !!existing.share : store.canSharePlants);
+  // Opt-in, per plant. New plants start from the gardener's choice in Garden Profile › General (off unless they turned it on).
+  const [share, setShare] = useState(existing ? !!existing.share : store.canSharePlants && !!data.settings.sharePlants);
 
   const [lookup, setLookup] = useState<AlaName[] | null>(null);
   const [looking, setLooking] = useState(false);
@@ -88,12 +89,12 @@ export default function CustomPlantScreen() {
         familyName: family.trim() || undefined,
         alaGuid: botanical.trim() ? alaGuid : undefined,
         categories: types,
-        lifecycle,
-        startMethods: methods.length ? methods : ['seedling'],
+        lifecycle: lifecycle === 'unsure' ? undefined : lifecycle,
+        startMethods: methods,
         plantMonths: months.length ? [...months].sort((a, b) => a - b) : undefined,
-        sun,
+        sun: sun === 'unsure' ? undefined : sun,
         frost: frost === 'unsure' ? undefined : frost,
-        support,
+        support: support === 'unsure' ? undefined : support,
         potOk: pot === 'unsure' ? undefined : pot === 'yes',
         notes: notes.trim() || undefined,
         ...(existing?.share ? { share: existing.share } : share && store.canSharePlants ? { share: { status: 'pending' as const } } : {}),
@@ -142,9 +143,10 @@ export default function CustomPlantScreen() {
         </Row>
       </View>
 
-      <Choice<Lifecycle>
+      <Choice<Lifecycle | 'unsure'>
         label="How long does it live?"
         options={[
+          { value: 'unsure', label: 'Not sure' },
           { value: 'annual', label: 'One season (annual)' },
           { value: 'biennial', label: 'Two seasons (biennial)' },
           { value: 'perennial', label: 'Many years (perennial, trees, shrubs)' },
@@ -154,7 +156,7 @@ export default function CustomPlantScreen() {
       />
 
       <View style={{ gap: space.sm }}>
-        <Label>How do you usually start it?</Label>
+        <Label>How do you usually start it? (optional)</Label>
         <Row wrap>
           {(Object.keys(METHOD_LABELS) as StartMethod[]).map((m) => (
             <Chip key={m} label={METHOD_LABELS[m]} selected={methods.includes(m)} onPress={() => toggle(methods, m, setMethods)} />
@@ -172,9 +174,10 @@ export default function CustomPlantScreen() {
         </Row>
       </View>
 
-      <Choice<SunNeed>
+      <Choice<SunNeed | 'unsure'>
         label="Sun"
         options={[
+          { value: 'unsure', label: 'Not sure' },
           { value: 'full-sun', label: 'Full sun' },
           { value: 'part-shade', label: 'Part shade' },
           { value: 'shade-tolerant', label: 'Copes with shade' },
@@ -196,7 +199,7 @@ export default function CustomPlantScreen() {
       <View style={{ gap: space.sm }}>
         <Label>Support</Label>
         <Row wrap>
-          {([['none', 'None'], ['stake', 'Stake'], ['trellis', 'Trellis / climber'], ['cage', 'Cage']] as [SupportNeed, string][]).map(([v, l]) => (
+          {([['unsure', 'Not sure'], ['none', 'None'], ['stake', 'Stake'], ['trellis', 'Trellis / climber'], ['cage', 'Cage']] as [SupportNeed | 'unsure', string][]).map(([v, l]) => (
             <Chip key={v} label={l} selected={support === v} onPress={() => setSupport(v)} />
           ))}
         </Row>
@@ -214,10 +217,10 @@ export default function CustomPlantScreen() {
       {store.canSharePlants && !existing?.share ? (
         <View style={{ gap: space.xs }}>
           <Chip icon={share ? 'checkbox' : 'square-outline'} label="Share this plant to help grow the plant list" selected={share} onPress={() => setShare((s) => !s)} />
-          <T variant="tiny" muted>Sends only this plant&apos;s details and your notes about it, plus your climate zone (e.g. subtropical) — never photos, your location or anything about you or your garden. It&apos;s checked against reliable sources before being added for everyone. Leave personal details out of the notes.</T>
+          <T variant="tiny" muted>{data.settings.sharePlants ? 'Ticked because you chose to share plants in Garden Profile › General. ' : 'Off unless you tick it (you can change the starting choice in Garden Profile › General). '}Sends only this plant&apos;s details and your notes about it, plus your climate zone (e.g. subtropical) — never photos, your location or anything about you or your garden. It&apos;s checked against reliable sources before being added for everyone. Leave personal details out of the notes.</T>
         </View>
       ) : existing?.share ? (
-        <T variant="tiny" muted>{existing.share.status === 'shared' ? 'Shared with the plant list — thank you. It will be checked before being added for everyone.' : 'Waiting to be shared (it will send next time you\'re online).'}</T>
+        <T variant="tiny" muted>{existing.share.status === 'shared' ? 'Shared with the plant list — thank you. It will be checked before being added for everyone.' : existing.share.lastError ?? 'Waiting to be shared (it will send next time you\'re online).'}</T>
       ) : (
         <T variant="tiny" muted>Sharing plants with the plant list is available in the phone app.</T>
       )}

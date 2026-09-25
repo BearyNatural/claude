@@ -69,3 +69,88 @@ export function postcodeCentre(places: readonly PostcodePlace[], postcode: strin
   const lon = inPc.reduce((s, p) => s + p.lon, 0) / inPc.length;
   return { lat: roundCoordinate(lat), lon: roundCoordinate(lon), state: inPc[0].state };
 }
+
+const STATE_WORDS: [string, AustralianState][] = [
+  ['australian capital territory', 'ACT'],
+  ['new south wales', 'NSW'],
+  ['northern territory', 'NT'],
+  ['south australia', 'SA'],
+  ['western australia', 'WA'],
+  ['queensland', 'QLD'],
+  ['tasmania', 'TAS'],
+  ['victoria', 'VIC'],
+  ['qld', 'QLD'],
+  ['nsw', 'NSW'],
+  ['vic', 'VIC'],
+  ['tas', 'TAS'],
+  ['act', 'ACT'],
+  ['sa', 'SA'],
+  ['wa', 'WA'],
+  ['nt', 'NT'],
+];
+
+const tidy = (t: string) => ` ${t.replace(/\s+/g, ' ').trim()} `;
+
+export interface PlaceQuery {
+  /** Words that may name the place (state, postcode and "Australia" removed). */
+  words: string[];
+  state?: AustralianState;
+  postcode?: string;
+}
+
+/**
+ * Understands what people type into a place search — "Bray Park Qld",
+ * "Bray Park, QLD 4500", even a full street address — by pulling out a
+ * postcode and a state at the end and keeping the rest as place words.
+ */
+export function parsePlaceQuery(query: string): PlaceQuery {
+  let text = ` ${query.toLowerCase().replace(/[.,;/()]+/g, ' ').replace(/\s+/g, ' ').trim()} `;
+  let postcode: string | undefined;
+  let state: AustralianState | undefined;
+  const pcMatch = text.match(/ (\d{4}) (?=(?:[a-z ]*)$)/);
+  if (pcMatch && /[a-z]/.test(text)) {
+    postcode = pcMatch[1];
+    text = tidy(text.replace(pcMatch[0], ' '));
+  }
+  text = tidy(text.replace(/ australia $/, ' '));
+  for (const [word, st] of STATE_WORDS) {
+    const re = new RegExp(` ${word} $`);
+    if (re.test(text) && text.trim() !== word) {
+      state = st;
+      text = tidy(text.replace(re, ' '));
+      break;
+    }
+  }
+  if (!postcode) {
+    const tail = text.match(/ (\d{4}) $/);
+    if (tail && /[a-z]/.test(text)) {
+      postcode = tail[1];
+      text = text.replace(/ \d{4} $/, ' ');
+    }
+  }
+  return { words: text.trim().split(' ').filter(Boolean), state, postcode };
+}
+
+/**
+ * Place search for free text. A plain postcode or name uses the normal search;
+ * otherwise the longest run of words at the end that exactly names a suburb
+ * wins ("41 Francis Road Bray Park" → Bray Park), narrowed by any state or
+ * postcode given. Street numbers and names are never kept.
+ */
+export function findPlaces(places: readonly PostcodePlace[], query: string, limit = 12): PostcodePlace[] {
+  const q = parsePlaceQuery(query);
+  const narrow = (list: PostcodePlace[]) => {
+    let out = list;
+    if (q.postcode && out.some((p) => p.postcode === q.postcode)) out = out.filter((p) => p.postcode === q.postcode);
+    if (q.state && out.some((p) => p.state === q.state)) out = out.filter((p) => p.state === q.state);
+    return out;
+  };
+  if (!q.words.length) return q.postcode ? searchPostcodePlaces(places, q.postcode, limit) : [];
+  for (let i = 0; i < q.words.length; i++) {
+    const phrase = q.words.slice(i).join(' ');
+    if (/^\d+$/.test(phrase)) break;
+    const exact = places.filter((p) => p.name.toLowerCase() === phrase);
+    if (exact.length) return narrow(exact).slice(0, limit);
+  }
+  return narrow(searchPostcodePlaces(places, q.words.join(' '), limit * 4)).slice(0, limit);
+}

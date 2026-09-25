@@ -66,7 +66,8 @@ export async function submitSuggestion(c: CustomPlant, zone: ClimateZoneId | nul
     headers: { Authorization: `Bearer ${deps.token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
     body: JSON.stringify(suggestionIssue(c, zone, deps.appVersion)),
   });
-  if (!res.ok) throw new Error(`The plant couldn't be shared (${res.status}).`);
+  if (res.status === 401 || res.status === 403 || res.status === 404) throw new Error('The plant list inbox didn\'t accept it: this copy of the app isn\'t allowed to share plants yet. It will try again after the next app update.');
+  if (!res.ok) throw new Error(`The plant list inbox is unavailable right now (${res.status}). It will try again next time you open the app.`);
   const json = (await res.json()) as { number?: unknown };
   return typeof json.number === 'number' ? json.number : 0;
 }

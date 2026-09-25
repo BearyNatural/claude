@@ -55,7 +55,7 @@ async function main() {
         labels.push('needs-info');
       } else {
         const p = check.value;
-        notes.push(`✅ Details read: **${p.commonName}**${p.botanicalName ? ` (_${p.botanicalName}_${p.familyName ? `, ${p.familyName}` : ''})` : ''} · ${p.categories.join(', ') || 'no type given'} · ${p.lifecycle}${p.plantMonths?.length ? ` · plants in months ${p.plantMonths.join(', ')}${zone ? ` (${zone})` : ''}` : ''}.`);
+        notes.push(`✅ Details read: **${p.commonName}**${p.botanicalName ? ` (_${p.botanicalName}_${p.familyName ? `, ${p.familyName}` : ''})` : ''} · ${p.categories.join(', ') || 'no type given'} · ${p.lifecycle ?? 'lifecycle not given'}${p.plantMonths?.length ? ` · plants in months ${p.plantMonths.join(', ')}${zone ? ` (${zone})` : ''}` : ''}.`);
         const dup = PLANTS.find((x) =>
           [x.commonName, ...x.aliases].some((n) => norm(n) === norm(p.commonName)) || (p.botanicalName && norm(x.botanicalName) === norm(p.botanicalName)),
         );

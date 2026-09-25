@@ -1,6 +1,6 @@
 {
   "name": "sow-by-season",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "private": true,
   "description": "Sow by Season by BearyNatural — an Australian garden-planning assistant.",
   "main": "index.ts",

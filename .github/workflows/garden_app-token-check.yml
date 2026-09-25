@@ -1,6 +1,6 @@
 # ── garden_app (Sow by Season) — plant list token expiry reminder ────────────
 # The app reads plant list updates from the private repository
-# BearyNatural/sow-by-season-plant-data using a read-only fine-grained token
+# BearyNatural/sow-by-season-plant-data using a fine-grained token
 # (PLANT_DATA_READ_TOKEN), built into the app at build time. GitHub doesn't let
 # tokens be renewed automatically, so this checks it weekly and opens an issue
 # 30 days before it expires (or as soon as it stops working), with the steps to
@@ -70,7 +70,7 @@ jobs:
 
           **To renew (about 2 minutes):**
           1. On github.com: your profile picture → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**.
-          2. Open **Sow by Season plant list (read-only)** and choose **Regenerate token** (or create a new one: only the \`sow-by-season-plant-data\` repository, **Contents: Read-only**).
+          2. Open **Sow by Season plant list (read-only)** and choose **Regenerate token** (or create a new one: only the \`sow-by-season-plant-data\` repository, **Contents: Read-only** and **Issues: Read and write**).
           3. Save it without showing it: \`gh secret set PLANT_DATA_READ_TOKEN -R BearyNatural/claude\`
           4. Build the app: **Actions → garden_app · Android build & release → Run workflow**, then install the new release on your phone (the old app keeps the old token).
           5. Optional: **Actions → garden_app · plant list token check → Run workflow** to confirm — this issue then closes itself.

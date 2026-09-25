@@ -110,7 +110,7 @@ export function MonthStrip({ label, months, today, tone = 'good' }: { label: str
                 { backgroundColor: on ? c.bg : p.surfaceAlt, borderColor: isNow ? p.text : 'transparent' },
               ]}
             >
-              <Text style={[type.tiny, { color: on ? c.fg : p.textMuted, fontWeight: on ? '700' : '400', fontSize: 10 }]}>{m[0]}</Text>
+              <Text textBreakStrategy="simple" style={[type.tiny, { color: on ? c.fg : p.textMuted, fontWeight: on ? '700' : '400', fontSize: 10 }]}>{m[0]}</Text>
               {on ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.fg, marginTop: 2 }} /> : <View style={{ height: 8 }} />}
             </View>
           );
@@ -155,8 +155,8 @@ export function GardenBanner({ title, subtitle }: { title: string; subtitle?: st
       accessibilityLabel="Lettuces and chives growing in a raised garden bed"
     >
       <View style={{ padding: space.md, backgroundColor: 'rgba(12, 30, 18, 0.45)' }}>
-        <Text style={[type.h2, { color: '#FFFFFF' }]}>{title}</Text>
-        {subtitle ? <Text style={[type.small, { color: '#F1F5EC' }]}>{subtitle}</Text> : null}
+        <Text textBreakStrategy="simple" style={[type.h2, { color: '#FFFFFF' }]}>{title}</Text>
+        {subtitle ? <Text textBreakStrategy="simple" style={[type.small, { color: '#F1F5EC' }]}>{subtitle}</Text> : null}
       </View>
     </ImageBackground>
   );

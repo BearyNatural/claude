@@ -433,6 +433,10 @@ export interface AppSettings {
   activeGardenId?: string;
   /** Android: check the forecast in the background and alert about frost, heat or heavy rain (default off). */
   backgroundAlerts?: boolean;
+  /** Include plant photos in backups by default (default on). Also used for automatic backup. */
+  backupPhotos?: boolean;
+  /** Share plants the gardener adds with the plant list, as the starting choice for each new plant (default off — opt-in). */
+  sharePlants?: boolean;
 }
 
 /**
@@ -449,7 +453,8 @@ export interface CustomPlant {
   /** Atlas of Living Australia taxon link, when the name was looked up there. */
   alaGuid?: string;
   categories: PlantCategory[];
-  lifecycle: Lifecycle;
+  /** Absent = the gardener isn't sure (schema v7; always set before). */
+  lifecycle?: Lifecycle;
   startMethods: StartMethod[];
   /** Months the gardener plants or sows it in their own garden. */
   plantMonths?: Month[];
@@ -474,6 +479,8 @@ export interface PlantShare {
   sharedAt?: ISODateTime;
   /** Suggestion number in the plant list inbox, once received. */
   ref?: number;
+  /** Why the last attempt to send a pending share failed, in plain words. */
+  lastError?: string;
 }
 
 /** Everything the gardener created — the unit of backup/restore. */

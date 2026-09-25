@@ -11,4 +11,4 @@
 | [0007](0007-local-notifications-only.md) | Local notifications only; consolidated reminders; no guaranteed background execution |
 | [0008](0008-data-provenance.md) | Plant data carries its sources; unknown beats invented |
 | [0009](0009-browser-version-on-github-pages.md) | Browser version as static files on GitHub Pages under `/sow-by-season/` |
-| [0010](0010-plant-list-updates.md) | Plant list updates and update notices from a private repository, read with a read-only token |
+| [0010](0010-plant-list-updates.md) | Plant list updates and update notices from a private repository, read with a repository-limited token |

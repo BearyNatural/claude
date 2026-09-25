@@ -57,7 +57,7 @@ Long-press your home screen › **Widgets** › **Sow by Season**. The widget sh
 
 ### Plants you add, and the shared plant list
 
-If a plant isn't in the list, add it with **"Add a plant that isn't listed"**. When adding a plant you can choose **"Share this plant to help grow the plant list"** (ticked by default — untick it to keep the plant to yourself). Shared plants are used to expand the Sow by Season plant list for everyone:
+If a plant isn't in the list, add it with **"Add a plant that isn't listed"**. When adding a plant you can choose **"Share this plant to help grow the plant list"** (off unless you tick it; to have it ticked for every new plant, choose **Share them** under **Garden Profile › General**). Shared plants are used to expand the Sow by Season plant list for everyone:
 
 - **Only plant information is shared** — the plant's name, type, planting months, sun/frost/pot details, your notes about it, and your climate zone (e.g. "subtropical"). **Never photos**, your location, address, garden, name or anything personal. Please keep personal details out of plant notes.
 - Nothing is added automatically: every shared plant is checked, and its growing details are **verified against reliable Australian sources** before it's added to the plant list.
@@ -82,7 +82,7 @@ The workflows live in `ci/` and are copied to `.github/workflows/` by `publish-t
 | `garden_app-web.yml` · *publish browser version* | App code changes on `main` | Builds the browser version and publishes it to `/sow-by-season/` on the personal site (`BearyNatural/BearyNatural.github.io`, `SITE_DEPLOY_KEY`) |
 | `garden_app-plant-data.yml` · *publish plant list* | Plant data changes on `main` | Publishes `catalogue.json` for plant list updates (see [Plant list updates](#plant-list-updates)) |
 | `garden_app-plant-suggestions.yml` · *check plant suggestions* | Daily | First checks on plants shared from the app (see [Shared plant suggestions](#shared-plant-suggestions)) |
-| `garden_app-token-check.yml` · *plant list token check* | Weekly | Warns before the read-only plant list token expires |
+| `garden_app-token-check.yml` · *plant list token check* | Weekly | Warns before the plant data token expires |
 
 **Release notes come from [`CHANGELOG.md`](CHANGELOG.md).** When you change the version in `app.json`, add a `## <version> — <date>` section at the top of the changelog; the Android build copies that section into the GitHub release. Weekly dependency updates without a section get "Dependency updates and maintenance".
 
@@ -174,7 +174,7 @@ src/
   state/                Store (actions = domain + persistence), React hooks, automatic backup
   ui/                   Theme tokens, accessible components, shared forms, map
   widget/               Android home-screen widget
-tests/                  211 automated tests in 16 files
+tests/                  217 automated tests in 16 files
 data-sources/           Raw captures of source data (Gardening Australia monthly lists)
 scripts/                Data build scripts, the browser build finisher, the plant suggestion checker
 web/                    Browser app icons
@@ -186,7 +186,7 @@ docs/                   Architecture, ADRs, data review, screenshots
 
 ## Setup and running
 
-Requirements: **Node 22.13+**, npm, and for devices the **Expo Go** app or a development build.
+Requirements: **Node 22.13+** (`.nvmrc`: run `nvm use`), npm, and for devices the **Expo Go** app or a development build.
 
 ```bash
 cd garden_app
@@ -223,7 +223,7 @@ The app expects to be served from `/sow-by-season/` (`experiments.baseUrl` in `a
 npm test
 ```
 
-There are **211 tests in 16 files, and all pass.** They cover Australian season boundaries, timezones and daylight saving, gardens that run across the new year, per-zone recommendations (Brisbane, Hobart, Darwin, Perth, inland Queensland), stale and unavailable weather, modelled soil temperature, frost, heat and heavy rain, household scaling, single-harvest vs repeat-harvest crops, succession limits at the end of the season, succession actions, Three Sisters sequencing, companion evidence levels, overcrowding, rotation, timelines, task generation and prioritisation, available gardening time, reminders, backup, restore, corrupt backups, schema migrations, atomic restore, per-record storage resilience, the weather client and cache, catalogue validation, one integrated scenario taken from the brief, and — added since 1.0 — postcode search, plantings in several areas, the garden map and outline merging, photos and photo backups, plant list updates and your own plants, update notices and plant sharing, several gardens, closed-app weather alerts and the widget. The original test plan is in the [development report](DEVELOPMENT_REPORT.md#testing).
+There are **217 tests in 16 files, and all pass.** They cover Australian season boundaries, timezones and daylight saving, gardens that run across the new year, per-zone recommendations (Brisbane, Hobart, Darwin, Perth, inland Queensland), stale and unavailable weather, modelled soil temperature, frost, heat and heavy rain, household scaling, single-harvest vs repeat-harvest crops, succession limits at the end of the season, succession actions, Three Sisters sequencing, companion evidence levels, overcrowding, rotation, timelines, task generation and prioritisation, available gardening time, reminders, backup, restore, corrupt backups, schema migrations, atomic restore, per-record storage resilience, the weather client and cache, catalogue validation, one integrated scenario taken from the brief, and — added since 1.0 — postcode search, plantings in several areas, the garden map and outline merging, photos and photo backups, plant list updates and your own plants, update notices and plant sharing, several gardens, closed-app weather alerts and the widget. The original test plan is in the [development report](DEVELOPMENT_REPORT.md#testing).
 
 ## Building for devices
 
@@ -262,7 +262,7 @@ Copy `.env.example` to `.env`:
 | Variable | Purpose |
 |---|---|
 | `EXPO_PUBLIC_OPEN_METEO_API_KEY` | Optional. Open-Meteo customer API key for commercial use. |
-| `EXPO_PUBLIC_PLANT_DATA_TOKEN` | Optional. The read-only plant data token. Set by the Android build from the `PLANT_DATA_READ_TOKEN` secret; leave it unset locally and in the browser build. Without it, plant list updates, update notices and plant sharing are switched off. |
+| `EXPO_PUBLIC_PLANT_DATA_TOKEN` | Optional. The plant data token (read the plant list; file plant suggestions). Set by the Android build from the `PLANT_DATA_READ_TOKEN` secret; leave it unset locally and in the browser build. Without it, plant list updates, update notices and plant sharing are switched off. |
 
 `EXPO_PUBLIC_*` values are embedded in the app bundle, so don't put secrets there that must stay private.
 
@@ -301,9 +301,9 @@ A backup is a JSON file you save wherever your phone lets you: on the device, iC
 ```json
 {
   "format": "sow-by-season-backup",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "createdAt": "2026-09-25T08:00:00.000Z",
-  "app": { "name": "Sow by Season", "version": "1.7.1" },
+  "app": { "name": "Sow by Season", "version": "1.8.0" },
   "catalogueVersion": "2026.09.2",
   "counts": { "areas": 2, "plantings": 5, "journal": 2, "wishlist": 2, "successionPlans": 1, "taskResponses": 3, "observations": 0, "customPlants": 1, "gardens": 1 },
   "checksum": "fnv1a-1a2b3c4d",
@@ -317,7 +317,7 @@ A backup is a JSON file you save wherever your phone lets you: on the device, iC
 }
 ```
 
-`attachments` is only there when you choose **Include photos**. Schema history: v2 one area per planting · v3 several areas · v4 photos, street address and bed outlines · v5 your own plants · v6 several gardens (details in `src/domain/backup/migrations.ts`).
+`attachments` is only there when you choose **Include photos**. Schema history: v2 one area per planting · v3 several areas · v4 photos, street address and bed outlines · v5 your own plants · v6 several gardens · v7 your own plants can leave lifecycle unknown (details in `src/domain/backup/migrations.ts`).
 
 Restoring a backup goes through these steps:
 
@@ -325,7 +325,7 @@ Restoring a backup goes through these steps:
 2. Confirm it's a Sow by Season backup.
 3. Check the schema version. Backups from newer versions are refused with an "update the app" message.
 4. Verify the checksum.
-5. Migrate older formats step by step (v1 → … → v6).
+5. Migrate older formats step by step (v1 → … → v7).
 6. Validate every record. Unreadable records are listed and left out.
 7. Show a preview and a clear "this will replace…" warning.
 8. Replace the data atomically. Current data isn't touched until the new data is known to be good.
@@ -342,7 +342,7 @@ Restoring a backup goes through these steps:
 
 The plant list built into the app can be updated between releases. When plant data changes on `main`, the **garden_app · publish plant list** workflow rebuilds `catalogue.json` (`scripts/build-catalogue-json.ts`) and pushes it to the **private** repository `BearyNatural/sow-by-season-plant-data`, using the `PLANT_DATA_DEPLOY_KEY` deploy key (write access to that repository only).
 
-Installed apps download it at most once a day through the GitHub API, using a fine-grained token that can only **read** that repository. The token comes from the `PLANT_DATA_READ_TOKEN` Actions secret and is embedded when the Android build runs (`EXPO_PUBLIC_PLANT_DATA_TOKEN`) — it is never in the source. Anyone who unpacks the APK could extract it, which exposes only the plant list. Tokens expire: when it does, the app keeps its current list and About says updates need renewing — create a new token and replace the secret, and the next build carries it. Without the secret, builds simply skip plant list updates. They treat it as untrusted: every plant and source is validated (`src/domain/plantValidation.ts`, `src/domain/catalogueUpdate.ts`), invalid entries are dropped, and a list older than the one built into the app is ignored. The last good list is cached for offline use.
+Installed apps download it at most once a day through the GitHub API, using a fine-grained token limited to that one repository, with **Contents: Read-only** (plant list and update notices) and **Issues: Read and write** (plant sharing). It can't change the plant list itself. The token comes from the `PLANT_DATA_READ_TOKEN` Actions secret and is embedded when the Android build runs (`EXPO_PUBLIC_PLANT_DATA_TOKEN`) — it is never in the source. Anyone who unpacks the APK could extract it: that exposes the plant list and the shared plant suggestions (which contain only plant details), and would let them file or edit suggestions — nothing that reaches other gardeners without a person checking it. Without the Issues permission, sharing simply doesn't send, and the plant page says why. Tokens expire: when it does, the app keeps its current list and About says updates need renewing — create a new token and replace the secret, and the next build carries it. Without the secret, builds simply skip plant list updates. They treat it as untrusted: every plant and source is validated (`src/domain/plantValidation.ts`, `src/domain/catalogueUpdate.ts`), invalid entries are dropped, and a list older than the one built into the app is ignored. The last good list is cached for offline use.
 
 **When changing plant data, bump `CATALOGUE_VERSION`** in `src/data/plants/index.ts` (`YYYY.MM.N`).
 

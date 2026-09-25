@@ -12,9 +12,11 @@
  *  v4 — optional planting.photos, profile.property, area.outline, and
  *       optional photo files in `attachments`.
  *  v5 — `customPlants` (plants the gardener added).
- *  v6 — current: `gardens` (extra gardens) and optional `gardenId` on areas,
- *       plantings, journal notes, plans and observations; see format.ts.
- *  v3→v4, v4→v5 and v5→v6 need no data changes, but older app versions would
+ *  v6 — `gardens` (extra gardens) and optional `gardenId` on areas,
+ *       plantings, journal notes, plans and observations.
+ *  v7 — current: your own plants may leave "how long does it live" unknown;
+ *       see format.ts.
+ *  v3→v4 … v6→v7 need no data changes, but older app versions would
  *  drop the new data, so they refuse newer backups instead.
  */
 
@@ -93,6 +95,7 @@ export const MIGRATIONS: Record<number, (doc: Json) => Json> = {
   3: (doc) => ({ ...doc, schemaVersion: 4 }),
   4: (doc) => ({ ...doc, schemaVersion: 5 }),
   5: (doc) => ({ ...doc, schemaVersion: 6 }),
+  6: (doc) => ({ ...doc, schemaVersion: 7 }),
 };
 
 export function migrate(doc: Json, from: number, to: number): { doc: Json; applied: string[] } {

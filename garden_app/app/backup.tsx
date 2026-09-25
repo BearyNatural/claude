@@ -23,7 +23,8 @@ export default function Backup() {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [busy, setBusy] = useState(false);
   const photoCount = data.plantings.reduce((n, p) => n + (p.photos?.length ?? 0), 0);
-  const [withPhotos, setWithPhotos] = useState(true);
+  // Starts from Garden Profile › General (photos included unless turned off there).
+  const [withPhotos, setWithPhotos] = useState(data.settings.backupPhotos ?? true);
   const auto = useAutoBackupSettings(autoBackup);
 
   const makeJson = async () => {
@@ -97,17 +98,15 @@ export default function Backup() {
               <T variant="small">{`On — keeping ${'SowBySeason-AutoBackup.json'} up to date in ${auto.folderName ? `“${auto.folderName}”` : 'your chosen folder'} whenever your garden changes.`}</T>
               <T variant="tiny" muted>{auto.lastSavedAt ? `Last saved ${formatDay(auto.lastSavedAt.slice(0, 10), today)} at ${new Date(auto.lastSavedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : 'Not saved yet.'}</T>
               {auto.lastError ? <Notice tone="caution">{auto.lastError}</Notice> : null}
-              {photoCount ? (
-                <Choice<'yes' | 'no'>
-                  label="Photos in the automatic backup"
-                  options={[
-                    { value: 'yes', label: 'Include photos' },
-                    { value: 'no', label: 'Records only (smaller file)' },
-                  ]}
-                  value={auto.includePhotos ? 'yes' : 'no'}
-                  onChange={(v) => void autoBackup.setIncludePhotos(v === 'yes')}
-                />
-              ) : null}
+              <Choice<'yes' | 'no'>
+                label={photoCount ? `Photos in the automatic backup (${photoCount})` : 'Photos in the automatic backup (none yet)'}
+                options={[
+                  { value: 'yes', label: 'Include photos' },
+                  { value: 'no', label: 'Records only (smaller file)' },
+                ]}
+                value={auto.includePhotos ? 'yes' : 'no'}
+                onChange={(v) => { void autoBackup.setIncludePhotos(v === 'yes'); void store.saveSettings({ backupPhotos: v === 'yes' }); }}
+              />
               <Row wrap gap={space.sm}>
                 <Button compact icon="cloud-upload-outline" label={autoBackup.busy ? 'Saving…' : 'Save now'} loading={autoBackup.busy} onPress={() => void autoBackup.run(true)} />
                 <Button compact variant="secondary" icon="folder-outline" label="Change folder" onPress={() => void autoBackup.enable()} />
@@ -126,17 +125,16 @@ export default function Backup() {
       <Section title="Make a backup" subtitle={data.settings.lastBackupAt ? `Last backup: ${formatDay(data.settings.lastBackupAt.slice(0, 10), today)}` : 'No backup yet'}>
         <Card>
           <T variant="small">Includes your Garden Profile, areas, plantings and their history, journal, wish list, succession plans, reminder settings, task history and — if you choose — your plant photos. If you use the garden map, your saved address and outlines are included too. The plant catalogue and weather aren&apos;t included — the app recreates them.</T>
-          {photoCount ? (
-            <Choice<'yes' | 'no'>
-              label={`Photos (${photoCount})`}
-              options={[
-                { value: 'yes', label: 'Include photos', description: `Keeps everything together. Adds roughly ${Math.max(1, Math.round(photoCount * 0.4))} MB to the backup file.` },
-                { value: 'no', label: 'Leave photos out', description: 'A small file with your records only. Photos stay on this device.' },
-              ]}
-              value={withPhotos ? 'yes' : 'no'}
-              onChange={(v) => setWithPhotos(v === 'yes')}
-            />
-          ) : null}
+          <Choice<'yes' | 'no'>
+            label={photoCount ? `Photos (${photoCount})` : 'Photos (none yet)'}
+            options={[
+              { value: 'yes', label: 'Include photos', description: photoCount ? `Keeps everything together. Adds roughly ${Math.max(1, Math.round(photoCount * 0.4))} MB to the backup file.` : 'Photos you add to plantings will be included.' },
+              { value: 'no', label: 'Leave photos out', description: 'A small file with your records only. Photos stay on this device.' },
+            ]}
+            value={withPhotos ? 'yes' : 'no'}
+            onChange={(v) => setWithPhotos(v === 'yes')}
+          />
+          <T variant="tiny" muted>The starting choice comes from Garden Profile › General.</T>
           <Button icon="share-outline" label="Back up now" onPress={() => exportIt(false)} loading={busy} />
           {canSaveToFolder() ? <Button variant="secondary" icon="folder-outline" label="Save to a folder…" onPress={() => exportIt(true)} disabled={busy} /> : null}
         </Card>

@@ -275,8 +275,11 @@ export class GardenStore {
         const ref = await this.shareSuggestion(c, zone);
         const latest = this.state.data.customPlants.find((x) => x.id === c.id);
         if (latest?.share?.status === 'pending') await this.putRecord('customPlants', { ...latest, share: { status: 'shared', sharedAt: this.nowIso(), ...(ref ? { ref } : {}) } });
-      } catch {
-        // Stays pending; tried again next time the app opens.
+      } catch (e) {
+        // Stays pending and is tried again next time the app opens; the reason is kept so the plant page can say why.
+        const reason = e instanceof TypeError || !(e instanceof Error) ? 'Not sent yet — you seem to be offline. It will send next time you\'re online.' : e.message;
+        const latest = this.state.data.customPlants.find((x) => x.id === c.id);
+        if (latest?.share?.status === 'pending' && latest.share.lastError !== reason) await this.putRecord('customPlants', { ...latest, share: { ...latest.share, lastError: reason } }).catch(() => undefined);
       }
     }
   }

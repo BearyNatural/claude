@@ -27,10 +27,12 @@ export function customToPlantRecord(c: CustomPlant): PlantRecord {
   if (c.plantMonths?.length) {
     // The gardener's own months for their own garden: offered in every zone, so
     // they apply wherever the profile is set, and labelled as their notes.
-    const seed = c.startMethods.every((m) => m === 'direct-sow' || m === 'seed-tray');
+    const seed = c.startMethods.length > 0 && c.startMethods.every((m) => m === 'direct-sow' || m === 'seed-tray');
     for (const z of ZONE_IDS) windows[z] = { ...(seed ? { sow: c.plantMonths } : { plant: c.plantMonths }), sourceId: YOUR_NOTES, note: 'Months you entered.' };
   }
-  const perennial = c.lifecycle === 'perennial';
+  // Unknown lifecycle is treated like a perennial (one plant, no batches) — the gentlest assumption.
+  const lifecycle = c.lifecycle ?? 'perennial';
+  const perennial = lifecycle === 'perennial';
   return {
     id: c.id,
     commonName: c.commonName,
@@ -39,7 +41,7 @@ export function customToPlantRecord(c: CustomPlant): PlantRecord {
     familyName: c.familyName,
     aliases: [],
     categories: c.categories.length ? c.categories : ['perennial'],
-    lifecycle: c.lifecycle,
+    lifecycle,
     summary: c.notes?.trim() || 'No notes yet. Anything left blank when adding this plant is treated as unknown.',
     startMethods: c.startMethods.length ? c.startMethods : ['seedling'],
     windows,

@@ -52,7 +52,7 @@ export class AutoBackupController {
   async enable(): Promise<boolean> {
     const folder = await chooseBackupFolder();
     if (!folder) return false;
-    this.settings = { folderUri: folder.uri, folderName: folder.name, includePhotos: this.settings?.includePhotos ?? true };
+    this.settings = { folderUri: folder.uri, folderName: folder.name, includePhotos: this.settings?.includePhotos ?? this.garden.state.data.settings.backupPhotos ?? true };
     await saveAutoBackup(this.local, this.settings);
     this.emit();
     await this.run(true);

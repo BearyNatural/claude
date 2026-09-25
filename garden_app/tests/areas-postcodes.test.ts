@@ -4,7 +4,9 @@ import { describe, it } from 'node:test';
 import { CURRENT_SCHEMA_VERSION, fnv1a, stableStringify } from '../src/domain/backup/format';
 import { parseBackup } from '../src/domain/backup/restore';
 import { areaNames, newPotName, quantityInArea } from '../src/domain/plantingAreas';
-import { parsePostcodeData, postcodeCentre, searchPostcodePlaces } from '../src/domain/postcodes';
+import { inferClimateFromCoordinates } from '../src/domain/location';
+import { LOCALITIES } from '../src/data/localities';
+import { parsePlaceQuery, parsePostcodeData, postcodeCentre, searchPostcodePlaces } from '../src/domain/postcodes';
 import { areaUsage } from '../src/domain/space';
 import { validatePlanting } from '../src/domain/validation';
 import { coordinatesForPostcode, offlineCandidates, onlineCandidates } from '../src/services/location/geocode';
@@ -53,6 +55,31 @@ describe('offline postcodes and suburbs', () => {
     const r = await onlineCandidates('4500', async () => { called = true; return { ok: true, status: 200, json: async () => ({}) }; });
     assert.deepEqual(r, []);
     assert.equal(called, false);
+  });
+
+  it('understands suburbs typed with a state, postcode or full street address', () => {
+    for (const q of ['Bray Park Qld', 'Bray Park, QLD 4500', 'bray park qld 4500', '41 Francis road Bray Park Qld', 'Francis Road, Bray Park, Queensland 4500']) {
+      const r = offlineCandidates(q);
+      assert.equal(`${r[0]?.label} ${r[0]?.sublabel}`, 'Bray Park QLD 4500', q);
+      assert.equal(r[0].location.suburb, 'Bray Park', 'only the suburb is kept, never the street');
+    }
+    assert.equal(offlineCandidates('12 Smith St St Kilda VIC')[0].sublabel, 'VIC 3182');
+    assert.ok(offlineCandidates('Bray Park').length >= 2, 'without a state, both Bray Parks are offered');
+    assert.deepEqual(parsePlaceQuery('Hobart Tasmania'), { words: ['hobart'], state: 'TAS', postcode: undefined });
+    assert.deepEqual(parsePlaceQuery('4500').words, ['4500']);
+  });
+
+  it('sends only the place name to the online search', async () => {
+    let url = '';
+    await onlineCandidates('41 Francis road Bray Park Qld', async (u) => { url = u; return { ok: true, status: 200, json: async () => ({ results: [] }) }; });
+    assert.match(url, /name=bray%20park&/);
+  });
+
+  it('a manually set postcode gets its climate from the nearest reference town, not a numerically close postcode', () => {
+    const c = coordinatesForPostcode('4500')!;
+    const inf = inferClimateFromCoordinates(LOCALITIES, c.lat, c.lon, undefined, 'QLD')!;
+    assert.equal(inf.zone, 'subtropical');
+    assert.doesNotMatch(inf.reason, /couldn't find/);
   });
 
   it('maps a postcode to rounded coordinates', () => {

@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
+import { autoBackup } from '../src/state/appStore';
 import React, { useState } from 'react';
 import type { GardenLocation, GardeningGoal, TimeBudget } from '../src/domain/types';
 import { useGardenView } from '../src/state/hooks';
-import { Button, Card, Field, Notice, Row, Screen, Section, Stepper, T } from '../src/ui/components/primitives';
+import { Button, Card, Choice, Field, Notice, Row, Screen, Section, Stepper, T } from '../src/ui/components/primitives';
 import { space } from '../src/ui/theme/theme';
 import { GoalsPicker, LocationPicker, TimeBudgetPicker, ZonePicker } from '../src/ui/forms/profileForms';
 
@@ -61,6 +62,29 @@ export default function Profile() {
       </Section>
       <TimeBudgetPicker value={time} onChange={setTime} />
       <GoalsPicker value={goals} onChange={setGoals} />
+      <Section title="General" subtitle="Your starting choices — you can still change them each time">
+        <Card>
+          <Choice<'yes' | 'no'>
+            label="Photos in backups"
+            options={[
+              { value: 'yes', label: 'Include photos', description: 'Backups keep your plant photos with your records (larger files).' },
+              { value: 'no', label: 'Leave photos out', description: 'Smaller backups with your records only. Photos stay on this device.' },
+            ]}
+            value={data.settings.backupPhotos ?? true ? 'yes' : 'no'}
+            onChange={(v) => { void store.saveSettings({ backupPhotos: v === 'yes' }); if (autoBackup.supported) void autoBackup.setIncludePhotos(v === 'yes'); }}
+          />
+          <Choice<'yes' | 'no'>
+            label="Plants you add"
+            options={[
+              { value: 'no', label: 'Keep them to myself', description: 'Nothing is shared unless you tick "Share this plant" when adding it.' },
+              { value: 'yes', label: 'Share them to help grow the plant list', description: 'New plants you add start with "Share" ticked. Only plant details, your notes about them and your climate zone are sent — never photos or anything about you. Each is checked before being added for everyone.' },
+            ]}
+            value={data.settings.sharePlants ? 'yes' : 'no'}
+            onChange={(v) => void store.saveSettings({ sharePlants: v === 'yes' })}
+          />
+          {!store.canSharePlants ? <T variant="tiny" muted>Sharing happens from the Android app; this choice is kept for when you use it.</T> : null}
+        </Card>
+      </Section>
       <Section title="Garden map (optional)">
         <Card>
           {profile.property || outlined ? (

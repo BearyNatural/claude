@@ -3,7 +3,7 @@
  *
  *   {
  *     "format": "sow-by-season-backup",
- *     "schemaVersion": 6,
+ *     "schemaVersion": 7,
  *     "createdAt": "2026-09-24T08:00:00.000Z",
  *     "app": { "name": "Sow by Season", "version": "1.0.0" },
  *     "catalogueVersion": "2026.09.1",
@@ -19,12 +19,12 @@
 import type { GardenData } from '../types';
 
 export const BACKUP_FORMAT = 'sow-by-season-backup';
-export const CURRENT_SCHEMA_VERSION = 6;
+export const CURRENT_SCHEMA_VERSION = 7;
 export const MIN_SUPPORTED_SCHEMA_VERSION = 1;
 
-export interface BackupFileV6 {
+export interface BackupFileV7 {
   format: typeof BACKUP_FORMAT;
-  schemaVersion: 6;
+  schemaVersion: 7;
   createdAt: string;
   app: { name: string; version: string };
   catalogueVersion?: string;
@@ -81,11 +81,11 @@ export function countsFor(data: GardenData): Record<string, number> {
 export function createBackup(
   data: GardenData,
   opts: { now: Date; appVersion: string; catalogueVersion?: string; photos?: Record<string, string> },
-): BackupFileV6 {
+): BackupFileV7 {
   const photos = opts.photos && Object.keys(opts.photos).length ? opts.photos : undefined;
   return {
     format: BACKUP_FORMAT,
-    schemaVersion: 6,
+    schemaVersion: 7,
     createdAt: opts.now.toISOString(),
     app: { name: 'Sow by Season', version: opts.appVersion },
     catalogueVersion: opts.catalogueVersion,
@@ -101,6 +101,6 @@ export function backupFileName(localDate: string): string {
   return `SowBySeason-Backup-${localDate}.json`;
 }
 
-export function serialiseBackup(b: BackupFileV6): string {
+export function serialiseBackup(b: BackupFileV7): string {
   return JSON.stringify(b, null, 2);
 }
