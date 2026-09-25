@@ -9,7 +9,7 @@ This file lists what a horticulturist should check before a commercial release. 
 - **general knowledge**: widely repeated gardening knowledge entered without a specific citation (source id `general-knowledge`).
 - **BearyNatural heuristic** (`bn-heuristic`): every household quantity, succession interval, task duration and weather threshold. These are planning estimates by design and need expert tuning, not citations.
 
-## Catalogue (52 plants)
+## Catalogue (65 plants)
 
 | Plant | Status | Window source(s) | Zones with no window | Fields relying on general knowledge |
 |---|---|---|---|---|
@@ -65,6 +65,13 @@ This file lists what a horticulturist should check before a commercial release. 
 | Borage | source-checked | seed-collection-chart | arid | climate/heat, site/pH, feeding |
 | Sweet alyssum | source-checked | seed-collection-chart | arid | climate/heat, site/pH, feeding |
 | Marigold | source-checked | seed-collection-chart | arid | climate/heat, site/pH, feeding |
+| Avocado | draft | — | all (SGA gives no planting months) | suitable zones, pot size |
+| Grape | draft | — | all (SGA gives no planting months) | climate/frost, water |
+| Dragon fruit | draft | — | all (no planting months in source) | suitable zones, drainage |
+| Mulberry | draft | sga-fruit-trees (generic deciduous) | tropical | climate/heat, harvest months interpreted |
+| Peachcot | draft | sga-fruit-trees (generic deciduous) | tropical, arid | climate/heat; variety facts from a nursery listing (Daleys) |
+| Plumcot / pluot | draft | sga-fruit-trees (generic deciduous) | tropical, arid | variety facts from a nursery listing (Daleys) |
+| Plum, Peach, Nectarine, Apricot, Apple, Pear | draft | sga-fruit-trees (generic deciduous) | tropical | climate/frost, size, years to fruit, harvest months |
 
 ## Source anomalies and interpretations to review
 

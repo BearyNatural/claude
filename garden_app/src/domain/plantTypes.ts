@@ -47,6 +47,9 @@ export type PlantFamily =
   | 'Ericaceae'
   | 'Boraginaceae'
   | 'Aizoaceae'
+  | 'Lauraceae'
+  | 'Vitaceae'
+  | 'Cactaceae'
   | 'Other';
 
 /** Per-zone planting windows. Months are calendar months in that zone. */

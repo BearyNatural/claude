@@ -1,6 +1,6 @@
 {
   "name": "sow-by-season",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "private": true,
   "description": "Sow by Season by BearyNatural — an Australian garden-planning assistant.",
   "main": "expo-router/entry",

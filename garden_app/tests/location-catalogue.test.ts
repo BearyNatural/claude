@@ -132,6 +132,15 @@ describe('plant search', () => {
   const ctx = { zone: 'subtropical' as const, today: '2026-09-24' };
   const ids = (q: string) => searchByText(catalogue, q, ctx).map((r) => r.plant.id);
 
+  it('finds fruit by the names gardeners use', () => {
+    assert.equal(ids('advocado')[0], 'avocado');
+    assert.equal(ids('pluot')[0], 'plumcot');
+    assert.equal(ids('peachcot')[0], 'peachcot');
+    assert.equal(ids('dragonfruit')[0], 'dragon-fruit');
+    assert.equal(ids('grapes')[0], 'grape');
+    assert.equal(ids('mulberries')[0], 'mulberry');
+  });
+
   it('finds plurals and aliases', () => {
     assert.deepEqual(ids('tomatoes').slice(0, 2).sort(), ['cherry-tomato', 'tomato']);
     assert.ok(ids('courgette').includes('zucchini'));
@@ -139,7 +148,9 @@ describe('plant search', () => {
   });
 
   it('understands descriptive queries', () => {
-    assert.deepEqual(ids('fruit trees').sort(), ['fig', 'lemon', 'mango']);
+    const trees = ids('fruit trees');
+    for (const t of ['fig', 'lemon', 'mango', 'avocado', 'peachcot', 'plumcot', 'plum', 'mulberry']) assert.ok(trees.includes(t), `fruit trees: ${t}`);
+    assert.ok(!trees.includes('strawberry') && !trees.includes('grape'));
     assert.ok(ids('plants for a trellis').includes('bean-climbing'));
     assert.ok(!ids('plants for a trellis').includes('carrot'));
     assert.ok(ids('pollinator plants').includes('borage'));
