@@ -8,7 +8,7 @@ import { TextInput, View } from 'react-native';
 import { parseQuery, searchPlants, type PlantFilters } from '../../src/domain/catalogue';
 import { catalogue } from '../../src/state/gardenStore';
 import { useGardenView } from '../../src/state/hooks';
-import { Badge, Card, Chip, EmptyState, ListRow, Row, Screen, T } from '../../src/ui/components/primitives';
+import { Badge, Button, Card, Chip, EmptyState, ListRow, Row, Screen, T } from '../../src/ui/components/primitives';
 import { radius, space, TOUCH, usePalette } from '../../src/ui/theme/theme';
 
 type Toggle = 'plantableNow' | 'containers' | 'shadeTolerant' | 'trellis' | 'fastGrowing' | 'pollinator' | 'lowMaintenance' | 'perennial';
@@ -25,7 +25,7 @@ const TOGGLES: { key: Toggle; label: string }[] = [
 const EXAMPLES = ['fruit trees', 'suitable for pots', 'things I can plant now', 'shade tolerant', 'plants for a trellis', 'pollinator plants', 'fast-growing vegetables'];
 
 export default function Plants() {
-  const { zone, today, data } = useGardenView();
+  const { zone, today, data, state } = useGardenView();
   const p = usePalette();
   const [q, setQ] = useState('');
   const [toggles, setToggles] = useState<Partial<Record<Toggle, boolean>>>({});
@@ -35,7 +35,9 @@ export default function Plants() {
     const parsed: PlantFilters = parseQuery(q);
     for (const t of TOGGLES) if (toggles[t.key]) parsed[t.key] = true;
     return searchPlants(catalogue, parsed, { zone, today });
-  }, [q, toggles, zone, today]);
+    // state.catalogueRev: results change when you add a plant or the plant list updates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, toggles, zone, today, state.catalogueRev]);
 
   return (
     <Screen>
@@ -61,9 +63,12 @@ export default function Plants() {
           ))}
         </Row>
       ) : null}
-      <T variant="tiny" muted>{`${results.length} plant${results.length === 1 ? '' : 's'}`}</T>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <T variant="tiny" muted>{`${results.length} plant${results.length === 1 ? '' : 's'}`}</T>
+        <Button compact variant="ghost" icon="add" label="Add a plant that isn't listed" onPress={() => router.push({ pathname: '/plant/custom', params: { name: q.trim() } })} />
+      </Row>
       {results.length === 0 ? (
-        <EmptyState icon="search-outline" title="No plants match" body="Try fewer words or clear some filters. The starter catalogue is growing — if a plant is missing, it isn't in the app yet." />
+        <EmptyState icon="search-outline" title="No plants match" body="Try fewer words or clear some filters. If a plant is missing, add it yourself with “Add a plant that isn't listed”." />
       ) : (
         <Card>
           {results.map(({ plant, matched }) => (

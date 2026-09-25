@@ -44,6 +44,7 @@ function Gate() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="plant/[id]" options={{ title: 'Plant' }} />
+        <Stack.Screen name="plant/custom" options={{ title: 'Add a plant', presentation: 'modal' }} />
         <Stack.Screen name="planting/new" options={{ title: 'Add a planting', presentation: 'modal' }} />
         <Stack.Screen name="planting/[id]" options={{ title: 'Planting' }} />
         <Stack.Screen name="area/edit" options={{ title: 'Garden area', presentation: 'modal' }} />

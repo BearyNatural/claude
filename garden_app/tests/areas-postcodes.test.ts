@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { fnv1a, stableStringify } from '../src/domain/backup/format';
+import { CURRENT_SCHEMA_VERSION, fnv1a, stableStringify } from '../src/domain/backup/format';
 import { parseBackup } from '../src/domain/backup/restore';
 import { areaNames, newPotName, quantityInArea } from '../src/domain/plantingAreas';
 import { parsePostcodeData, postcodeCentre, searchPostcodePlaces } from '../src/domain/postcodes';
@@ -93,7 +93,7 @@ describe('plantings in several garden areas', () => {
     const r = parseBackup(JSON.stringify(doc));
     assert.ok(r.ok);
     if (!r.ok) return;
-    assert.deepEqual(r.migrations, ['v2 → v3', 'v3 → v4']);
+    assert.deepEqual(r.migrations, Array.from({ length: CURRENT_SCHEMA_VERSION - 2 }, (_, i) => `v${i + 2} → v${i + 3}`));
     assert.deepEqual(r.data.plantings[0].areaIds, ['bed1']);
   });
 

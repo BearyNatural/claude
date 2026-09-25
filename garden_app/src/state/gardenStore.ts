@@ -9,9 +9,12 @@
  * Deliberately dependency-free (no Redux/Zustand) — a tiny observable store
  * consumed with React's useSyncExternalStore.
  */
-import { PLANTS } from '../data/plants';
+import { CATALOGUE_VERSION, PLANTS } from '../data/plants';
+import { SOURCES } from '../data/sources';
 import { THREE_SISTERS } from '../data/systems';
-import { createCatalogue } from '../domain/catalogue';
+import { createCatalogue, rebuildCatalogue } from '../domain/catalogue';
+import type { ParsedFeed } from '../domain/catalogueUpdate';
+import { CUSTOM_PREFIX, customToPlantRecord } from '../domain/customPlants';
 import { effectiveZone } from '../domain/climate';
 import { addDays, todayInTimeZone } from '../domain/dates';
 import { outlineDimensionsM, polygonAreaM2, roundTenth, type LatLon } from '../domain/geometry';
@@ -31,6 +34,7 @@ import { planSystem } from '../domain/systems';
 import {
   emptyGardenData,
   type AppSettings,
+  type CustomPlant,
   type GardenArea,
   type GardenData,
   type GardenProfile,
@@ -49,11 +53,24 @@ import type { WeatherSnapshot } from '../domain/weather';
 import { areaIdsOf, isInArea, toAreaIds } from '../domain/plantingAreas';
 import { coordinatesForPostcode } from '../services/location/geocode';
 import { memoryPhotoFiles, type PhotoFiles } from '../services/photos/photoFiles';
+import type { CatalogueUpdates } from '../services/catalogue/catalogueUpdates';
 import type { CollectionName, GardenRepository, LoadProblem } from '../services/storage/gardenRepository';
 import type { WeatherService } from '../services/weather/weatherService';
 
+/** The live catalogue: bundled plants + downloaded updates + the gardener's own plants. */
 export const catalogue = createCatalogue(PLANTS);
 export const getPlant = (id: string) => catalogue.byId.get(id);
+
+export interface CatalogueInfo {
+  /** Version of the plant list in use (bundled, or a newer downloaded one). */
+  version: string;
+  fromUpdate: boolean;
+  /** Plants the downloaded list adds beyond those built into the app. */
+  added: number;
+  updatedAt?: string;
+  checking?: boolean;
+  error?: string;
+}
 
 export interface WeatherState {
   snapshot: WeatherSnapshot | null;
@@ -71,6 +88,9 @@ export interface StoreState {
   weather: WeatherState;
   /** Bumped every minute-ish so "today" stays current while the app is open. */
   now: Date;
+  /** Bumped whenever the catalogue changes (own plants added, plant list updated). */
+  catalogueRev: number;
+  catalogueInfo: CatalogueInfo;
 }
 
 const EVENT_STAGE: Partial<Record<PlantingEventType, GrowthStage>> = {
@@ -95,13 +115,17 @@ export class GardenStore {
     problems: [],
     weather: { snapshot: null, loading: false },
     now: new Date(),
+    catalogueRev: 0,
+    catalogueInfo: { version: CATALOGUE_VERSION, fromUpdate: false, added: 0 },
   };
+  private feed: ParsedFeed | null = null;
 
   constructor(
     private repo: GardenRepository,
     private weatherService: WeatherService,
     private clock: () => Date = () => new Date(),
     private photos: PhotoFiles = memoryPhotoFiles(),
+    private plantList: CatalogueUpdates | null = null,
   ) {}
 
   subscribe = (fn: () => void) => {
@@ -126,8 +150,11 @@ export class GardenStore {
     try {
       const { data, problems } = await this.repo.load();
       const cached = await this.weatherService.cached();
+      this.feed = (await this.plantList?.cached()) ?? null;
       this.set({ status: 'ready', data, problems, weather: { snapshot: cached, loading: false }, now: this.clock() });
+      this.applyCatalogue();
       void this.refreshWeather();
+      if (data.settings.plantListUpdates !== false) void this.checkPlantList();
     } catch (e) {
       this.set({ status: 'error', loadError: e instanceof Error ? e.message : String(e) });
     }
@@ -160,6 +187,54 @@ export class GardenStore {
     this.set({ weather: { ...this.state.weather, loading: true, needsLocation: false } });
     const r = await this.weatherService.get(lat, lon, p.location.timezone, { force });
     this.set({ weather: { snapshot: r.snapshot, loading: false, error: r.error }, now: this.clock() });
+  }
+
+  // -------------------------------------------------------------------------
+  // Catalogue: plant list updates and the gardener's own plants
+  // -------------------------------------------------------------------------
+
+  private applyCatalogue(patch: Partial<CatalogueInfo> = {}) {
+    rebuildCatalogue(catalogue, PLANTS, this.feed?.plants ?? [], this.state.data.customPlants.map(customToPlantRecord));
+    if (this.feed) Object.assign(SOURCES, this.feed.sources);
+    const bundled = new Set(PLANTS.map((p) => p.id));
+    this.set({
+      catalogueRev: this.state.catalogueRev + 1,
+      catalogueInfo: {
+        ...this.state.catalogueInfo,
+        version: this.feed?.catalogueVersion ?? CATALOGUE_VERSION,
+        fromUpdate: !!this.feed,
+        added: this.feed ? this.feed.plants.filter((p) => !bundled.has(p.id)).length : 0,
+        updatedAt: this.feed?.generatedAt,
+        ...patch,
+      },
+    });
+  }
+
+  /** Download a newer plant list if there is one (daily at most, unless forced). */
+  async checkPlantList(force = false) {
+    if (!this.plantList) return;
+    this.set({ catalogueInfo: { ...this.state.catalogueInfo, checking: true, error: undefined } });
+    const r = await this.plantList.check(force);
+    if (r.feed) this.feed = r.feed;
+    this.applyCatalogue({ checking: false, error: r.error });
+  }
+
+  async saveCustomPlant(input: Omit<CustomPlant, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<CustomPlant> {
+    const now = this.nowIso();
+    const existing = input.id ? this.state.data.customPlants.find((c) => c.id === input.id) : undefined;
+    const rec: CustomPlant = { ...input, id: existing?.id ?? newId(CUSTOM_PREFIX.slice(0, -1)), createdAt: existing?.createdAt ?? now, updatedAt: now };
+    const saved = await this.putRecord('customPlants', rec);
+    this.applyCatalogue();
+    return saved;
+  }
+
+  /** Remove one of the gardener's own plants — refused while plantings or the wish list still use it. */
+  async deleteCustomPlant(id: string): Promise<{ ok: true } | { ok: false; inUse: number }> {
+    const inUse = this.state.data.plantings.filter((p) => p.plantId === id).length + this.state.data.wishlist.filter((w) => w.plantId === id).length;
+    if (inUse) return { ok: false, inUse };
+    await this.removeRecord('customPlants', id);
+    this.applyCatalogue();
+    return { ok: true };
   }
 
   // -------------------------------------------------------------------------
@@ -597,6 +672,7 @@ export class GardenStore {
     for (const f of this.photos.list()) if (!keep.has(f)) this.photos.remove(f);
     const { data: loaded, problems } = await this.repo.load();
     this.set({ data: loaded, problems });
+    this.applyCatalogue();
     void this.refreshWeather(true);
   }
 
@@ -605,6 +681,7 @@ export class GardenStore {
     this.photos.removeAll();
     await this.weatherService.clear().catch(() => undefined);
     this.set({ data: emptyGardenData(), problems: [], weather: { snapshot: null, loading: false } });
+    this.applyCatalogue();
   }
 
   /** Default date for new plantings: today in the garden's timezone. */

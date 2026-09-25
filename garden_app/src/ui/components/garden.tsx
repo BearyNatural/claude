@@ -3,7 +3,8 @@
  * they don't compute gardening rules.
  */
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import { router } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GLOSSARY } from '../../data/glossary';
 import { searchByText } from '../../domain/catalogue';
@@ -15,6 +16,7 @@ import type { TimelineItem } from '../../domain/timeline';
 import type { ClimateZoneId, GardenTask, ISODate, Month } from '../../domain/types';
 import { describeAge, describeSoilTemperature, type WeatherAssessment } from '../../domain/weather';
 import { catalogue } from '../../state/gardenStore';
+import { useGardenState } from '../../state/hooks';
 import { radius, space, TOUCH, type, usePalette } from '../theme/theme';
 import { Badge, Button, Card, Chip, IconButton, Notice, Row, T, toneColors, type IconName, type Tone } from './primitives';
 
@@ -368,8 +370,30 @@ export function PlantPicker({ value, onChange, zone, today }: { value?: string; 
   const p = usePalette();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
-  const results = useMemo(() => (q.trim() ? searchByText(catalogue, q, { zone, today }).map((r) => r.plant) : catalogue.all.slice().sort((a, b) => a.commonName.localeCompare(b.commonName))), [q, zone, today]);
+  const { catalogueRev, data } = useGardenState();
+  const results = useMemo(
+    () => (q.trim() ? searchByText(catalogue, q, { zone, today }).map((r) => r.plant) : catalogue.all.slice().sort((a, b) => a.commonName.localeCompare(b.commonName))),
+    // catalogueRev: the list changes when the gardener adds a plant or an update arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [q, zone, today, catalogueRev],
+  );
   const current = value ? catalogue.byId.get(value) : undefined;
+  // A plant added via "Add a plant that isn't listed" is chosen automatically on return.
+  const knownOwn = useRef(new Set(data.customPlants.map((c) => c.id)));
+  const [awaitingOwn, setAwaitingOwn] = useState(false);
+  useEffect(() => {
+    const fresh = data.customPlants.find((c) => !knownOwn.current.has(c.id));
+    data.customPlants.forEach((c) => knownOwn.current.add(c.id));
+    if (fresh && awaitingOwn) {
+      setAwaitingOwn(false);
+      onChange(fresh.id);
+    }
+  }, [data.customPlants, awaitingOwn, onChange]);
+  const addOwn = () => {
+    setOpen(false);
+    setAwaitingOwn(true);
+    router.push({ pathname: '/plant/custom', params: { name: q.trim() } });
+  };
   return (
     <View style={{ gap: space.xs }}>
       <T variant="small" style={{ fontWeight: '600' }}>Plant</T>
@@ -389,6 +413,12 @@ export function PlantPicker({ value, onChange, zone, today }: { value?: string; 
             data={results}
             keyExtractor={(x) => x.id}
             keyboardShouldPersistTaps="handled"
+            ListFooterComponent={
+              <View style={{ paddingVertical: space.md, gap: space.xs }}>
+                {q.trim() && !results.length ? <T variant="small" muted>{`"${q.trim()}" isn't in the plant list yet.`}</T> : null}
+                <Button variant="secondary" icon="add" label="Add a plant that isn't listed" onPress={addOwn} />
+              </View>
+            }
             renderItem={({ item }) => (
               <Pressable
                 onPress={() => {
@@ -400,7 +430,7 @@ export function PlantPicker({ value, onChange, zone, today }: { value?: string; 
                 style={({ pressed }) => [styles.pickRow, { borderColor: p.border, opacity: pressed ? 0.7 : 1 }]}
               >
                 <T style={{ fontWeight: '600' }}>{item.commonName}</T>
-                <T variant="tiny" muted>{item.botanicalName ?? item.categories.join(', ')}</T>
+                <T variant="tiny" muted>{`${item.origin === 'yours' ? 'Your plant · ' : ''}${item.botanicalName ?? item.categories.join(', ')}`}</T>
               </Pressable>
             )}
           />

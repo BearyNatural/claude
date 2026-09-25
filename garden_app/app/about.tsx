@@ -1,24 +1,57 @@
 import React from 'react';
 import { Linking } from 'react-native';
-import { CATALOGUE_VERSION, PLANTS } from '../src/data/plants';
 import { SOURCES } from '../src/data/sources';
+import { formatDay } from '../src/domain/dates';
 import { ENV } from '../src/services/env';
+import { catalogue } from '../src/state/gardenStore';
+import { useGardenView } from '../src/state/hooks';
 import { BrandHeader } from '../src/ui/components/garden';
 import { Badge, Button, Card, Notice, Row, Screen, Section, T } from '../src/ui/components/primitives';
 
 export default function About() {
+  const { state, data, store, today } = useGardenView();
+  const info = state.catalogueInfo;
+  const listed = catalogue.all.filter((p) => p.origin !== 'yours');
   const counts = {
-    checked: PLANTS.filter((p) => p.review.status === 'source-checked').length,
-    draft: PLANTS.filter((p) => p.review.status === 'draft').length,
-    expert: PLANTS.filter((p) => p.review.status === 'expert-reviewed').length,
+    checked: listed.filter((p) => p.review.status === 'source-checked').length,
+    draft: listed.filter((p) => p.review.status === 'draft').length,
+    expert: listed.filter((p) => p.review.status === 'expert-reviewed').length,
   };
+  const updatesOn = data.settings.plantListUpdates !== false;
   return (
     <Screen>
       <BrandHeader />
-      <T variant="small" muted>{`Version ${ENV.appVersion} · plant data ${CATALOGUE_VERSION} · ${PLANTS.length} plants`}</T>
+      <T variant="small" muted>{`Version ${ENV.appVersion} · plant data ${info.version} · ${listed.length} plants${data.customPlants.length ? ` + ${data.customPlants.length} of your own` : ''}`}</T>
       <Notice tone="caution" title="Gardening is biological — advice is a guide">
         Planting windows, quantities and dates are typical ranges from Australian references and planning estimates. Local conditions, varieties, weather and pests all change results. You can always plant outside the suggestions.
       </Notice>
+      <Section title="Plant list updates">
+        <Card>
+          <T variant="small">
+            {updatesOn
+              ? 'New and corrected plant information is downloaded between app updates, about once a day when you open the app. Only plant data is downloaded — nothing about your garden is sent.'
+              : 'Plant list updates are off. New plants arrive only with app updates.'}
+          </T>
+          {info.fromUpdate ? (
+            <T variant="tiny" muted>{`Using plant list ${info.version}${info.updatedAt ? ` from ${formatDay(info.updatedAt.slice(0, 10), today)}` : ''}${info.added ? ` · ${info.added} plant${info.added > 1 ? 's' : ''} added since this app version` : ''}.`}</T>
+          ) : (
+            <T variant="tiny" muted>{`Using the plant list built into this app (${info.version}).`}</T>
+          )}
+          {info.error ? <T variant="tiny" muted>{info.error}</T> : null}
+          <Row wrap gap={6}>
+            {updatesOn ? <Button compact variant="secondary" icon="cloud-download-outline" label={info.checking ? 'Checking…' : 'Check now'} loading={info.checking} onPress={() => void store.checkPlantList(true)} /> : null}
+            <Button
+              compact
+              variant="ghost"
+              label={updatesOn ? 'Turn updates off' : 'Turn updates on'}
+              onPress={async () => {
+                await store.saveSettings({ plantListUpdates: !updatesOn });
+                if (!updatesOn) void store.checkPlantList(true);
+              }}
+            />
+          </Row>
+        </Card>
+      </Section>
       <Section title="Plant data quality">
         <Card>
           <Row wrap gap={6}>

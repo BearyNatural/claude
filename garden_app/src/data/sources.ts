@@ -87,6 +87,23 @@ export const SOURCES: Record<string, SourceRef> = {
     accessed: ACCESSED,
     kind: 'horticultural-org',
   },
+  'your-notes': {
+    id: 'your-notes',
+    title: 'Your own notes',
+    publisher: 'You',
+    accessed: '2026-09-25',
+    kind: 'heuristic',
+    notes: 'Details you entered for a plant you added yourself.',
+  },
+  'ala-species': {
+    id: 'ala-species',
+    title: 'Atlas of Living Australia — species search',
+    publisher: 'Atlas of Living Australia (CSIRO)',
+    url: 'https://www.ala.org.au/',
+    accessed: '2026-09-25',
+    kind: 'government',
+    notes: 'Used to look up botanical and family names for plants you add. Names only — no growing advice.',
+  },
   'sga-avocados': {
     id: 'sga-avocados',
     title: 'Growing avocados',

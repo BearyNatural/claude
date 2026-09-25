@@ -5,7 +5,6 @@
  */
 import React, { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { AppState } from 'react-native';
-import { PLANTS } from '../data/plants';
 import { effectiveFrostRisk, effectiveZone } from '../domain/climate';
 import { hourInTimeZone } from '../domain/dates';
 import { buildPlantNow, type RecommendContext } from '../domain/recommend';
@@ -14,7 +13,7 @@ import { generateTasks } from '../domain/tasks';
 import { assessWeather } from '../domain/weather';
 import { planWeek } from '../domain/workload';
 import { scheduleReminders } from '../services/notifications/notificationService';
-import { getPlant, type GardenStore, type StoreState } from './gardenStore';
+import { catalogue, getPlant, type GardenStore, type StoreState } from './gardenStore';
 
 const StoreContext = createContext<GardenStore | null>(null);
 
@@ -51,7 +50,7 @@ export function useGardenState(): StoreState {
 export function useGardenView() {
   const store = useStore();
   const state = useGardenState();
-  const { data, weather, now } = state;
+  const { data, weather, now, catalogueRev } = state;
   const profile = data.profile;
   const today = store.today();
   const zone = effectiveZone(profile?.location);
@@ -75,9 +74,11 @@ export function useGardenView() {
       wishlistPlantIds: new Set(data.wishlist.map((w) => w.plantId)),
       getPlant,
     }),
-    [today, zone, frostRisk, assessment, profile, data.plantings, data.areas, data.wishlist],
+    // catalogueRev: getPlant's answers change when the plant list changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [today, zone, frostRisk, assessment, profile, data.plantings, data.areas, data.wishlist, catalogueRev],
   );
-  const plantNow = useMemo(() => buildPlantNow(PLANTS, recCtx, hidden), [recCtx, hidden]);
+  const plantNow = useMemo(() => buildPlantNow(catalogue.all, recCtx, hidden), [recCtx, hidden]);
   const tasks = useMemo(
     () =>
       generateTasks({
@@ -92,7 +93,8 @@ export function useGardenView() {
         responses: data.taskResponses,
         getPlant,
       }),
-    [today, zone, assessment, data],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [today, zone, assessment, data, catalogueRev],
   );
   const week = useMemo(
     () => planWeek(tasks, { timeBudget: profile?.timeBudget ?? '1to2', gardeningDays: profile?.reminders.gardeningDays ?? [], today }),

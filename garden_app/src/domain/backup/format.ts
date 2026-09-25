@@ -3,14 +3,14 @@
  *
  *   {
  *     "format": "sow-by-season-backup",
- *     "schemaVersion": 4,
+ *     "schemaVersion": 5,
  *     "createdAt": "2026-09-24T08:00:00.000Z",
  *     "app": { "name": "Sow by Season", "version": "1.0.0" },
  *     "catalogueVersion": "2026.09.1",
  *     "counts": { "areas": 2, "plantings": 5, ... },
  *     "checksum": "fnv1a-…",
  *     "data": { profile, settings, areas, plantings, journal, wishlist,
- *               successionPlans, taskResponses, observations }
+ *               successionPlans, taskResponses, observations, customPlants }
  *   }
  *
  * Only user-created data is included. The plant catalogue and weather are
@@ -19,12 +19,12 @@
 import type { GardenData } from '../types';
 
 export const BACKUP_FORMAT = 'sow-by-season-backup';
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 export const MIN_SUPPORTED_SCHEMA_VERSION = 1;
 
-export interface BackupFileV4 {
+export interface BackupFileV5 {
   format: typeof BACKUP_FORMAT;
-  schemaVersion: 4;
+  schemaVersion: 5;
   createdAt: string;
   app: { name: string; version: string };
   catalogueVersion?: string;
@@ -73,17 +73,18 @@ export function countsFor(data: GardenData): Record<string, number> {
     successionPlans: data.successionPlans.length,
     taskResponses: data.taskResponses.length,
     observations: data.observations.length,
+    customPlants: data.customPlants.length,
   };
 }
 
 export function createBackup(
   data: GardenData,
   opts: { now: Date; appVersion: string; catalogueVersion?: string; photos?: Record<string, string> },
-): BackupFileV4 {
+): BackupFileV5 {
   const photos = opts.photos && Object.keys(opts.photos).length ? opts.photos : undefined;
   return {
     format: BACKUP_FORMAT,
-    schemaVersion: 4,
+    schemaVersion: 5,
     createdAt: opts.now.toISOString(),
     app: { name: 'Sow by Season', version: opts.appVersion },
     catalogueVersion: opts.catalogueVersion,
@@ -99,6 +100,6 @@ export function backupFileName(localDate: string): string {
   return `SowBySeason-Backup-${localDate}.json`;
 }
 
-export function serialiseBackup(b: BackupFileV4): string {
+export function serialiseBackup(b: BackupFileV5): string {
   return JSON.stringify(b, null, 2);
 }

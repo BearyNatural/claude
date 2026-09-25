@@ -23,6 +23,21 @@ export function createCatalogue(plants: readonly PlantRecord[]): Catalogue {
   return { all: [...plants], byId };
 }
 
+/**
+ * The catalogue the app uses: the bundled plants, overridden or extended by a
+ * downloaded plant list update, plus the gardener's own plants. Rebuilt in
+ * place so every holder of the object sees the change.
+ */
+export function rebuildCatalogue(cat: Catalogue, bundled: readonly PlantRecord[], updates: readonly PlantRecord[], yours: readonly PlantRecord[]): void {
+  const byId = new Map<string, PlantRecord>();
+  for (const p of bundled) byId.set(p.id, p);
+  for (const p of updates) byId.set(p.id, { ...p, origin: 'update' });
+  for (const p of yours) byId.set(p.id, p);
+  cat.byId.clear();
+  for (const [k, v] of byId) cat.byId.set(k, v);
+  cat.all.splice(0, cat.all.length, ...byId.values());
+}
+
 export function getPlant(cat: Catalogue, id: string): PlantRecord | undefined {
   return cat.byId.get(id);
 }

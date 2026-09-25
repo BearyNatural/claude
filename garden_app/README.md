@@ -163,7 +163,11 @@ Bundle identifiers are set in `app.json` (`au.com.bearynatural.sowbyseason`). Ch
 | Service | Used for | Sent | Required? |
 |---|---|---|---|
 | Open-Meteo forecast (`api.open-meteo.com`) | 7-day forecast, frost/heat/rain checks, **modelled** soil temperature | Rounded coordinates (~1 km) and timezone | No. The app falls back to seasonal advice |
-| Open-Meteo geocoding (`geocoding-api.open-meteo.com`) | "Search more places online" during location setup | The search text | No. There's an offline town list and a manual state/zone option |
+| Open-Meteo geocoding (`geocoding-api.open-meteo.com`) | "Search more places online" during location setup | The search text | No. Every postcode and suburb is also in the app (GeoNames, offline) |
+| Photon by Komoot / OpenStreetMap Nominatim | Optional garden map: finding a street address | The address typed, when "Find address" is pressed | No. The map can start from the suburb instead |
+| Esri World Imagery | Optional garden map: satellite images | Map tile requests for the area on screen | No |
+| Atlas of Living Australia species search (`api.ala.org.au`) | Optional botanical-name lookup for plants you add | The name typed, when "Look up" is pressed | No |
+| GitHub (`raw.githubusercontent.com`) | Plant list updates between releases (about daily; can be turned off in About) | Nothing — a plain file download | No. The built-in plant list is used offline |
 
 There is no BearyNatural server, analytics, advertising or push-notification service.
 
@@ -237,6 +241,16 @@ Restoring a backup goes through these steps:
 - **Unknown stays unknown.** For example, fig and mango have no recorded planting months, and rosemary has no sourced window. The app says so instead of guessing.
 - **Household quantities, succession intervals, task minutes and weather thresholds are BearyNatural planning heuristics.** They're labelled as estimates everywhere.
 - Heat tolerance, bolting thresholds, feeding intervals, amendments and common problems are mostly **general knowledge flagged for review**. [`docs/DATA_REVIEW.md`](docs/DATA_REVIEW.md) lists exactly what needs a horticulturist's eye.
+
+### Plant list updates
+
+The plant list built into the app can be updated between releases. When plant data changes on `main`, the **garden_app · publish plant list** workflow rebuilds `catalogue.json` (`scripts/build-catalogue-json.ts`) and pushes it to the public repository [`BearyNatural/sow-by-season-plant-data`](https://github.com/BearyNatural/sow-by-season-plant-data), using the `PLANT_DATA_DEPLOY_KEY` deploy key (write access to that repository only).
+
+Installed apps download it at most once a day. They treat it as untrusted: every plant and source is validated (`src/domain/plantValidation.ts`, `src/domain/catalogueUpdate.ts`), invalid entries are dropped, and a list older than the one built into the app is ignored. The last good list is cached for offline use.
+
+**When changing plant data, bump `CATALOGUE_VERSION`** in `src/data/plants/index.ts` (`YYYY.MM.N`).
+
+Gardeners can also add their own plants ("Add a plant that isn't listed"). These are stored with their garden and included in backups.
 
 ## Known limitations
 

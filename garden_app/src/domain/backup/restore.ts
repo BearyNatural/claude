@@ -7,6 +7,7 @@
 import { emptyGardenData, type GardenData } from '../types';
 import {
   validateArea,
+  validateCustomPlant,
   validateJournal,
   validateObservation,
   validatePlanting,
@@ -161,6 +162,7 @@ export function parseBackup(text: string): ImportPreview | ImportError {
   data.successionPlans = collect('successionPlans', d.successionPlans, validateSuccessionPlan, skipped);
   data.taskResponses = collect('taskResponses', d.taskResponses, validateTaskResponse, skipped);
   data.observations = collect('observations', d.observations, validateObservation, skipped);
+  data.customPlants = collect('customPlants', d.customPlants, validateCustomPlant, skipped);
 
   // Referential tidy-up: dangling area references are cleared, not fatal.
   const areaIds = new Set(data.areas.map((a) => a.id));
@@ -194,6 +196,7 @@ export function parseBackup(text: string): ImportPreview | ImportError {
     journal: data.journal.length,
     wishlist: data.wishlist.length,
     successionPlans: data.successionPlans.length,
+    customPlants: data.customPlants.length,
   };
   const total = Object.values(counts).reduce((s, n) => s + n, 0);
   if (total === 0 && !data.profile) return fail('no-data', 'The backup contains no readable garden data. Nothing was changed.');

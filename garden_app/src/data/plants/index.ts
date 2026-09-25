@@ -8,4 +8,4 @@ import { VEGETABLES } from './vegetables';
 export const PLANTS: PlantRecord[] = [...VEGETABLES, ...HERBS, ...FRUIT, ...FLOWERS];
 
 /** Bump when catalogue content changes meaningfully (shown on the About screen). */
-export const CATALOGUE_VERSION = '2026.09.1';
+export const CATALOGUE_VERSION = '2026.09.2';

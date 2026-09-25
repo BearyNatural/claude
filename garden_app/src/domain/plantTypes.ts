@@ -201,6 +201,8 @@ export interface PlantRecord {
   commonName: string;
   botanicalName?: string;
   family?: PlantFamily;
+  /** Family name to show when it isn't one of the families above (e.g. a plant the gardener added). */
+  familyName?: string;
   aliases: string[];
   cultivars?: { name: string; notes?: string }[];
   categories: PlantCategory[];
@@ -228,6 +230,11 @@ export interface PlantRecord {
     reviewedOn: ISODate;
     notes?: string;
   };
+  /**
+   * Where the record came from, when not the catalogue built into the app:
+   * 'update' — downloaded plant list update; 'yours' — added by the gardener.
+   */
+  origin?: 'update' | 'yours';
 }
 
 export interface SourceRef {
@@ -240,3 +247,21 @@ export interface SourceRef {
   kind: 'government' | 'university' | 'broadcaster' | 'horticultural-org' | 'seed-supplier' | 'industry' | 'heuristic';
   notes?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Allowed values at runtime (for validating plant data from outside the app)
+// ---------------------------------------------------------------------------
+
+export const PLANT_CATEGORIES: readonly PlantCategory[] = ['vegetable', 'herb', 'fruit', 'tree', 'perennial', 'annual', 'flower', 'native', 'green-manure', 'cover-crop', 'pollinator'];
+export const LIFECYCLES: readonly Lifecycle[] = ['annual', 'biennial', 'perennial'];
+export const PLANT_FAMILIES: readonly PlantFamily[] = [
+  'Solanaceae', 'Cucurbitaceae', 'Brassicaceae', 'Fabaceae', 'Amaryllidaceae', 'Apiaceae', 'Asteraceae', 'Amaranthaceae', 'Poaceae',
+  'Convolvulaceae', 'Lamiaceae', 'Rosaceae', 'Passifloraceae', 'Rutaceae', 'Moraceae', 'Anacardiaceae', 'Ericaceae', 'Boraginaceae',
+  'Aizoaceae', 'Lauraceae', 'Vitaceae', 'Cactaceae', 'Other',
+];
+export const SUN_NEEDS: readonly SunNeed[] = ['full-sun', 'part-shade', 'shade-tolerant'];
+export const WATER_NEEDS: readonly WaterNeed[] = ['low', 'moderate', 'high'];
+export const SUPPORT_NEEDS: readonly SupportNeed[] = ['none', 'optional', 'stake', 'trellis', 'cage'];
+export const PRODUCTION_STYLES: readonly ProductionStyle[] = ['single-harvest', 'repeat-harvest', 'cut-and-come-again', 'long-lived'];
+export const REVIEW_STATUSES: readonly ReviewStatus[] = ['draft', 'source-checked', 'expert-reviewed'];
+export const SOURCE_KINDS: readonly SourceRef['kind'][] = ['government', 'university', 'broadcaster', 'horticultural-org', 'seed-supplier', 'industry', 'heuristic'];

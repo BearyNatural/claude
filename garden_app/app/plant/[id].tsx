@@ -2,7 +2,6 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Linking, View } from 'react-native';
 import { COMPANIONS } from '../../src/data/companions';
-import { PLANTS } from '../../src/data/plants';
 import { SOURCES } from '../../src/data/sources';
 import { THREE_SISTERS } from '../../src/data/systems';
 import { CLIMATE_ZONES, ZONE_IDS } from '../../src/domain/climate';
@@ -13,7 +12,7 @@ import { recommendPlant } from '../../src/domain/recommend';
 import { isSuccessionSuited } from '../../src/domain/succession';
 import type { Range } from '../../src/domain/types';
 import { describeMonths, normaliseMonths } from '../../src/domain/windows';
-import { getPlant } from '../../src/state/gardenStore';
+import { catalogue, getPlant } from '../../src/state/gardenStore';
 import { useGardenView } from '../../src/state/hooks';
 import { CategoryBadge, InfoTip, MonthStrip, ReasonList } from '../../src/ui/components/garden';
 import { Badge, Button, Card, Divider, EmptyState, Row, Screen, Section, T, type Tone } from '../../src/ui/components/primitives';
@@ -68,7 +67,7 @@ export default function PlantDetail() {
   if (!plant || !rec) return <EmptyState title="Plant not found" body="It may have been removed from the catalogue." />;
 
   const qty = estimateQuantity(plant, { householdSize: profile?.householdSize ?? 1, level: productionLevelFromGoals(profile?.goals ?? []), timeBudget: profile?.timeBudget ?? '1to2' });
-  const companions = companionsFor(plant, PLANTS, COMPANIONS);
+  const companions = companionsFor(plant, catalogue.all, COMPANIONS);
   const wished = data.wishlist.some((w) => w.plantId === plant.id);
   const hidden = data.settings.hiddenPlantIds.includes(plant.id);
   const zw = zone ? plant.windows[zone] : undefined;
@@ -80,7 +79,7 @@ export default function PlantDetail() {
       <Stack.Screen options={{ title: plant.commonName }} />
       <View style={{ gap: 4 }}>
         <T variant="title">{plant.commonName}</T>
-        {plant.botanicalName ? <T variant="small" muted style={{ fontStyle: 'italic' }}>{`${plant.botanicalName}${plant.family ? ` · ${plant.family}` : ''}`}</T> : null}
+        {plant.botanicalName ? <T variant="small" muted style={{ fontStyle: 'italic' }}>{`${plant.botanicalName}${plant.family && plant.family !== 'Other' ? ` · ${plant.family}` : plant.familyName ? ` · ${plant.familyName}` : ''}`}</T> : null}
         <Row wrap gap={6}>
           {plant.categories.map((c) => (
             <Badge key={c} label={c.replace('-', ' ')} tone={c === 'native' ? 'earth' : 'neutral'} />
@@ -89,6 +88,14 @@ export default function PlantDetail() {
         </Row>
       </View>
       <T>{plant.summary}</T>
+      {plant.origin === 'yours' ? (
+        <Card tone="info">
+          <T variant="small">A plant you added. Its details are the ones you entered, and it&apos;s kept in your backups.</T>
+          <Button compact variant="secondary" icon="create-outline" label="Edit your plant" onPress={() => router.push({ pathname: '/plant/custom', params: { id: plant.id } })} />
+        </Card>
+      ) : plant.origin === 'update' ? (
+        <Badge tone="info" icon="cloud-download-outline" label="From a plant list update" />
+      ) : null}
 
       <Card>
         <Row gap={8}>

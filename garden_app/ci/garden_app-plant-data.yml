@@ -1,0 +1,83 @@
+# ── garden_app (Sow by Season) — publish the plant list ──────────────────────
+# Installed apps download the plant list from the public repository
+# BearyNatural/sow-by-season-plant-data, so new or corrected plants reach them
+# between app releases. This rebuilds catalogue.json from the app's plant data
+# and pushes it there whenever that data changes on main.
+#
+# Access: the PLANT_DATA_DEPLOY_KEY secret is a deploy key with write access to
+# that one repository only. The data is checked first — the build script
+# refuses to write a list the app wouldn't fully accept.
+
+name: "garden_app · publish plant list"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'garden_app/src/data/**'
+      - 'garden_app/src/domain/plantTypes.ts'
+      - 'garden_app/src/domain/plantValidation.ts'
+      - 'garden_app/src/domain/catalogueUpdate.ts'
+      - 'garden_app/scripts/build-catalogue-json.ts'
+      - '.github/workflows/garden_app-plant-data.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: garden_app-plant-data
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: garden_app
+
+jobs:
+  publish:
+    name: garden_app · publish plant list
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else bash scripts/ci-install.sh; fi
+      - name: Check the plant data
+        run: npx tsx --test tests/location-catalogue.test.ts tests/plant-list.test.ts
+      - name: Build catalogue.json
+        run: npx tsx scripts/build-catalogue-json.ts "$RUNNER_TEMP/catalogue.json"
+      - name: Publish to BearyNatural/sow-by-season-plant-data
+        env:
+          DEPLOY_KEY: ${{ secrets.PLANT_DATA_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOY_KEY:-}" ]; then
+            echo "::error title=garden_app plant list::PLANT_DATA_DEPLOY_KEY secret is missing."; exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/plant_data_key
+          chmod 600 ~/.ssh/plant_data_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/plant_data_key -o IdentitiesOnly=yes"
+          git clone --depth 1 git@github.com:BearyNatural/sow-by-season-plant-data.git "$RUNNER_TEMP/plant-data"
+          cd "$RUNNER_TEMP/plant-data"
+          # generatedAt changes every build; only publish when the plants or sources changed.
+          strip() { node -e 'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); delete j.generatedAt; process.stdout.write(JSON.stringify(j))' "$1"; }
+          if [ -f catalogue.json ] && [ "$(strip catalogue.json)" = "$(strip "$RUNNER_TEMP/catalogue.json")" ]; then
+            echo "Plant list unchanged — nothing to publish."; exit 0
+          fi
+          cp "$RUNNER_TEMP/catalogue.json" catalogue.json
+          VERSION=$(node -p 'require("./catalogue.json").catalogueVersion')
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalogue.json
+          git commit -m "Plant list ${VERSION} (from BearyNatural/claude@${GITHUB_SHA::7})"
+          git push origin HEAD:main
+          echo "Published plant list ${VERSION}."
+      - name: Remove the deploy key
+        if: always()
+        run: rm -f ~/.ssh/plant_data_key

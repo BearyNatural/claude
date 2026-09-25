@@ -5,6 +5,7 @@
  * Everything in src/domain is pure TypeScript so it can be unit-tested in Node
  * and reused by any UI (mobile, web, a future server-side tool, etc).
  */
+import type { Lifecycle, PlantCategory, SunNeed, SupportNeed } from './plantTypes';
 
 /** A local calendar date in the gardener's timezone, formatted YYYY-MM-DD. */
 export type ISODate = string;
@@ -415,6 +416,35 @@ export interface AppSettings {
   lastBackupAt?: ISODateTime;
   /** Plant IDs the gardener has hidden from recommendations. */
   hiddenPlantIds: string[];
+  /** Download plant list updates between app releases (default on). */
+  plantListUpdates?: boolean;
+}
+
+/**
+ * A plant the gardener added because it isn't in the catalogue. Everything
+ * except the name is optional; blanks mean "unknown", never a guess.
+ */
+export interface CustomPlant {
+  /** Always starts with "custom_" so it can never clash with catalogue ids. */
+  id: string;
+  commonName: string;
+  botanicalName?: string;
+  /** Family name as given (e.g. from the Atlas of Living Australia). */
+  familyName?: string;
+  /** Atlas of Living Australia taxon link, when the name was looked up there. */
+  alaGuid?: string;
+  categories: PlantCategory[];
+  lifecycle: Lifecycle;
+  startMethods: StartMethod[];
+  /** Months the gardener plants or sows it in their own garden. */
+  plantMonths?: Month[];
+  sun?: SunNeed;
+  frost?: 'tender' | 'half-hardy' | 'hardy';
+  support?: SupportNeed;
+  potOk?: boolean;
+  notes?: string;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
 }
 
 /** Everything the gardener created — the unit of backup/restore. */
@@ -428,6 +458,7 @@ export interface GardenData {
   successionPlans: SuccessionPlan[];
   taskResponses: TaskResponse[];
   observations: Observation[];
+  customPlants: CustomPlant[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -447,5 +478,6 @@ export function emptyGardenData(): GardenData {
     successionPlans: [],
     taskResponses: [],
     observations: [],
+    customPlants: [],
   };
 }

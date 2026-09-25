@@ -9,8 +9,10 @@
 import { isClimateZone } from './climate';
 import { isISODate } from './dates';
 import { isAustralianState } from './location';
+import { LIFECYCLES, PLANT_CATEGORIES, SUN_NEEDS, SUPPORT_NEEDS, type PlantCategory } from './plantTypes';
 import type {
   AppSettings,
+  CustomPlant,
   GardenArea,
   GardenLocation,
   GardenProfile,
@@ -25,16 +27,26 @@ import type {
   SuccessionPlan,
   TaskResponse,
   WishListItem,
+  Month,
+  StartMethod,
 } from './types';
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
-class ValidationError extends Error {}
+export class ValidationError extends Error {}
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-class R {
+export class R {
   constructor(private o: Record<string, unknown>, private path: string) {}
+  /** Own keys and raw values, for maps keyed by data (e.g. climate zone → window). */
+  entries(): [string, unknown][] {
+    return Object.entries(this.o);
+  }
+  /** Path of this object, for error messages from custom parsers. */
+  at(k: string): string {
+    return `${this.path}.${k}`;
+  }
   private fail(k: string, msg: string): never {
     throw new ValidationError(`${this.path}.${k}: ${msg}`);
   }
@@ -115,12 +127,12 @@ class R {
   }
 }
 
-function reader(v: unknown, path: string): R {
+export function reader(v: unknown, path: string): R {
   if (!isObj(v)) throw new ValidationError(`${path}: must be an object`);
   return new R(v, path);
 }
 
-function run<T>(fn: () => T): Result<T> {
+export function run<T>(fn: () => T): Result<T> {
   try {
     return { ok: true, value: fn() };
   } catch (e) {
@@ -130,7 +142,7 @@ function run<T>(fn: () => T): Result<T> {
 }
 
 /** Removes undefined keys so stored JSON stays tidy. */
-function clean<T extends object>(o: T): T {
+export function clean<T extends object>(o: T): T {
   for (const k of Object.keys(o) as (keyof T)[]) if (o[k] === undefined) delete o[k];
   return o;
 }
@@ -139,7 +151,7 @@ const WEEKDAY = (v: unknown, p: string) => {
   if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 6) throw new ValidationError(`${p}: must be a weekday 0–6`);
   return v as 0 | 1 | 2 | 3 | 4 | 5 | 6;
 };
-const STRING = (max = 200) => (v: unknown, p: string) => {
+export const STRING = (max = 200) => (v: unknown, p: string) => {
   if (typeof v !== 'string' || v.length > max) throw new ValidationError(`${p}: must be text`);
   return v;
 };
@@ -147,7 +159,7 @@ const STRING = (max = 200) => (v: unknown, p: string) => {
 const ZONES = ['tropical', 'subtropical', 'warm-temperate', 'cool-temperate', 'arid'] as const;
 const FROST = ['none', 'light', 'moderate', 'heavy', 'unknown'] as const;
 const STAGES = ['planned', 'seed', 'germinating', 'seedling', 'transplanted', 'established', 'flowering', 'fruiting', 'harvesting', 'dormant', 'finished', 'removed', 'failed'] as const;
-const METHODS = ['direct-sow', 'seed-tray', 'seedling', 'cutting', 'tuber', 'clove-or-bulb', 'runner-or-crown', 'tree'] as const;
+export const METHODS = ['direct-sow', 'seed-tray', 'seedling', 'cutting', 'tuber', 'clove-or-bulb', 'runner-or-crown', 'tree'] as const;
 const EVENT_TYPES = ['sown', 'planted', 'germinated', 'transplanted', 'first-flower', 'fruit-set', 'first-harvest', 'harvest', 'finished', 'removed', 'failed', 'stage-change'] as const;
 const AREA_TYPES = ['vegetable-bed', 'raised-bed', 'in-ground', 'pot', 'large-container', 'greenhouse', 'orchard', 'food-forest', 'herb-garden', 'balcony', 'trellis', 'seed-starting'] as const;
 const GOALS = ['fresh-veg', 'supplement', 'maximise', 'herbs', 'fruit', 'flowers', 'pollinators', 'native', 'low-maintenance', 'learning', 'self-sufficiency'] as const;
@@ -227,6 +239,7 @@ export function validateSettings(v: unknown): Result<AppSettings> {
       weatherEnabled: r.bool('weatherEnabled'),
       lastBackupAt: r.dateTime('lastBackupAt', true),
       hiddenPlantIds: r.arr('hiddenPlantIds', STRING(100), true, 1000),
+      plantListUpdates: r.bool('plantListUpdates', true),
     });
   });
 }
@@ -379,6 +392,43 @@ export function validateTaskResponse(v: unknown): Result<TaskResponse> {
       status: r.oneOf('status', ['done', 'skipped', 'snoozed', 'irrelevant'] as const),
       until: r.date('until', true),
       at: r.dateTime('at'),
+    });
+  });
+}
+
+export function validateCustomPlant(v: unknown): Result<CustomPlant> {
+  return run(() => {
+    const r = reader(v, 'customPlant');
+    const id = r.id('id');
+    if (!/^custom_[A-Za-z0-9_-]{1,100}$/.test(id)) throw new ValidationError('customPlant.id: must start with custom_');
+    return clean({
+      id,
+      commonName: r.str('commonName', false, 80),
+      botanicalName: r.str('botanicalName', true, 120),
+      familyName: r.str('familyName', true, 80),
+      alaGuid: r.str('alaGuid', true, 300),
+      categories: r.arr('categories', (c, p) => {
+        if (typeof c !== 'string' || !(PLANT_CATEGORIES as readonly string[]).includes(c)) throw new ValidationError(`${p}: unknown category`);
+        return c as PlantCategory;
+      }, true, 11),
+      lifecycle: r.oneOf('lifecycle', LIFECYCLES),
+      startMethods: r.arr('startMethods', (m, p) => {
+        if (typeof m !== 'string' || !(METHODS as readonly string[]).includes(m)) throw new ValidationError(`${p}: unknown start method`);
+        return m as StartMethod;
+      }, true, 8),
+      plantMonths: r.has('plantMonths')
+        ? r.arr('plantMonths', (m, p) => {
+            if (typeof m !== 'number' || !Number.isInteger(m) || m < 1 || m > 12) throw new ValidationError(`${p}: must be a month 1–12`);
+            return m as Month;
+          }, true, 12)
+        : undefined,
+      sun: r.oneOf('sun', SUN_NEEDS, true),
+      frost: r.oneOf('frost', ['tender', 'half-hardy', 'hardy'] as const, true),
+      support: r.oneOf('support', SUPPORT_NEEDS, true),
+      potOk: r.bool('potOk', true),
+      notes: r.str('notes', true, 2000),
+      createdAt: r.dateTime('createdAt'),
+      updatedAt: r.dateTime('updatedAt'),
     });
   });
 }

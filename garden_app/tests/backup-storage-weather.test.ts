@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { backupFileName, createBackup, fnv1a, serialiseBackup, stableStringify } from '../src/domain/backup/format';
+import { backupFileName, createBackup, CURRENT_SCHEMA_VERSION, fnv1a, serialiseBackup, stableStringify } from '../src/domain/backup/format';
 import { parseBackup } from '../src/domain/backup/restore';
 import { emptyGardenData, type GardenData } from '../src/domain/types';
 import { GardenRepository } from '../src/services/storage/gardenRepository';
@@ -49,7 +49,7 @@ describe('backup format', () => {
   it('does not include the static plant catalogue or weather', () => {
     const text = backupText();
     assert.doesNotMatch(text, /botanicalName|daysToMaturity|temperature_2m/);
-    assert.match(text, /"schemaVersion": 4/);
+    assert.ok(text.includes(`"schemaVersion": ${CURRENT_SCHEMA_VERSION}`));
     assert.match(text, /"format": "sow-by-season-backup"/);
   });
 
@@ -134,7 +134,7 @@ describe('restore safety', () => {
     assert.equal(r.ok, true);
     if (!r.ok) return;
     assert.equal(r.migratedFrom, 1);
-    assert.deepEqual(r.migrations, ['v1 → v2', 'v2 → v3', 'v3 → v4']);
+    assert.deepEqual(r.migrations, Array.from({ length: CURRENT_SCHEMA_VERSION - 1 }, (_, i) => `v${i + 1} → v${i + 2}`));
     assert.equal(r.data.profile!.location.overrideZone, 'cool-temperate');
     assert.equal(r.data.profile!.householdSize, 2);
     assert.equal(r.data.profile!.timeBudget, '2to4');

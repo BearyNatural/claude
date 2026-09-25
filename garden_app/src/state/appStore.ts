@@ -1,4 +1,7 @@
-/** Wires the production store: AsyncStorage + Open-Meteo + photo files on the device. */
+/** Wires the production store: AsyncStorage + Open-Meteo + photo files + plant list updates. */
+import { CATALOGUE_VERSION } from '../data/plants';
+import { SOURCES } from '../data/sources';
+import { CatalogueUpdates } from '../services/catalogue/catalogueUpdates';
 import { ENV } from '../services/env';
 import { asyncStorageStore } from '../services/storage/asyncStorageStore';
 import { devicePhotoFiles } from '../services/photos/devicePhotoFiles';
@@ -15,4 +18,5 @@ export const appStore = new GardenStore(
   }),
   () => new Date(),
   devicePhotoFiles,
+  new CatalogueUpdates(asyncStorageStore, { version: CATALOGUE_VERSION, sources: { ...SOURCES } }, { fetch: (url, init) => fetch(url, init), now: () => new Date() }),
 );
