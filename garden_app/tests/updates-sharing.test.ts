@@ -6,7 +6,7 @@ import { customToPlantRecord } from '../src/domain/customPlants';
 import { validateCustomPlant, validateSettings } from '../src/domain/validation';
 import { submitSuggestion, suggestionIssue, suggestionPayload } from '../src/services/plants/plantSuggestions';
 import { MemoryStore } from '../src/services/storage/keyValueStore';
-import { AppUpdates, compareVersions, parseAppRelease } from '../src/services/updates/appUpdates';
+import { AppUpdates, compareVersions, parseAppRelease, UPDATE_CHECK_INTERVAL_MS } from '../src/services/updates/appUpdates';
 import { GardenRepository } from '../src/services/storage/gardenRepository';
 import { WeatherService } from '../src/services/weather/weatherService';
 import { GardenStore } from '../src/state/gardenStore';
@@ -35,6 +35,25 @@ describe('new version notice', () => {
     const noToken = new AppUpdates(new MemoryStore(), '1.6.0', { now: () => NOW, fetch: async () => { calls++; return { ok: true, status: 200, json: async () => RELEASE }; } });
     assert.equal(await noToken.check(true), null);
     assert.equal(calls, 1, 'no request without a token');
+  });
+
+  it('checks again after a day, or only after a week when set to weekly', async () => {
+    let now = NOW;
+    let calls = 0;
+    const svc = new AppUpdates(new MemoryStore(), '1.6.0', { now: () => now, token: 't', fetch: async () => { calls++; return { ok: true, status: 200, json: async () => RELEASE }; } });
+    await svc.check(false, UPDATE_CHECK_INTERVAL_MS.weekly);
+    now = new Date(NOW.getTime() + 2 * 86_400_000);
+    await svc.check(false, UPDATE_CHECK_INTERVAL_MS.weekly);
+    assert.equal(calls, 1, 'weekly: not again after two days');
+    await svc.check(false, UPDATE_CHECK_INTERVAL_MS.daily);
+    assert.equal(calls, 2, 'daily: checks again after two days');
+  });
+
+  it('announces each new version by notification only once', async () => {
+    const svc = new AppUpdates(new MemoryStore(), '1.6.0', { now: () => NOW, token: 't', fetch: async () => ({ ok: true, status: 200, json: async () => RELEASE }) });
+    assert.equal(await svc.shouldNotify('1.7.0'), true);
+    assert.equal(await svc.shouldNotify('1.7.0'), false);
+    assert.equal(await svc.shouldNotify('1.8.0'), true);
   });
 });
 

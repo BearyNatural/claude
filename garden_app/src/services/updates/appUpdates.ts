@@ -11,7 +11,10 @@ import type { HeaderFetch } from '../catalogue/catalogueUpdates';
 export const APP_VERSION_URL = 'https://api.github.com/repos/BearyNatural/sow-by-season-plant-data/contents/app-version.json';
 const CHECKED_KEY = 'sbs:meta:appUpdateCheckedAt';
 const CACHE_KEY = 'sbs:cache:appUpdate';
+const NOTIFIED_KEY = 'sbs:meta:appUpdateNotified';
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** How long to wait between online checks, from Garden Profile › General. */
+export const UPDATE_CHECK_INTERVAL_MS = { daily: DAY_MS, weekly: 7 * DAY_MS } as const;
 
 export interface AppRelease {
   version: string;
@@ -48,12 +51,12 @@ export class AppUpdates {
     private deps: { fetch: HeaderFetch; now: () => Date; token?: string },
   ) {}
 
-  /** A newer release, if one is known (checking online at most daily). */
-  async check(force = false): Promise<AppRelease | null> {
+  /** A newer release, if one is known (checking online at most once per interval — daily by default). */
+  async check(force = false, intervalMs: number = DAY_MS): Promise<AppRelease | null> {
     const cached = await this.cached();
     if (!this.deps.token) return cached;
     const last = await this.store.getItem(CHECKED_KEY).catch(() => null);
-    if (!force && last && this.deps.now().getTime() - Date.parse(last) < DAY_MS) return cached;
+    if (!force && last && this.deps.now().getTime() - Date.parse(last) < intervalMs) return cached;
     try {
       const res = await this.deps.fetch(APP_VERSION_URL, {
         headers: { Authorization: `Bearer ${this.deps.token}`, Accept: 'application/vnd.github.raw+json', 'X-GitHub-Api-Version': '2022-11-28' },
@@ -67,6 +70,14 @@ export class AppUpdates {
     } catch {
       return cached;
     }
+  }
+
+  /** True the first time it's asked about a version, so each new version is announced by notification once. */
+  async shouldNotify(version: string): Promise<boolean> {
+    const done = await this.store.getItem(NOTIFIED_KEY).catch(() => null);
+    if (done === version) return false;
+    await this.store.setItem(NOTIFIED_KEY, version).catch(() => undefined);
+    return true;
   }
 
   private async cached(): Promise<AppRelease | null> {

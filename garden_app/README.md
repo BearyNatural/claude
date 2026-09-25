@@ -39,7 +39,7 @@ To protect your garden, and to use the same garden in both places, **back it up 
 
 ### Updates
 
-- **Android:** when a new version is released, the app shows **"Sow by Season x.y is available — Download"** on the This Week screen. Tap it, download the file and tap **Install**. Your garden is kept. (Android always asks you to confirm installs from outside the Play Store — the app can't update itself silently.)
+- **Android:** the app looks for a new version **once a day** (or **once a week** — Garden Profile › General, which also has **Check now**). It checks when you open or return to the app, and in the background while it's closed. When there's one, This Week shows **"Sow by Season x.y is available — Download"**, and if the app is closed you get a notification (once per version, if notifications are allowed). Tap it, download the file and tap **Install**. Your garden is kept. There's no push server: the app checks a tiny version file itself. (Android always asks you to confirm installs from outside the Play Store — the app can't update itself silently.)
 - **Browser:** always up to date — just reload the page.
 - **Plant information** (new plants and corrections) updates on its own between versions: about daily in the Android app, and whenever the website is updated in the browser.
 
@@ -174,7 +174,7 @@ src/
   state/                Store (actions = domain + persistence), React hooks, automatic backup
   ui/                   Theme tokens, accessible components, shared forms, map
   widget/               Android home-screen widget
-tests/                  217 automated tests in 16 files
+tests/                  219 automated tests in 16 files
 data-sources/           Raw captures of source data (Gardening Australia monthly lists)
 scripts/                Data build scripts, the browser build finisher, the plant suggestion checker
 web/                    Browser app icons
@@ -223,7 +223,7 @@ The app expects to be served from `/sow-by-season/` (`experiments.baseUrl` in `a
 npm test
 ```
 
-There are **217 tests in 16 files, and all pass.** They cover Australian season boundaries, timezones and daylight saving, gardens that run across the new year, per-zone recommendations (Brisbane, Hobart, Darwin, Perth, inland Queensland), stale and unavailable weather, modelled soil temperature, frost, heat and heavy rain, household scaling, single-harvest vs repeat-harvest crops, succession limits at the end of the season, succession actions, Three Sisters sequencing, companion evidence levels, overcrowding, rotation, timelines, task generation and prioritisation, available gardening time, reminders, backup, restore, corrupt backups, schema migrations, atomic restore, per-record storage resilience, the weather client and cache, catalogue validation, one integrated scenario taken from the brief, and — added since 1.0 — postcode search, plantings in several areas, the garden map and outline merging, photos and photo backups, plant list updates and your own plants, update notices and plant sharing, several gardens, closed-app weather alerts and the widget. The original test plan is in the [development report](DEVELOPMENT_REPORT.md#testing).
+There are **219 tests in 16 files, and all pass.** They cover Australian season boundaries, timezones and daylight saving, gardens that run across the new year, per-zone recommendations (Brisbane, Hobart, Darwin, Perth, inland Queensland), stale and unavailable weather, modelled soil temperature, frost, heat and heavy rain, household scaling, single-harvest vs repeat-harvest crops, succession limits at the end of the season, succession actions, Three Sisters sequencing, companion evidence levels, overcrowding, rotation, timelines, task generation and prioritisation, available gardening time, reminders, backup, restore, corrupt backups, schema migrations, atomic restore, per-record storage resilience, the weather client and cache, catalogue validation, one integrated scenario taken from the brief, and — added since 1.0 — postcode search, plantings in several areas, the garden map and outline merging, photos and photo backups, plant list updates and your own plants, update notices and plant sharing, several gardens, closed-app weather alerts and the widget. The original test plan is in the [development report](DEVELOPMENT_REPORT.md#testing).
 
 ## Building for devices
 
@@ -303,7 +303,7 @@ A backup is a JSON file you save wherever your phone lets you: on the device, iC
   "format": "sow-by-season-backup",
   "schemaVersion": 7,
   "createdAt": "2026-09-25T08:00:00.000Z",
-  "app": { "name": "Sow by Season", "version": "1.8.0" },
+  "app": { "name": "Sow by Season", "version": "1.9.0" },
   "catalogueVersion": "2026.09.2",
   "counts": { "areas": 2, "plantings": 5, "journal": 2, "wishlist": 2, "successionPlans": 1, "taskResponses": 3, "observations": 0, "customPlants": 1, "gardens": 1 },
   "checksum": "fnv1a-1a2b3c4d",

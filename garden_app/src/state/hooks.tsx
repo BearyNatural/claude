@@ -26,6 +26,8 @@ export function StoreProvider({ store, children }: { store: GardenStore; childre
       if (s === 'active') {
         store.tick();
         void store.refreshWeather();
+        // Coming back to the app counts too (Android often keeps it paused rather than closed); still daily/weekly at most.
+        void store.checkAppUpdate();
       }
     });
     return () => {

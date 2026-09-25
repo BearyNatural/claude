@@ -245,6 +245,7 @@ export function validateSettings(v: unknown): Result<AppSettings> {
       backgroundAlerts: r.bool('backgroundAlerts', true),
       backupPhotos: r.bool('backupPhotos', true),
       sharePlants: r.bool('sharePlants', true),
+      updateChecks: r.oneOf('updateChecks', ['daily', 'weekly'] as const, true),
     });
   });
 }

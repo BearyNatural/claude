@@ -123,7 +123,7 @@ The same code is exported for the web (react-native-web) and served from `/sow-b
 ## Plant list updates, update notices and plant sharing
 
 - **Plant list:** the built-in catalogue can be replaced by a newer `catalogue.json` from the private plant data repository, downloaded at most daily with a read-only token. It's treated as untrusted: validated plant by plant, never older than the built-in list, and cached for offline use (`services/catalogue/catalogueUpdates.ts`, `domain/catalogueUpdate.ts`).
-- **Update notices:** each Android release writes `app-version.json` to the same repository; the app checks it at most daily and offers a download link to the release (`services/updates/appUpdates.ts`). Only links to this project's own releases are accepted.
+- **Update notices:** each Android release writes `app-version.json` to the same repository. The app reads it daily or weekly (the gardener's choice) — at start-up, on returning to the app, and from a background task (`services/updates/updateTask.ts`) that shows a local notification once per new version. Tapping it opens the release. Only links to this project's own releases are accepted (`services/updates/appUpdates.ts`). There's deliberately no push service: that would need a server holding a list of every phone.
 - **Plant sharing:** opt-in per plant; sends only plant details, notes and climate zone as an issue in that repository (`services/plants/plantSuggestions.ts`). A daily workflow does first checks; a person verifies before anything is added to the plant list.
 
 ## Designed-for extensions

@@ -1,7 +1,8 @@
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { Platform, View } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import { Linking, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { configureNotifications } from '../src/services/notifications/notificationService';
 import { appStore, autoBackup } from '../src/state/appStore';
@@ -9,6 +10,7 @@ import { useAutoBackupRunner } from '../src/state/autoBackup';
 import { StoreProvider, useGardenState, useGardenView, useReminderSync } from '../src/state/hooks';
 import { CLIMATE_ZONES, seasonFor } from '../src/domain/climate';
 import { syncWeatherAlerts } from '../src/services/alerts/backgroundAlerts';
+import { syncUpdateChecks } from '../src/services/updates/updateTask';
 import { WEB_BASE } from '../src/services/webBase';
 import { buildWidgetSnapshot } from '../src/widget/snapshot';
 import { pushWidgetSnapshot } from '../src/widget/widgetStore';
@@ -67,6 +69,33 @@ function WeatherAlertSync() {
   return null;
 }
 
+const RELEASES = 'https://github.com/BearyNatural/claude/releases/';
+
+/** Android: keep the background "new version" check registered, and open the download when its notification is tapped. */
+function UpdateCheckSync() {
+  const state = useGardenState();
+  useEffect(() => {
+    if (Platform.OS === 'android' && state.status === 'ready') void syncUpdateChecks();
+  }, [state.status]);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const open = (r: Notifications.NotificationResponse | null) => {
+      const url = r?.notification.request.content.data?.url;
+      if (typeof url !== 'string' || !url.startsWith(RELEASES)) return;
+      Notifications.clearLastNotificationResponse(); // so reopening the app later doesn't open it again
+      void Linking.openURL(url);
+    };
+    try {
+      open(Notifications.getLastNotificationResponse());
+    } catch {
+      // Not available; taps while the app is running are still handled below.
+    }
+    const sub = Notifications.addNotificationResponseReceivedListener(open);
+    return () => sub.remove();
+  }, []);
+  return null;
+}
+
 function AutoBackupRunner() {
   const state = useGardenState();
   useAutoBackupRunner(autoBackup, state.data);
@@ -95,6 +124,7 @@ function Gate() {
       <AutoBackupRunner />
       <WidgetSync />
       <WeatherAlertSync />
+      <UpdateCheckSync />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: p.bg },

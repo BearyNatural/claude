@@ -2,6 +2,10 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `garden_app-v<version>-build<n>`). The newest Android version can always be downloaded from https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html.
 
+## 1.9.0 — 25 September 2026
+- **New-version notifications**: the app now also checks for updates in the background and when you return to it (not only on a fresh start), and shows a notification once per new version. Tap it to download.
+- **Garden Profile › General › Check for new versions**: once a day (default) or once a week, plus **Check now**.
+
 ## 1.8.0 — 25 September 2026
 - **Location search understands what you type**: "Bray Park Qld", "Bray Park, QLD 4500" or a full street address now find the suburb (only the suburb is kept). Online search sends just the place name.
 - Setting your area manually uses the full postcode list, so postcodes like 4500 get their climate from the nearest reference town instead of a "couldn't find" guess.

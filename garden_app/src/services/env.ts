@@ -12,5 +12,5 @@ export const ENV = {
    * change the plant list. Absent in local builds: these features are skipped.
    */
   plantDataToken: process.env.EXPO_PUBLIC_PLANT_DATA_TOKEN || undefined,
-  appVersion: '1.8.0',
+  appVersion: '1.9.0',
 };

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { autoBackup } from '../src/state/appStore';
 import React, { useState } from 'react';
+import { Platform } from 'react-native';
 import type { GardenLocation, GardeningGoal, TimeBudget } from '../src/domain/types';
 import { useGardenView } from '../src/state/hooks';
 import { Button, Card, Choice, Field, Notice, Row, Screen, Section, Stepper, T } from '../src/ui/components/primitives';
@@ -18,6 +19,8 @@ export default function Profile() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmForget, setConfirmForget] = useState(false);
+  const [updateNote, setUpdateNote] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   if (!profile || !location) return null;
   const outlined = data.areas.filter((a) => a.outline).length;
 
@@ -83,6 +86,34 @@ export default function Profile() {
             onChange={(v) => void store.saveSettings({ sharePlants: v === 'yes' })}
           />
           {!store.canSharePlants ? <T variant="tiny" muted>Sharing happens from the Android app; this choice is kept for when you use it.</T> : null}
+          {Platform.OS === 'android' ? (
+            <>
+              <Choice<'daily' | 'weekly'>
+                label="Check for new versions of the app"
+                options={[
+                  { value: 'daily', label: 'Once a day' },
+                  { value: 'weekly', label: 'Once a week' },
+                ]}
+                value={data.settings.updateChecks ?? 'daily'}
+                onChange={(v) => void store.saveSettings({ updateChecks: v })}
+              />
+              <T variant="tiny" muted>When there&apos;s a new version you&apos;ll see a Download button on This Week, and a notification if the app is closed (if notifications are allowed). Only a tiny version file is downloaded.</T>
+              <Button
+                compact
+                variant="ghost"
+                icon="refresh"
+                label={checking ? 'Checking…' : 'Check now'}
+                loading={checking}
+                onPress={async () => {
+                  setChecking(true);
+                  await store.checkAppUpdate(true);
+                  setChecking(false);
+                  setUpdateNote(store.state.appUpdate ? `Version ${store.state.appUpdate.version} is available — see This Week to download it.` : 'You have the latest version.');
+                }}
+              />
+              {updateNote ? <T variant="small">{updateNote}</T> : null}
+            </>
+          ) : null}
         </Card>
       </Section>
       <Section title="Garden map (optional)">

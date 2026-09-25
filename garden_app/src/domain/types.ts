@@ -437,6 +437,8 @@ export interface AppSettings {
   backupPhotos?: boolean;
   /** Share plants the gardener adds with the plant list, as the starting choice for each new plant (default off — opt-in). */
   sharePlants?: boolean;
+  /** Android: how often to look for a new version of the app (default daily). */
+  updateChecks?: 'daily' | 'weekly';
 }
 
 /**

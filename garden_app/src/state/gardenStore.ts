@@ -56,7 +56,7 @@ import { coordinatesForPostcode } from '../services/location/geocode';
 import { memoryPhotoFiles, type PhotoFiles } from '../services/photos/photoFiles';
 import type { CatalogueUpdates } from '../services/catalogue/catalogueUpdates';
 import type { SuggestionSender } from '../services/plants/plantSuggestions';
-import type { AppRelease, AppUpdates } from '../services/updates/appUpdates';
+import { UPDATE_CHECK_INTERVAL_MS, type AppRelease, type AppUpdates } from '../services/updates/appUpdates';
 import type { CollectionName, GardenRepository, LoadProblem } from '../services/storage/gardenRepository';
 import type { WeatherService } from '../services/weather/weatherService';
 
@@ -243,7 +243,7 @@ export class GardenStore {
   /** Look for a newer version of the phone app (daily at most, unless forced). */
   async checkAppUpdate(force = false) {
     if (!this.appUpdates) return;
-    const appUpdate = await this.appUpdates.check(force);
+    const appUpdate = await this.appUpdates.check(force, UPDATE_CHECK_INTERVAL_MS[this.state.data.settings.updateChecks ?? 'daily']);
     this.set({ appUpdate });
   }
 
