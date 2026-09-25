@@ -1,6 +1,6 @@
 # ── garden_app (Sow by Season) — publish the plant list ──────────────────────
 # Installed apps download the plant list from the public repository
-# BearyNatural/sow-by-season-plant-data, so new or corrected plants reach them
+# BearyNatural/australian_plant_data, so new or corrected plants reach them
 # between app releases. This rebuilds catalogue.json from the app's plant data
 # and pushes it there whenever that data changes on main.
 #
@@ -50,7 +50,7 @@ jobs:
         run: npx tsx --test tests/location-catalogue.test.ts tests/plant-list.test.ts
       - name: Build catalogue.json
         run: npx tsx scripts/build-catalogue-json.ts "$RUNNER_TEMP/catalogue.json"
-      - name: Publish to BearyNatural/sow-by-season-plant-data
+      - name: Publish to BearyNatural/australian_plant_data
         env:
           DEPLOY_KEY: ${{ secrets.PLANT_DATA_DEPLOY_KEY }}
         run: |
@@ -63,7 +63,7 @@ jobs:
           chmod 600 ~/.ssh/plant_data_key
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
           export GIT_SSH_COMMAND="ssh -i ~/.ssh/plant_data_key -o IdentitiesOnly=yes"
-          git clone --depth 1 git@github.com:BearyNatural/sow-by-season-plant-data.git "$RUNNER_TEMP/plant-data"
+          git clone --depth 1 git@github.com:BearyNatural/australian_plant_data.git "$RUNNER_TEMP/plant-data"
           cd "$RUNNER_TEMP/plant-data"
           # generatedAt changes every build; only publish when the plants or sources changed.
           strip() { node -e 'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); delete j.generatedAt; process.stdout.write(JSON.stringify(j))' "$1"; }

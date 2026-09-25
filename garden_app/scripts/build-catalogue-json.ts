@@ -1,5 +1,5 @@
 // Builds the published plant list (catalogue.json) from the bundled catalogue,
-// for the public BearyNatural/sow-by-season-plant-data repository. Installed
+// for the public BearyNatural/australian_plant_data repository. Installed
 // apps download it to get new or corrected plants between releases.
 // Run: npx tsx scripts/build-catalogue-json.ts <output-file>
 // Refuses to write anything if the data wouldn't pass the app's own checks.

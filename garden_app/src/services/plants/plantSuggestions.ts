@@ -12,7 +12,7 @@
 import type { ClimateZoneId, CustomPlant } from '../../domain/types';
 import type { HeaderFetch } from '../catalogue/catalogueUpdates';
 
-export const SUGGESTIONS_URL = 'https://api.github.com/repos/BearyNatural/sow-by-season-plant-data/issues';
+export const SUGGESTIONS_URL = 'https://api.github.com/repos/BearyNatural/australian_plant_data/issues';
 export const SUGGESTION_LABEL = 'plant-suggestion';
 
 type PostFetch = (

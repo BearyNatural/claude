@@ -1,6 +1,6 @@
 # ── garden_app (Sow by Season) — check plant suggestions ─────────────────────
 # Gardeners can opt in to share plants they add. Each becomes an issue labelled
-# "plant-suggestion" in the private repository BearyNatural/sow-by-season-plant-data.
+# "plant-suggestion" in the private repository BearyNatural/australian_plant_data.
 # This runs the automatic first checks daily (details readable, not already in
 # the list, botanical name confirmed) and labels each suggestion. It never
 # changes the plant list: a person verifies against reliable sources first.
