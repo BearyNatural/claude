@@ -14,6 +14,7 @@ import { THREE_SISTERS } from '../data/systems';
 import { createCatalogue } from '../domain/catalogue';
 import { effectiveZone } from '../domain/climate';
 import { addDays, todayInTimeZone } from '../domain/dates';
+import { outlineDimensionsM, polygonAreaM2, roundTenth, type LatLon } from '../domain/geometry';
 import { newId } from '../domain/ids';
 import { productionLevelFromGoals } from '../domain/production';
 import {
@@ -39,6 +40,7 @@ import {
   type Planting,
   type PlantingEvent,
   type PlantingEventType,
+  type PropertyLocation,
   type SuccessionPlan,
   type TaskResponseStatus,
 } from '../domain/types';
@@ -183,7 +185,10 @@ export class GardenStore {
     const now = this.nowIso();
     const prev = this.state.data.profile;
     const locationChanged =
-      !prev || prev.location.approxLatitude !== p.location.approxLatitude || prev.location.approxLongitude !== p.location.approxLongitude;
+      !prev ||
+      prev.location.approxLatitude !== p.location.approxLatitude ||
+      prev.location.approxLongitude !== p.location.approxLongitude ||
+      prev.location.postcode !== p.location.postcode;
     const profile: GardenProfile = { ...p, id: 'profile', createdAt: prev?.createdAt ?? p.createdAt ?? now, updatedAt: now };
     await this.repo.saveProfile(profile);
     this.setData((d) => ({ ...d, profile }));
@@ -220,6 +225,42 @@ export class GardenStore {
   // -------------------------------------------------------------------------
   // Plantings, events, journal
   // -------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------
+  // Garden map (optional; precise locations stay on this device)
+  // -------------------------------------------------------------------------
+
+  async setProperty(property: PropertyLocation) {
+    const prev = this.state.data.profile;
+    if (!prev) return;
+    await this.saveProfile({ ...prev, property });
+  }
+
+  /** Save an outline traced on the map, and the size measured from it. */
+  async saveAreaOutline(areaId: string, outline: LatLon[]) {
+    const area = this.state.data.areas.find((a) => a.id === areaId);
+    if (!area) return;
+    const dims = outlineDimensionsM(outline);
+    await this.saveArea({
+      ...area,
+      outline,
+      usableAreaM2: roundTenth(polygonAreaM2(outline)),
+      ...(dims ? { lengthM: roundTenth(dims.lengthM), widthM: roundTenth(dims.widthM) } : {}),
+    });
+  }
+
+  /** Forget the saved address and every traced outline. Measured sizes are kept. */
+  async clearMapData() {
+    const prev = this.state.data.profile;
+    if (prev?.property) {
+      const { property: _gone, ...rest } = prev;
+      await this.saveProfile(rest);
+    }
+    for (const a of this.state.data.areas.filter((x) => x.outline)) {
+      const { outline: _o, ...rest } = a;
+      await this.saveArea(rest);
+    }
+  }
 
   async savePlanting(p: Omit<Planting, 'id' | 'createdAt' | 'updatedAt' | 'events'> & { id?: string; events?: PlantingEvent[] }) {
     const now = this.nowIso();

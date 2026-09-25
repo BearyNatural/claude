@@ -18,6 +18,7 @@ import type {
   Observation,
   Planting,
   PlantingEvent,
+  PropertyLocation,
   ReminderPreferences,
   SuccessionBatch,
   SuccessionPlan,
@@ -185,6 +186,16 @@ function parseReminders(r: R): ReminderPreferences {
   };
 }
 
+const LATLON = (v: unknown, p: string) => {
+  const r = reader(v, p);
+  return { lat: r.num('lat', false, -90, 90), lon: r.num('lon', false, -180, 180) };
+};
+
+function parseProperty(r: R | undefined): PropertyLocation | undefined {
+  if (!r) return undefined;
+  return clean({ lat: r.num('lat', false, -90, 90), lon: r.num('lon', false, -180, 180), label: r.str('label', true, 300), zoom: r.num('zoom', true, 1, 22) });
+}
+
 export function validateProfile(v: unknown): Result<GardenProfile> {
   return run(() => {
     const r = reader(v, 'profile');
@@ -199,6 +210,7 @@ export function validateProfile(v: unknown): Result<GardenProfile> {
         return g as (typeof GOALS)[number];
       }, true, 20),
       reminders: parseReminders(r.obj('reminders')!),
+      property: parseProperty(r.obj('property', true)),
       onboardingComplete: r.bool('onboardingComplete'),
       createdAt: r.dateTime('createdAt'),
       updatedAt: r.dateTime('updatedAt'),
@@ -243,6 +255,7 @@ export function validateArea(v: unknown): Result<GardenArea> {
       container: c
         ? clean({ volumeL: c.num('volumeL', true, 0, 100000), diameterCm: c.num('diameterCm', true, 0, 10000), depthCm: c.num('depthCm', true, 0, 10000) })
         : undefined,
+      outline: r.has('outline') ? r.arr('outline', LATLON, true, 200) : undefined,
       notes: r.str('notes', true, 5000),
       archived: r.bool('archived', true),
       createdAt: r.dateTime('createdAt'),

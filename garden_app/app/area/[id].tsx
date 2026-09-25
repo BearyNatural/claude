@@ -34,6 +34,7 @@ export default function AreaDetail() {
       <Row wrap gap={6}>
         <Badge label={AREA_TYPE_LABELS[area.type]} />
         {cap !== null ? <Badge tone="info" icon="resize-outline" label={`~${cap.toFixed(cap < 1 ? 2 : 1)} m²`} /> : <Badge label="Size not set" />}
+        {area.outline ? <Badge tone="good" icon="map-outline" label="Measured on map" /> : null}
         {area.sunHours !== undefined ? <Badge tone="caution" icon="sunny-outline" label={`${area.sunHours} h sun`} /> : null}
         {area.soilType && area.soilType !== 'unknown' ? <Badge tone="earth" label={`${area.soilType.replace('-', ' ')} soil`} /> : null}
       </Row>
@@ -43,6 +44,9 @@ export default function AreaDetail() {
       <Row gap={space.sm} wrap>
         <Button icon="add" label="Add planting here" onPress={() => router.push({ pathname: '/planting/new', params: { areaId: area.id } })} />
         <Button variant="secondary" icon="create-outline" label="Edit area" onPress={() => router.push({ pathname: '/area/edit', params: { id: area.id } })} />
+        {!['pot', 'large-container', 'seed-starting'].includes(area.type) ? (
+          <Button variant="secondary" icon="map-outline" label={area.outline ? 'Redraw on map' : 'Measure on map'} onPress={() => router.push({ pathname: '/garden-map', params: { areaId: area.id } })} />
+        ) : null}
       </Row>
 
       <Section title="Growing here">

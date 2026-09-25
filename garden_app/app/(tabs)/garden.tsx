@@ -65,7 +65,15 @@ export default function Garden() {
         <Button compact icon="add" label="Add planting" onPress={() => router.push('/planting/new')} />
       </Row>
 
-      <Section title="Garden areas" action={<Button compact variant="ghost" icon="add" label="Add area" onPress={() => router.push('/area/edit')} />}>
+      <Section
+        title="Garden areas"
+        action={
+          <Row gap={0}>
+            <Button compact variant="ghost" icon="map-outline" label="Map" onPress={() => router.push('/garden-map')} accessibilityHint="Optional: outline your garden beds on a satellite map to measure them" />
+            <Button compact variant="ghost" icon="add" label="Add area" onPress={() => router.push('/area/edit')} />
+          </Row>
+        }
+      >
         {activeAreas.length === 0 ? (
           <Card>
             <T variant="small" muted>Add your beds, pots and other spaces so we can check spacing, sun and room for new plants. A rough size is enough.</T>

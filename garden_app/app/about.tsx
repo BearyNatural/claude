@@ -51,6 +51,12 @@ export default function About() {
           <Button compact variant="ghost" icon="open-outline" label="geonames.org" onPress={() => Linking.openURL('https://www.geonames.org/')} />
         </Card>
       </Section>
+      <Section title="Garden map">
+        <Card>
+          <T variant="small">Satellite imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community. Address search © OpenStreetMap contributors (Nominatim, ODbL). Map display by Leaflet. Sizes measured from satellite photos are approximate.</T>
+          <Button compact variant="ghost" icon="open-outline" label="openstreetmap.org/copyright" onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')} />
+        </Card>
+      </Section>
     </Screen>
   );
 }

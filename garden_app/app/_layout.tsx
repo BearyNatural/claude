@@ -48,6 +48,7 @@ function Gate() {
         <Stack.Screen name="planting/[id]" options={{ title: 'Planting' }} />
         <Stack.Screen name="area/edit" options={{ title: 'Garden area', presentation: 'modal' }} />
         <Stack.Screen name="area/[id]" options={{ title: 'Garden area' }} />
+        <Stack.Screen name="garden-map" options={{ title: 'Garden map' }} />
         <Stack.Screen name="succession/new" options={{ title: 'Succession planting', presentation: 'modal' }} />
         <Stack.Screen name="succession/[id]" options={{ title: 'Succession plan' }} />
         <Stack.Screen name="three-sisters" options={{ title: 'Three Sisters' }} />

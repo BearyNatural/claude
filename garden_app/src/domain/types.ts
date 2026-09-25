@@ -85,6 +85,15 @@ export interface ReminderPreferences {
   mode: ReminderMode;
 }
 
+export interface PropertyLocation {
+  lat: number;
+  lon: number;
+  /** The address or place as the gardener chose it, e.g. "12 Example St, Strathpine". */
+  label?: string;
+  /** Last map zoom level, so the map reopens where they left it. */
+  zoom?: number;
+}
+
 export interface GardenProfile {
   id: 'profile';
   gardenName?: string;
@@ -94,6 +103,12 @@ export interface GardenProfile {
   timeBudget: TimeBudget;
   goals: GardeningGoal[];
   reminders: ReminderPreferences;
+  /**
+   * Optional, for the garden map only: where the property is, found from an
+   * address search. Precise, so it never leaves the phone (weather and climate
+   * keep using the rounded `location`). Removable at any time.
+   */
+  property?: PropertyLocation;
   onboardingComplete: boolean;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
@@ -147,6 +162,8 @@ export interface GardenArea {
   soilObservations?: SoilObservation[];
   irrigation?: Irrigation;
   container?: ContainerDimensions;
+  /** Corners traced on the satellite map (optional). Size fields are then measured from it. */
+  outline?: { lat: number; lon: number }[];
   notes?: string;
   archived?: boolean;
   createdAt: ISODateTime;
