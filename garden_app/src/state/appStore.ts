@@ -1,6 +1,7 @@
-/** Wires the production store: AsyncStorage + Open-Meteo. */
+/** Wires the production store: AsyncStorage + Open-Meteo + photo files on the device. */
 import { ENV } from '../services/env';
 import { asyncStorageStore } from '../services/storage/asyncStorageStore';
+import { devicePhotoFiles } from '../services/photos/devicePhotoFiles';
 import { GardenRepository } from '../services/storage/gardenRepository';
 import { WeatherService } from '../services/weather/weatherService';
 import { GardenStore } from './gardenStore';
@@ -12,4 +13,6 @@ export const appStore = new GardenStore(
     now: () => new Date(),
     config: { apiKey: ENV.openMeteoApiKey },
   }),
+  () => new Date(),
+  devicePhotoFiles,
 );

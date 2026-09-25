@@ -84,7 +84,7 @@ describe('plantings in several garden areas', () => {
     assert.ok(none.ok && none.value.areaIds === undefined);
   });
 
-  it('migrates v2 backups (areaId) to v3 (areaIds)', () => {
+  it('migrates v2 backups (single areaId) to the multi-area format', () => {
     const data = {
       areas: [area({ id: 'bed1' })],
       plantings: [{ ...planting({ id: 'p1', plantId: 'rosemary' }), areaId: 'bed1' }],
@@ -93,7 +93,7 @@ describe('plantings in several garden areas', () => {
     const r = parseBackup(JSON.stringify(doc));
     assert.ok(r.ok);
     if (!r.ok) return;
-    assert.deepEqual(r.migrations, ['v2 → v3']);
+    assert.deepEqual(r.migrations, ['v2 → v3', 'v3 → v4']);
     assert.deepEqual(r.data.plantings[0].areaIds, ['bed1']);
   });
 

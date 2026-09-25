@@ -15,6 +15,7 @@ import { Badge, Button, Card, EmptyState, ListRow, Row, Screen, Section, T } fro
 import { AREA_TYPE_LABELS } from '../../src/ui/forms/areaForm';
 import { space, usePalette } from '../../src/ui/theme/theme';
 import { isInArea } from '../../src/domain/plantingAreas';
+import { latestPhotoUri } from '../../src/ui/components/photos';
 
 function UsageBar({ ratio }: { ratio: number }) {
   const p = usePalette();
@@ -31,7 +32,7 @@ function UsageBar({ ratio }: { ratio: number }) {
 }
 
 export default function Garden() {
-  const { data, today } = useGardenView();
+  const { data, today, store } = useGardenView();
   const [showPast, setShowPast] = useState(false);
 
   const rows = useMemo(
@@ -52,6 +53,7 @@ export default function Garden() {
     <ListRow
       key={p.id}
       icon="leaf-outline"
+      imageUri={latestPhotoUri(p, store)}
       title={`${plant?.commonName ?? p.plantId}${p.variety ? ` '${p.variety}'` : ''} × ${p.quantity}`}
       subtitle={p.stage === 'planned' ? `Planned for ${formatDay(p.plantedDate, today)}${p.notes ? ` — ${p.notes}` : ''}` : describeProgress(tl)}
       onPress={() => router.push(`/planting/${p.id}`)}

@@ -12,6 +12,7 @@ import type { GrowthStage, PlantingEventType } from '../../src/domain/types';
 import { getPlant } from '../../src/state/gardenStore';
 import { useGardenView } from '../../src/state/hooks';
 import { DateField, InfoTip, TimelineList } from '../../src/ui/components/garden';
+import { PlantingPhotos } from '../../src/ui/components/photos';
 import { Badge, Button, Card, Chip, EmptyState, Field, Notice, Row, Screen, Section, Stepper, T } from '../../src/ui/components/primitives';
 import { AreaPicker, resolveAreaIds, useSelectNewAreas, type NewPot } from '../../src/ui/forms/areaPicker';
 import { METHOD_LABELS } from '../../src/ui/labels';
@@ -83,6 +84,10 @@ export default function PlantingDetail() {
       )}
 
       {p.successionPlanId ? <Button variant="secondary" icon="repeat" label="Open succession plan" onPress={() => router.push(`/succession/${p.successionPlanId}`)} /> : null}
+
+      <Section title="Photos">
+        <PlantingPhotos planting={p} store={store} today={today} />
+      </Section>
 
       <Section title="Timeline">
         <Card>

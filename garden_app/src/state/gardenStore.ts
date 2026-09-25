@@ -40,6 +40,7 @@ import {
   type Planting,
   type PlantingEvent,
   type PlantingEventType,
+  type PlantingPhoto,
   type PropertyLocation,
   type SuccessionPlan,
   type TaskResponseStatus,
@@ -47,6 +48,7 @@ import {
 import type { WeatherSnapshot } from '../domain/weather';
 import { areaIdsOf, isInArea, toAreaIds } from '../domain/plantingAreas';
 import { coordinatesForPostcode } from '../services/location/geocode';
+import { memoryPhotoFiles, type PhotoFiles } from '../services/photos/photoFiles';
 import type { CollectionName, GardenRepository, LoadProblem } from '../services/storage/gardenRepository';
 import type { WeatherService } from '../services/weather/weatherService';
 
@@ -95,7 +97,12 @@ export class GardenStore {
     now: new Date(),
   };
 
-  constructor(private repo: GardenRepository, private weatherService: WeatherService, private clock: () => Date = () => new Date()) {}
+  constructor(
+    private repo: GardenRepository,
+    private weatherService: WeatherService,
+    private clock: () => Date = () => new Date(),
+    private photos: PhotoFiles = memoryPhotoFiles(),
+  ) {}
 
   subscribe = (fn: () => void) => {
     this.listeners.add(fn);
@@ -227,6 +234,59 @@ export class GardenStore {
   // -------------------------------------------------------------------------
 
   // -------------------------------------------------------------------------
+  // Photos (files kept in app storage on this device)
+  // -------------------------------------------------------------------------
+
+  photoUri(file: string): string {
+    return this.photos.uri(file);
+  }
+
+  photoExists(file: string): boolean {
+    return this.photos.exists(file);
+  }
+
+  /** Add picked or captured images to a planting (each is shrunk and copied into app storage). */
+  async addPhotos(plantingId: string, images: { uri: string; width?: number; height?: number }[]) {
+    const p = this.state.data.plantings.find((x) => x.id === plantingId);
+    if (!p || !images.length) return;
+    const added: PlantingPhoto[] = [];
+    for (const img of images) {
+      const file = await this.photos.importImage(img.uri, img.width && img.height ? { width: img.width, height: img.height } : undefined);
+      added.push({ id: newId('pho'), file, takenAt: this.nowIso() });
+    }
+    const latest = this.state.data.plantings.find((x) => x.id === plantingId) ?? p;
+    await this.putRecord('plantings', { ...latest, photos: [...(latest.photos ?? []), ...added], updatedAt: this.nowIso() });
+  }
+
+  async removePhoto(plantingId: string, photoId: string) {
+    const p = this.state.data.plantings.find((x) => x.id === plantingId);
+    const ph = p?.photos?.find((x) => x.id === photoId);
+    if (!p || !ph) return;
+    this.photos.remove(ph.file);
+    const rest = p.photos!.filter((x) => x.id !== photoId);
+    const { photos: _old, ...base } = p;
+    await this.putRecord('plantings', { ...base, ...(rest.length ? { photos: rest } : {}), updatedAt: this.nowIso() });
+  }
+
+  async setPhotoCaption(plantingId: string, photoId: string, caption: string) {
+    const p = this.state.data.plantings.find((x) => x.id === plantingId);
+    if (!p?.photos?.some((x) => x.id === photoId)) return;
+    const photos = p.photos.map((x) => (x.id === photoId ? { ...x, caption: caption.trim() || undefined } : x));
+    await this.putRecord('plantings', { ...p, photos, updatedAt: this.nowIso() });
+  }
+
+  /** Every photo file the garden uses and that is on this phone, as base64 — for backups. */
+  async photoFilesForBackup(): Promise<Record<string, string>> {
+    const out: Record<string, string> = {};
+    for (const p of this.state.data.plantings) {
+      for (const ph of p.photos ?? []) {
+        if (!out[ph.file] && this.photos.exists(ph.file)) out[ph.file] = await this.photos.readBase64(ph.file);
+      }
+    }
+    return out;
+  }
+
+  // -------------------------------------------------------------------------
   // Garden map (optional; precise locations stay on this device)
   // -------------------------------------------------------------------------
 
@@ -317,6 +377,8 @@ export class GardenStore {
   }
 
   async deletePlanting(id: string) {
+    const gone = this.state.data.plantings.find((x) => x.id === id);
+    for (const ph of gone?.photos ?? []) this.photos.remove(ph.file);
     await this.removeRecord('plantings', id);
     for (const j of this.state.data.journal.filter((x) => x.plantingId === id)) await this.removeRecord('journal', j.id);
   }
@@ -523,9 +585,16 @@ export class GardenStore {
     return this.state.data;
   }
 
-  /** Replace everything with validated backup data (atomic in the repository). */
-  async restore(data: GardenData) {
+  /**
+   * Replace everything with validated backup data (atomic in the repository).
+   * Photo files from the backup are written first; photos on this phone that
+   * no restored planting uses are then removed.
+   */
+  async restore(data: GardenData, photoFiles: Record<string, string> = {}) {
+    for (const [file, b64] of Object.entries(photoFiles)) this.photos.writeBase64(file, b64);
     await this.repo.replaceAll(data);
+    const keep = new Set(data.plantings.flatMap((p) => (p.photos ?? []).map((ph) => ph.file)));
+    for (const f of this.photos.list()) if (!keep.has(f)) this.photos.remove(f);
     const { data: loaded, problems } = await this.repo.load();
     this.set({ data: loaded, problems });
     void this.refreshWeather(true);
@@ -533,6 +602,7 @@ export class GardenStore {
 
   async deleteAllData() {
     await this.repo.deleteEverything();
+    this.photos.removeAll();
     await this.weatherService.clear().catch(() => undefined);
     this.set({ data: emptyGardenData(), problems: [], weather: { snapshot: null, loading: false } });
   }

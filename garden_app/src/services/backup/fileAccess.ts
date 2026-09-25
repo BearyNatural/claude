@@ -21,6 +21,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { MAX_BACKUP_BYTES } from '../../domain/backup/restore';
 import { Platform } from 'react-native';
 
 export type ExportResult = { ok: true; how: 'shared' | 'saved-to-folder' | 'downloaded' } | { ok: false; cancelled?: boolean; message: string };
@@ -86,7 +87,7 @@ export async function pickBackupFile(): Promise<PickResult> {
     const res = await DocumentPicker.getDocumentAsync({ type: ['application/json', 'text/plain', '*/*'], copyToCacheDirectory: true, multiple: false });
     if (res.canceled || !res.assets?.length) return { ok: false, cancelled: true, message: 'No file chosen.' };
     const asset = res.assets[0];
-    if (asset.size !== undefined && asset.size > 20 * 1024 * 1024) {
+    if (asset.size !== undefined && asset.size > MAX_BACKUP_BYTES) {
       return { ok: false, message: 'That file is too large to be a Sow by Season backup.' };
     }
     let text: string;

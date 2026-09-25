@@ -5,5 +5,5 @@
 export const ENV = {
   /** Optional Open-Meteo commercial API key (required for commercial use). */
   openMeteoApiKey: process.env.EXPO_PUBLIC_OPEN_METEO_API_KEY || undefined,
-  appVersion: '1.3.0',
+  appVersion: '1.4.0',
 };

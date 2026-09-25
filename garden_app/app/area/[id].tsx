@@ -11,6 +11,7 @@ import { Badge, Button, Card, Chip, EmptyState, ListRow, Notice, Row, Screen, Se
 import { AREA_TYPE_LABELS, soilAdvice } from '../../src/ui/forms/areaForm';
 import { space } from '../../src/ui/theme/theme';
 import { isInArea } from '../../src/domain/plantingAreas';
+import { latestPhotoUri } from '../../src/ui/components/photos';
 
 export default function AreaDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,7 +58,7 @@ export default function AreaDetail() {
             {active.map((p) => {
               const plant = getPlant(p.plantId);
               return (
-                <ListRow key={p.id} icon="leaf-outline" title={`${plant?.commonName ?? p.plantId} × ${p.quantity}`} subtitle={p.stage === 'planned' ? `Planned ${formatDay(p.plantedDate, today)}` : describeProgress(buildTimeline(p, plant, data.journal, today))} onPress={() => router.push(`/planting/${p.id}`)} />
+                <ListRow key={p.id} icon="leaf-outline" imageUri={latestPhotoUri(p, store)} title={`${plant?.commonName ?? p.plantId} × ${p.quantity}`} subtitle={p.stage === 'planned' ? `Planned ${formatDay(p.plantedDate, today)}` : describeProgress(buildTimeline(p, plant, data.journal, today))} onPress={() => router.push(`/planting/${p.id}`)} />
               );
             })}
           </Card>

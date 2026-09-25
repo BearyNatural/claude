@@ -3,7 +3,7 @@
     "name": "Sow by Season",
     "slug": "sow-by-season",
     "scheme": "sowbyseason",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -50,7 +50,15 @@
       ],
       "expo-document-picker",
       "expo-sharing",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose photos of your plants to keep with your garden records.",
+          "cameraPermission": "Take photos of your plants to keep with your garden records.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

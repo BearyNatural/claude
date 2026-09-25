@@ -49,7 +49,7 @@ describe('backup format', () => {
   it('does not include the static plant catalogue or weather', () => {
     const text = backupText();
     assert.doesNotMatch(text, /botanicalName|daysToMaturity|temperature_2m/);
-    assert.match(text, /"schemaVersion": 3/);
+    assert.match(text, /"schemaVersion": 4/);
     assert.match(text, /"format": "sow-by-season-backup"/);
   });
 
@@ -134,7 +134,7 @@ describe('restore safety', () => {
     assert.equal(r.ok, true);
     if (!r.ok) return;
     assert.equal(r.migratedFrom, 1);
-    assert.deepEqual(r.migrations, ['v1 → v2', 'v2 → v3']);
+    assert.deepEqual(r.migrations, ['v1 → v2', 'v2 → v3', 'v3 → v4']);
     assert.equal(r.data.profile!.location.overrideZone, 'cool-temperate');
     assert.equal(r.data.profile!.householdSize, 2);
     assert.equal(r.data.profile!.timeBudget, '2to4');

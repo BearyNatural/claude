@@ -45,9 +45,30 @@ export interface ImportPreview {
   counts: Record<string, number>;
   skipped: SkippedRecord[];
   warnings: string[];
+  /** Photo files to restore (file name → base64), when the backup included them. */
+  photos: Record<string, string>;
 }
 
-export const MAX_BACKUP_BYTES = 20 * 1024 * 1024;
+/** Backups with photos are larger; this still guards against loading something huge by mistake. */
+export const MAX_BACKUP_BYTES = 150 * 1024 * 1024;
+
+const PHOTO_FILE = /^[A-Za-z0-9_-]{1,80}\.(jpg|jpeg|png|webp)$/;
+const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+
+/** Photo files from the backup: only well-formed names and data, and only if their checksum matches. */
+function readAttachments(raw: unknown, warnings: string[]): Record<string, string> {
+  if (!isObj(raw) || !isObj(raw.files)) return {};
+  const files = raw.files as Json;
+  if (typeof raw.checksum !== 'string' || fnv1a(stableStringify(files)) !== raw.checksum) {
+    warnings.push('The photos in this backup failed their integrity check, so they will be left out. Your garden records are not affected.');
+    return {};
+  }
+  const out: Record<string, string> = {};
+  for (const [name, b64] of Object.entries(files)) {
+    if (PHOTO_FILE.test(name) && typeof b64 === 'string' && b64.length > 0 && BASE64.test(b64)) out[name] = b64;
+  }
+  return out;
+}
 
 const fail = (code: ImportErrorCode, message: string): ImportError => ({ ok: false, code, message });
 
@@ -155,7 +176,19 @@ export function parseBackup(text: string): ImportPreview | ImportError {
   if (skipped.length) warnings.push(`${skipped.length} record${skipped.length > 1 ? 's' : ''} could not be read and will be left out.`);
   if (!data.profile) warnings.push('The backup has no Garden Profile; you\'ll be asked to set one up after restoring.');
 
+  const photos = readAttachments(doc.attachments, warnings);
+  const referenced = data.plantings.flatMap((p) => (p.photos ?? []).map((ph) => ph.file));
+  const missing = referenced.filter((f) => !photos[f]).length;
+  if (referenced.length && missing) {
+    warnings.push(
+      missing === referenced.length
+        ? 'This backup was saved without photos. Plant records are restored; any photos already on this phone for those plants are kept.'
+        : `${missing} photo${missing > 1 ? 's are' : ' is'} not in this backup; ${missing > 1 ? 'they' : 'it'} will only show if already on this phone.`,
+    );
+  }
+
   const counts = {
+    photos: Object.keys(photos).length,
     areas: data.areas.length,
     plantings: data.plantings.length,
     journal: data.journal.length,
@@ -176,5 +209,6 @@ export function parseBackup(text: string): ImportPreview | ImportError {
     counts,
     skipped,
     warnings,
+    photos,
   };
 }

@@ -3,7 +3,7 @@
  *
  *   {
  *     "format": "sow-by-season-backup",
- *     "schemaVersion": 3,
+ *     "schemaVersion": 4,
  *     "createdAt": "2026-09-24T08:00:00.000Z",
  *     "app": { "name": "Sow by Season", "version": "1.0.0" },
  *     "catalogueVersion": "2026.09.1",
@@ -19,18 +19,29 @@
 import type { GardenData } from '../types';
 
 export const BACKUP_FORMAT = 'sow-by-season-backup';
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 export const MIN_SUPPORTED_SCHEMA_VERSION = 1;
 
-export interface BackupFileV3 {
+export interface BackupFileV4 {
   format: typeof BACKUP_FORMAT;
-  schemaVersion: 3;
+  schemaVersion: 4;
   createdAt: string;
   app: { name: string; version: string };
   catalogueVersion?: string;
   counts: Record<string, number>;
   checksum: string;
   data: GardenData;
+  /**
+   * Optional photo files (the gardener chooses whether to include them):
+   * file name → base64 JPEG, with its own checksum so damaged photos can be
+   * left out without losing the rest of the backup.
+   */
+  attachments?: BackupAttachments;
+}
+
+export interface BackupAttachments {
+  files: Record<string, string>;
+  checksum: string;
 }
 
 /** Deterministic JSON (sorted keys) so the checksum is stable. */
@@ -65,16 +76,21 @@ export function countsFor(data: GardenData): Record<string, number> {
   };
 }
 
-export function createBackup(data: GardenData, opts: { now: Date; appVersion: string; catalogueVersion?: string }): BackupFileV3 {
+export function createBackup(
+  data: GardenData,
+  opts: { now: Date; appVersion: string; catalogueVersion?: string; photos?: Record<string, string> },
+): BackupFileV4 {
+  const photos = opts.photos && Object.keys(opts.photos).length ? opts.photos : undefined;
   return {
     format: BACKUP_FORMAT,
-    schemaVersion: 3,
+    schemaVersion: 4,
     createdAt: opts.now.toISOString(),
     app: { name: 'Sow by Season', version: opts.appVersion },
     catalogueVersion: opts.catalogueVersion,
     counts: countsFor(data),
     checksum: fnv1a(stableStringify(data)),
     data,
+    ...(photos ? { attachments: { files: photos, checksum: fnv1a(stableStringify(photos)) } } : {}),
   };
 }
 
@@ -83,6 +99,6 @@ export function backupFileName(localDate: string): string {
   return `SowBySeason-Backup-${localDate}.json`;
 }
 
-export function serialiseBackup(b: BackupFileV3): string {
+export function serialiseBackup(b: BackupFileV4): string {
   return JSON.stringify(b, null, 2);
 }

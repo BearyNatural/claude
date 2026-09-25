@@ -258,8 +258,18 @@ export interface Planting {
   /** Set when this planting is part of a structured planting system (e.g. Three Sisters). */
   system?: { planId: string; systemId: string; role: string };
   notes?: string;
+  /** Photos kept with this planting (files stored in the app's own storage on this device). */
+  photos?: PlantingPhoto[];
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
+}
+
+export interface PlantingPhoto {
+  id: string;
+  /** File name inside the app's photos folder, e.g. "ph_abc123.jpg". */
+  file: string;
+  takenAt: ISODateTime;
+  caption?: string;
 }
 
 export interface JournalEntry {

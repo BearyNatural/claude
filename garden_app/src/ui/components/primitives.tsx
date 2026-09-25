@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -357,11 +358,13 @@ export function Choice<V extends string>({ label, options, value, onChange }: { 
   );
 }
 
-export function ListRow({ title, subtitle, icon, right, onPress, accessibilityLabel }: { title: string; subtitle?: string; icon?: IconName; right?: ReactNode; onPress?: () => void; accessibilityLabel?: string }) {
+export function ListRow({ title, subtitle, icon, imageUri, right, onPress, accessibilityLabel }: { title: string; subtitle?: string; icon?: IconName; /** Shown instead of the icon, e.g. a plant photo. */ imageUri?: string; right?: ReactNode; onPress?: () => void; accessibilityLabel?: string }) {
   const p = usePalette();
   const inner = (
     <Row gap={space.md} style={{ minHeight: TOUCH, paddingVertical: space.sm }}>
-      {icon ? (
+      {imageUri ? (
+        <Image source={{ uri: imageUri }} style={[styles.rowIcon, { backgroundColor: p.primarySoft }]} accessibilityIgnoresInvertColors />
+      ) : icon ? (
         <View style={[styles.rowIcon, { backgroundColor: p.primarySoft }]}>
           <Ionicons name={icon} size={20} color={p.primary} />
         </View>

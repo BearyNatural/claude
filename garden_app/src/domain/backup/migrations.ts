@@ -8,7 +8,11 @@
  *       profile.household (number), profile.hoursPerWeek (number),
  *       planting.datePlanted, no taskResponses/observations, no checksum.
  *  v2 — planting.areaId (a single garden area).
- *  v3 — current: planting.areaIds (any number of areas); see format.ts.
+ *  v3 — planting.areaIds (any number of areas).
+ *  v4 — current: optional planting.photos, profile.property, area.outline, and
+ *       optional photo files in `attachments`; see format.ts. No data changes
+ *       are needed, but older app versions would drop the new fields, so they
+ *       refuse v4 backups instead.
  */
 
 type Json = Record<string, unknown>;
@@ -83,6 +87,7 @@ function migrateV2toV3(doc: Json): Json {
 export const MIGRATIONS: Record<number, (doc: Json) => Json> = {
   1: migrateV1toV2,
   2: migrateV2toV3,
+  3: (doc) => ({ ...doc, schemaVersion: 4 }),
 };
 
 export function migrate(doc: Json, from: number, to: number): { doc: Json; applied: string[] } {
