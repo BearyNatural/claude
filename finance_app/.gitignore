@@ -1,0 +1,15 @@
+node_modules/
+dist/
+release/
+coverage/
+*.log
+.env
+.env.*
+# Never commit real financial data, databases, backups or keys
+*.pbdb
+*.pbbackup
+*.db
+*.sqlite
+keystore.json
+/userdata*/
+.DS_Store
