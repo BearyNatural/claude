@@ -170,7 +170,7 @@ describe('forecasting', () => {
     expect(r.totals.spendingCents).toBe(53 * 150000 + 4 * 50000);
     expect(r.end.cashCents).toBe(1000000 + 26 * 400000 - 53 * 150000 - 4 * 50000);
     expect(r.firstBelowZero).toBeNull();
-    expect(r.summary).toMatch(/^Under the assumptions entered, the projected cash balance stays positive/);
+    expect(r.summary).toMatch(/^Under the assumptions entered, the projected cash balance stays above zero for the whole forecast/);
   });
 
   it('models income stopping and finds when cash runs out', () => {

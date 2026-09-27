@@ -5,6 +5,7 @@
   "private": true,
   "description": "Local-first personal finance, budgeting and planning for Australian households. A tracking, understanding and planning tool — not financial advice.",
   "author": "BearyNatural",
+  "homepage": "https://github.com/BearyNatural/claude/tree/main/finance_app",
   "license": "UNLICENSED",
   "main": "dist/main/index.js",
   "engines": {

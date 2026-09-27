@@ -1,0 +1,71 @@
+# Packaging for Paperbark (electron-builder). Build with `npm run package` (current OS)
+# or `npm run package:linux|win|mac`. Output goes to release/ (git-ignored).
+appId: au.bearynatural.paperbark
+productName: Paperbark
+copyright: Copyright © BearyNatural
+artifactName: Paperbark-${version}-${os}-${arch}.${ext}
+
+directories:
+  output: release
+  buildResources: build
+
+# Only the built app and its runtime dependencies are shipped: no sources, tests or maps.
+files:
+  - dist/**
+  - package.json
+  - '!**/*.map'
+  - '!**/*.d.ts'
+  - '!**/*.md'
+  # PDF.js is only used to read text: its renderer's native canvas module and viewer files are not needed.
+  - '!node_modules/@napi-rs/**'
+  - '!node_modules/pdfjs-dist/{web,image_decoders,build,types}/**'
+  - '!node_modules/sql.js/{.devcontainer,documentation,examples}/**'
+  - '!node_modules/papaparse/player/**'
+asar: true
+
+# Hardened Electron fuses, flipped in the binary at package time.
+electronFuses:
+  runAsNode: false                            # ELECTRON_RUN_AS_NODE cannot turn the app into a plain Node runtime
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false # NODE_OPTIONS is ignored
+  enableNodeCliInspectArguments: false        # --inspect and friends are ignored
+  enableEmbeddedAsarIntegrityValidation: true # the app archive is checked against a hash in the binary (macOS/Windows)
+  onlyLoadAppFromAsar: true                   # app code is only loaded from the verified archive
+  loadBrowserProcessSpecificV8Snapshot: false
+  grantFileProtocolExtraPrivileges: false     # file:// gets no special privileges (the UI uses app://)
+
+publish: null
+
+linux:
+  executableName: paperbark
+  target:
+    - AppImage
+    - deb
+  category: Office
+  synopsis: Local-first personal finance for Australian households
+  description: Paperbark imports bank statements you download yourself and keeps everything encrypted on this computer.
+  maintainer: BearyNatural <42864379+BearyNatural@users.noreply.github.com>
+
+deb:
+  # Electron's sandbox helper needs these to run with the renderer sandbox enabled.
+  depends: [libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libuuid1, libsecret-1-0]
+
+win:
+  target:
+    - nsis
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false            # uninstalling never deletes the user's encrypted data
+
+mac:
+  target:
+    - dmg
+  category: public.app-category.finance
+  # No Apple Developer ID yet: ad-hoc signed, so Apple silicon Macs will run it after the
+  # user allows it (right-click → Open). Hardened runtime is for notarised builds; turn it
+  # on together with a real identity (ad-hoc + hardened runtime fails library validation).
+  identity: '-'
+  hardenedRuntime: false

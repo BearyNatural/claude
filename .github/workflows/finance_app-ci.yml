@@ -1,0 +1,66 @@
+# ── finance_app (Paperbark) — checks ─────────────────────────────────────────
+# Project-scoped: only runs for changes inside finance_app/. Runs the tests,
+# type-check and a production build, then packages the Linux app and runs its
+# built-in self-test (`paperbark --self-test`) to prove the packaged archive can
+# load its database engine, PDF reader and spreadsheet code.
+#
+# Needs no secrets. Nothing is published from here — releases are built by
+# finance_app-desktop.yml.
+
+name: "finance_app · checks"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'finance_app/**'
+      - '.github/workflows/finance_app-ci.yml'
+      - '!finance_app/ci/finance_app-desktop.yml'
+      - '!finance_app/docs/**'
+      - '!finance_app/*.md'
+  pull_request:
+    paths:
+      - 'finance_app/**'
+      - '.github/workflows/finance_app-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance_app-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: finance_app
+
+jobs:
+  check:
+    name: finance_app · tests, type-check & packaged self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Unit and integration tests
+        run: npm test
+      - name: Type-check
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Package (Linux, unpacked)
+        run: npx electron-builder --linux dir --publish never
+      - name: Packaged self-test
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb >/dev/null
+          # Electron's sandbox helper must be setuid root (the .deb installer does the same).
+          sudo chown root:root release/linux-unpacked/chrome-sandbox
+          sudo chmod 4755 release/linux-unpacked/chrome-sandbox
+          xvfb-run -a release/linux-unpacked/paperbark --self-test | tee self-test.txt
+          grep -q '^PASSED$' self-test.txt

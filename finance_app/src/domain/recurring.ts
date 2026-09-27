@@ -1,7 +1,7 @@
 import { ISODate, addDays, addMonths, diffDays, parts } from './dates';
 import { Cents, roundCents } from './money';
 import { FREQUENCY_DAYS, Frequency, PERIODS_PER_YEAR } from './periods';
-import { merchantKey } from './categorise/clean';
+import { guessPayee, merchantKey } from './categorise/clean';
 import { Confidence } from './import/types';
 
 /**
@@ -129,7 +129,7 @@ export function detectRecurring(txs: RecurringInputTx[], today: ISODate): Recurr
     );
     out.push({
       key: gkey,
-      name: merchantKey(sorted[sorted.length - 1].description),
+      name: guessPayee(sorted[sorted.length - 1].description),
       direction,
       frequency: freq,
       typicalAmountCents: roundCents(typical),

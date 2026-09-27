@@ -60,9 +60,9 @@ function titleCase(s: string): string {
 
 /** A readable payee guess: store numbers and locations removed ("Woolworths"). */
 export function guessPayee(description: string): string {
-  const clean = cleanDescription(description);
-  // Stop at the first store number or long digit run.
-  const cut = clean.split(/\s+\d{2,}\b|\s{2,}/)[0] ?? clean;
+  const clean = cleanDescription(description).replace(/\.com(\.au)?\b/gi, '');
+  // Stop at the first store number, long digit run or reference code such as "P092324".
+  const cut = clean.split(/\s+\d{2,}\b|\s+(?=[A-Za-z]*\d)[A-Za-z0-9]{5,}\b|\s{2,}/)[0] ?? clean;
   const words = cut.split(' ').slice(0, 4).join(' ');
   return titleCase(words.replace(/[*#]+/g, ' ').replace(/\s+/g, ' ').trim()) || titleCase(clean);
 }

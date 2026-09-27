@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Paperbark app icon: a Melaleuca (paperbark) leaf on the app's green. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#357a5a"/>
+      <stop offset="1" stop-color="#28593f"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <g transform="rotate(-38 512 512)">
+    <path d="M512 170 C 660 330, 660 690, 512 854 C 364 690, 364 330, 512 170 Z" fill="#fdfcf9"/>
+    <path d="M512 230 L512 800" stroke="#357a5a" stroke-width="22" stroke-linecap="round" fill="none"/>
+    <path d="M512 420 L592 350 M512 540 L604 468 M512 660 L588 600 M512 420 L432 350 M512 540 L420 468 M512 660 L436 600" stroke="#357a5a" stroke-width="14" stroke-linecap="round" fill="none" opacity="0.55"/>
+  </g>
+</svg>

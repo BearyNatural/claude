@@ -28,6 +28,8 @@ describe('description cleaning', () => {
     expect(merchantKey('WOOLWORTHS 5678 CHERMSIDE')).toBe('WOOLWORTHS');
     expect(merchantKey('NETFLIX.COM MELBOURNE')).toBe('NETFLIX');
     expect(guessPayee('EFTPOS PURCHASE BUNNINGS 123456 NORTH LAKES')).toBe('Bunnings');
+    expect(guessPayee('SPOTIFY P092324')).toBe('Spotify');
+    expect(guessPayee('7-ELEVEN 2291 KALLANGUR')).toBe('7-Eleven');
   });
 });
 
@@ -159,7 +161,8 @@ describe('recurring detection', () => {
       { id: 's3', date: '2026-09-25', amountCents: -800, description: 'HARDWARE' },
     ];
     const found = detectRecurring([...series('PAYROLL EXAMPLE', '2026-06-04', 14, 8, 410217), ...monthly, ...quarterly, ...shop], '2026-09-27');
-    const byName = Object.fromEntries(found.map((f) => [f.name, f]));
+    const byName = Object.fromEntries(found.map((f) => [f.key.split(':')[1], f]));
+    expect(byName.NETFLIX.name).toBe('Netflix');
     expect(byName.PAYROLL).toMatchObject({ frequency: 'fortnightly', direction: 'in', confidence: 'high' });
     expect(byName.NETFLIX).toMatchObject({ frequency: 'monthly', nextExpected: '2026-10-15', looksLikeSubscription: true, annualCostCents: 27588 });
     expect(byName.POWERCO).toMatchObject({ frequency: 'quarterly', amountVaries: true });

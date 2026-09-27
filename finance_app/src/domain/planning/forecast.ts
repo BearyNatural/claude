@@ -312,7 +312,7 @@ export function runForecast(base: ForecastAssumptions, scenario?: Scenario | nul
   ];
   const summary = firstBelowZero
     ? `Under the assumptions entered, this scenario retains a positive cash balance until approximately ${formatDate(firstBelowZero)}.`
-    : `Under the assumptions entered, the projected cash balance stays positive until ${formatDate(end)}; the lowest point is about ${formatMoney(lowest.cashCents, { wholeDollars: true })} on ${formatDate(lowest.date)}.`;
+    : `Under the assumptions entered, the projected cash balance stays above zero for the whole forecast (to ${formatDate(end)}); the lowest point is about ${formatMoney(lowest.cashCents, { wholeDollars: true })} on ${formatDate(lowest.date)}.`;
 
   return {
     points,

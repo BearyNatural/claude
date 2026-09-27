@@ -1,0 +1,187 @@
+# ── finance_app (Paperbark) — desktop builds & release ───────────────────────
+# Project-scoped: only runs for changes inside finance_app/, and only ever
+# builds, tags and releases finance_app. Tags are prefixed "finance_app-v" so
+# they never mix with other projects in this repository. Releases are marked
+# as pre-releases and never "latest", so they don't replace other projects'
+# latest release.
+#
+# Builds Linux (AppImage + .deb), Windows (NSIS installer) and macOS (dmg) on
+# their own runners, runs each packaged app's self-test (`--self-test`), then
+# publishes one release with all installers and their SHA-256 checksums.
+#
+# Triggers: push to main touching finance_app/, manual run, or the weekly
+# maintenance workflow after it updates finance_app's dependencies.
+#
+# Signing: none yet. Windows shows a SmartScreen warning; macOS builds are
+# ad-hoc signed (right-click → Open the first time). To sign later, add
+# CSC_LINK / CSC_KEY_PASSWORD (and Apple notarisation secrets) and pass them
+# to the "Package" step — see finance_app/docs/SECURITY_PRIVACY.md.
+
+name: "finance_app · desktop build & release"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'finance_app/**'
+      - '.github/workflows/finance_app-desktop.yml'
+      # Workflows and documentation that don't change the app itself.
+      - '!finance_app/ci/finance_app-ci.yml'
+      - '!finance_app/docs/**'
+      - '!finance_app/*.md'
+      - '!finance_app/tests/**'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why is this build running?
+        required: false
+        default: manual
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance_app-desktop
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: finance_app
+    shell: bash
+
+jobs:
+  test:
+    name: finance_app · tests & type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run typecheck
+
+  build:
+    name: finance_app · package (${{ matrix.os }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-latest
+            args: --linux AppImage deb
+          - os: windows
+            runner: windows-latest
+            args: --win nsis
+          - os: mac
+            runner: macos-latest
+            args: --mac dmg
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Package
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder ${{ matrix.args }} --publish never
+
+      - name: Self-test the packaged app
+        run: |
+          set -uo pipefail
+          export PAPERBARK_SELF_TEST_OUT="$PWD/self-test.txt"
+          status=0
+          case "${{ matrix.os }}" in
+            linux)
+              sudo apt-get update -qq && sudo apt-get install -y -qq xvfb >/dev/null
+              sudo chown root:root release/linux-unpacked/chrome-sandbox
+              sudo chmod 4755 release/linux-unpacked/chrome-sandbox
+              xvfb-run -a release/linux-unpacked/paperbark --self-test || status=$? ;;
+            windows)
+              ./release/win-unpacked/Paperbark.exe --self-test || status=$? ;;
+            mac)
+              app=$(ls -d release/mac*/Paperbark.app | head -1)
+              "$app/Contents/MacOS/Paperbark" --self-test || status=$? ;;
+          esac
+          cat self-test.txt || echo "::error title=finance_app self-test::No self-test report was written."
+          [ "$status" -eq 0 ] && grep -q '^PASSED' self-test.txt
+
+      - name: Collect installers
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          find release -maxdepth 1 -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.exe' -o -name '*.dmg' \) -exec cp {} out/ \;
+          ls -la out
+          test -n "$(ls out)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: finance_app-${{ matrix.os }}
+          path: finance_app/out/*
+          if-no-files-found: error
+
+  release:
+    name: finance_app · publish release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: finance_app-*
+          path: finance_app/dist-release
+          merge-multiple: true
+      - name: Checksums and release notes
+        env:
+          REASON: ${{ github.event.inputs.reason }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p 'require("./package.json").version')
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          (cd dist-release && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          node -e '
+            const fs = require("fs");
+            const v = process.env.VERSION;
+            const log = fs.existsSync("CHANGELOG.md") ? fs.readFileSync("CHANGELOG.md", "utf8") : "";
+            const hit = log.split(/^(?=## )/m).find((x) => x.startsWith(`## ${v} `));
+            const changes = hit ? hit.replace(/^## [^\n]*\n/, "").trim() : "- Dependency updates and maintenance.";
+            fs.writeFileSync(process.env.RUNNER_TEMP + "/release-notes.md", [
+              "**Project:** `finance_app` — Paperbark (desktop: Windows, macOS, Linux)",
+              "",
+              "Local-first personal finance for Australian households. Your data stays encrypted on your computer; Paperbark never connects to your bank. It is a tracking and planning tool, not financial or tax advice.",
+              "",
+              "## What’s new in " + v,
+              changes,
+              "",
+              "## Install",
+              "- **Windows:** download the `.exe`, run it. These builds are not code-signed yet, so Windows may show “Windows protected your PC” — choose **More info › Run anyway**.",
+              "- **macOS:** download the `.dmg`, drag Paperbark to Applications, then right-click it › **Open** the first time (the build is not notarised yet).",
+              "- **Linux:** the `.deb` (Debian/Ubuntu) is recommended; the `.AppImage` runs anywhere after `chmod +x`.",
+              "- Check downloads against `SHA256SUMS.txt`.",
+              "",
+              "Full history: [CHANGELOG.md](https://github.com/BearyNatural/claude/blob/main/finance_app/CHANGELOG.md)",
+              "",
+              "Trigger: " + process.env.GITHUB_EVENT_NAME + " " + (process.env.REASON || "") + " · Commit: " + process.env.GITHUB_SHA,
+              "",
+            ].join("\n"));
+          '
+          cat "$RUNNER_TEMP/release-notes.md"
+      - name: Publish finance_app release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: finance_app-v${{ env.VERSION }}-build${{ github.run_number }}
+          name: "Paperbark ${{ env.VERSION }} (build ${{ github.run_number }})"
+          prerelease: true
+          make_latest: false
+          files: finance_app/dist-release/*
+          body_path: ${{ runner.temp }}/release-notes.md
