@@ -96,6 +96,7 @@ jobs:
         run: npx electron-builder ${{ matrix.args }} --publish never
 
       - name: Self-test the packaged app
+        timeout-minutes: 5
         run: |
           set -uo pipefail
           export PAPERBARK_SELF_TEST_OUT="$PWD/self-test.txt"

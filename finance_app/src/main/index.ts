@@ -268,13 +268,24 @@ async function runAutoShots(dir: string) {
 
 app.whenReady().then(async () => {
   if (SELF_TEST) {
-    const r = await runSelfTest();
-    const report = `Paperbark ${app.getVersion()} self-test\n${r.lines.join('\n')}\n${r.ok ? 'PASSED' : 'FAILED'}\n`;
-    process.stdout.write(report);
-    // Windows GUI apps have no console, so CI can ask for the report in a file too.
-    if (process.env.PAPERBARK_SELF_TEST_OUT) writeFileSync(process.env.PAPERBARK_SELF_TEST_OUT, report);
-    rmSync(app.getPath('userData'), { recursive: true, force: true });
-    app.exit(r.ok ? 0 : 1);
+    // A watchdog so a self-test can never leave a hung process behind.
+    setTimeout(() => app.exit(2), 180_000);
+    let ok = false;
+    try {
+      const r = await runSelfTest();
+      ok = r.ok;
+      const report = `Paperbark ${app.getVersion()} self-test\n${r.lines.join('\n')}\n${r.ok ? 'PASSED' : 'FAILED'}\n`;
+      process.stdout.write(report);
+      // Windows GUI apps have no console, so CI can ask for the report in a file too.
+      if (process.env.PAPERBARK_SELF_TEST_OUT) writeFileSync(process.env.PAPERBARK_SELF_TEST_OUT, report);
+    } catch (e) {
+      process.stdout.write(`Paperbark self-test crashed: ${e instanceof Error ? e.message : String(e)}\nFAILED\n`);
+    } finally {
+      // Windows keeps Chromium's files in this temporary folder open until exit, so removal can
+      // fail there; the folder is in the OS temp directory and is left for the OS to clean up.
+      try { rmSync(app.getPath('userData'), { recursive: true, force: true }); } catch { /* see above */ }
+      app.exit(ok ? 0 : 1);
+    }
     return;
   }
   const dataDir = join(app.getPath('userData'), 'vault');
