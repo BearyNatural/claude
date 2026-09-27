@@ -1,6 +1,6 @@
 {
   "name": "sow-by-season",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "private": true,
   "description": "Sow by Season by BearyNatural — an Australian garden-planning assistant.",
   "main": "index.ts",
@@ -42,7 +42,7 @@
     "react-native-android-widget": "^0.22.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.3"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.22",
