@@ -208,6 +208,13 @@ jobs:
               t.version = newV;
               fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");
             }
+            // Keep the lock file'"'"'s own version in step with package.json.
+            if (fs.existsSync("package-lock.json")) {
+              const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
+              lock.version = newV;
+              if (lock.packages && lock.packages[""]) lock.packages[""].version = newV;
+              fs.writeFileSync("package-lock.json", JSON.stringify(lock, null, 2) + "\n");
+            }
             process.stdout.write(newV);
           ' '${{ toJson(matrix.project.versionFiles) }}')
           echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"

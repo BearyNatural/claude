@@ -2,6 +2,12 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `garden_app-v<version>-build<n>`). The newest Android version can always be downloaded from https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html.
 
+## 1.9.2 — 28 September 2026
+- Fixed: after installing 1.9.1 the "new version available" banner kept offering 1.9.1. The app now reads its own version from the same place Android and the releases do, so the two can't disagree again.
+
+## 1.9.1 — 27 September 2026
+- Weekly dependency update.
+
 ## 1.9.0 — 25 September 2026
 - **New-version notifications**: the app now also checks for updates in the background and when you return to it (not only on a fresh start), and shows a notification once per new version. Tap it to download.
 - **Garden Profile › General › Check for new versions**: once a day (default) or once a week, plus **Check now**.

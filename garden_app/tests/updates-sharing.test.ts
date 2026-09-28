@@ -7,6 +7,9 @@ import { validateCustomPlant, validateSettings } from '../src/domain/validation'
 import { submitSuggestion, suggestionIssue, suggestionPayload } from '../src/services/plants/plantSuggestions';
 import { MemoryStore } from '../src/services/storage/keyValueStore';
 import { AppUpdates, compareVersions, parseAppRelease, UPDATE_CHECK_INTERVAL_MS } from '../src/services/updates/appUpdates';
+import { ENV } from '../src/services/env';
+import app from '../app.json';
+import pkg from '../package.json';
 import { GardenRepository } from '../src/services/storage/gardenRepository';
 import { WeatherService } from '../src/services/weather/weatherService';
 import { GardenStore } from '../src/state/gardenStore';
@@ -47,6 +50,12 @@ describe('new version notice', () => {
     assert.equal(calls, 1, 'weekly: not again after two days');
     await svc.check(false, UPDATE_CHECK_INTERVAL_MS.daily);
     assert.equal(calls, 2, 'daily: checks again after two days');
+  });
+
+  it('knows its own version from app.json, so an installed update never offers itself again', () => {
+    assert.equal(ENV.appVersion, app.expo.version);
+    assert.equal(pkg.version, app.expo.version, 'package.json and app.json versions match');
+    assert.equal(parseAppRelease({ version: app.expo.version, url: RELEASE.url }, ENV.appVersion), null);
   });
 
   it('announces each new version by notification only once', async () => {
