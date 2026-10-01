@@ -19,7 +19,7 @@ import { runSelfTest } from './selfTest';
 const DEV = process.env.GERANIUM_DEV === '1';
 const APP_ORIGIN = 'app://geranium';
 /** Sites the app may open in the user's own browser (source links, Google consent). */
-const EXTERNAL_ALLOWED = [/^https:\/\/(www\.)?ato\.gov\.au\//, /^https:\/\/(www\.)?treasury\.gov\.au\//, /^https:\/\/(www\.)?legislation\.gov\.au\//, /^https:\/\/accounts\.google\.com\//, /^https:\/\/docs\.google\.com\//, /^https:\/\/console\.cloud\.google\.com\//];
+const EXTERNAL_ALLOWED = [/^https:\/\/(www\.)?ato\.gov\.au\//, /^https:\/\/(www\.)?treasury\.gov\.au\//, /^https:\/\/(www\.)?legislation\.gov\.au\//, /^https:\/\/accounts\.google\.com\//, /^https:\/\/docs\.google\.com\//, /^https:\/\/console\.cloud\.google\.com\//, /^mailto:\?subject=/];
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: false, corsEnabled: false } }]);
 
@@ -187,7 +187,10 @@ function hardenSessions() {
 
 app.on('web-contents-created', (_e, contents) => {
   contents.on('will-navigate', (e, url) => {
-    if (!url.startsWith(`${APP_ORIGIN}/`)) e.preventDefault();
+    if (url.startsWith(`${APP_ORIGIN}/`)) return;
+    e.preventDefault();
+    // "Email it to myself": a draft with no recipient, opened in the user's own email app.
+    if (/^mailto:\?subject=/.test(url)) void shell.openExternal(url);
   });
   contents.on('will-attach-webview', (e) => e.preventDefault());
   contents.setWindowOpenHandler(({ url }) => {

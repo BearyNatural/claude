@@ -166,3 +166,68 @@ describe('renamed app (Paperbark → Geranium)', () => {
     }
   });
 });
+
+describe('recovery key', () => {
+  it('makes readable keys and accepts them however they are typed', async () => {
+    const { newRecoveryKey, normaliseRecoveryKey, RecoveryKeyFormatError } = await import('@main/crypto/keyStore');
+    const key = newRecoveryKey();
+    expect(key).toMatch(/^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){5}$/);
+    expect(new Set(Array.from({ length: 50 }, () => newRecoveryKey())).size).toBe(50);
+    expect(normaliseRecoveryKey(` ${key.toLowerCase().replace(/-/g, ' ')} `)).toBe(key.replace(/-/g, ''));
+    expect(normaliseRecoveryKey('o1lI-0000-0000-0000-0000-0000')).toBe('0111' + '0'.repeat(20));
+    expect(() => normaliseRecoveryKey('too-short')).toThrow(RecoveryKeyFormatError);
+    expect(() => normaliseRecoveryKey('UUUU-0000-0000-0000-0000-0000')).toThrow(RecoveryKeyFormatError);
+  });
+
+  it('unwraps the same key, survives password changes, and can be removed', async () => {
+    const { newRecoveryKey } = await import('@main/crypto/keyStore');
+    const dir = mkdtempSync(join(tmpdir(), 'pb-rk-'));
+    try {
+      const os = fakeOs();
+      const ks = new KeyStore(join(dir, 'keystore.json'), os, 2 ** 10);
+      const dek = await ks.create({ secret: 'first password', kind: 'password' });
+      const key = newRecoveryKey();
+      await ks.setRecovery(dek, key);
+      expect(ks.status().recoveryCreatedAt).not.toBeNull();
+      expect((await ks.unlockWithRecovery(key)).equals(dek)).toBe(true);
+      await expect(ks.unlockWithRecovery(newRecoveryKey())).rejects.toThrow(DecryptError);
+      expect(readFileSync(join(dir, 'keystore.json'), 'utf8')).not.toContain(key.replace(/-/g, ''));
+      await ks.setPassword(dek, 'second password', 'password');
+      ks.removePassword(dek);
+      expect((await ks.unlockWithRecovery(key)).equals(dek)).toBe(true);
+      ks.removeRecovery();
+      expect(ks.status().recoveryCreatedAt).toBeNull();
+      await expect(ks.unlockWithRecovery(key)).rejects.toThrow(/No recovery key/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('lets a forgotten password be replaced, and slows down wrong guesses', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pb-recover-'));
+    try {
+      const { AppState } = await import('@main/app/state');
+      const core = await import('@main/services/core');
+      const state = new AppState(dir, unavailableProtector(), '0.2.0', undefined, 2 ** 10);
+      await state.initialise({ secret: 'forgotten password', kind: 'password' });
+      core.saveAccount(state.requireCtx(), { name: 'Everyday', type: 'transaction' });
+      const key = await state.createRecoveryKey();
+      expect(state.status().recoveryCreatedAt).not.toBeNull();
+      state.lock();
+
+      await expect(state.recover('0000-0000-0000-0000-0000-0000', 'a new password', 'password')).rejects.toThrow(/doesn’t match/);
+      await state.recover(key.toLowerCase(), 'a new password', 'password');
+      expect(core.listAccounts(state.requireCtx()).map((a) => a.name)).toEqual(['Everyday']);
+      state.lock();
+      await expect(state.unlock('forgotten password')).rejects.toThrow();
+      await state.unlock('a new password');
+      expect(state.status().unlocked).toBe(true);
+      state.lock();
+
+      for (let i = 0; i < 5; i++) await state.recover('0000-0000-0000-0000-0000-0000', 'x long password', 'password').catch(() => undefined);
+      await expect(state.recover(key, 'another password', 'password')).rejects.toThrow(/Too many attempts/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

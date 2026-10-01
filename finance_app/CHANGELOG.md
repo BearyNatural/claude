@@ -2,6 +2,11 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `finance_app-v<version>-build<n>`, marked as pre-releases while Geranium is at 0.x).
 
+## 0.3.0 — 1 October 2026
+
+- **Recovery key for a forgotten password.** At set-up (or any time in Settings › Privacy & security), Geranium makes a one-off recovery key. Keep it by saving a file, printing it, or **Email it to myself** (opens a draft in your own email app — Geranium sends nothing). If you forget your password, choose "Forgotten your password?" on the lock screen, enter the key and pick a new password. It also helps when moving to a new computer.
+- Download page: plainer explanation of the optional SHA256SUMS.txt file.
+
 ## 0.2.0 — 1 October 2026
 
 - **New name: Geranium** (first released as Paperbark). Existing data carries over automatically the first time Geranium opens: the old Paperbark data folder is copied across and its database file renamed. Old `.pbbackup` backups can still be restored; new backups are `.geranium-backup` files. On Windows, uninstall the old Paperbark app separately.

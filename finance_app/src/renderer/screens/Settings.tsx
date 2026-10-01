@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api, IS_WEB, useAction, useApi } from '../lib/api';
+import { RecoveryKeySettings } from '../components/recovery';
 import { useApp } from '../lib/app';
 import { Badge, Callout, Card, Checkbox, DataTable, DateField, ErrorText, Loading, NumberField, Page, SelectField, Tabs, TextField } from '../components/ui';
 import type { AppSettings, ReminderType } from '../../shared/types';
@@ -81,6 +82,9 @@ function Security() {
           <dt>Analytics</dt><dd>None. Geranium sends no usage data, crash reports or financial information anywhere.</dd>
         </dl>
         {status.strength === 'weak' && <Callout kind="warn">This computer has no secure keyring available to Geranium, so the key is only lightly protected. Setting a password is strongly recommended.</Callout>}
+      </Card>
+      <Card title="Recovery key" sub="For a forgotten password — or a new computer">
+        <RecoveryKeySettings createdAt={status.recoveryCreatedAt} onChanged={async () => setStatus(await api('app.status'))} />
       </Card>
       <Card title="App lock" sub="A password or PIN is required to open Geranium, and lets it lock itself">
         <div className="stack">

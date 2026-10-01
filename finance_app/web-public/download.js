@@ -36,7 +36,7 @@
           buttons.appendChild(a);
         });
         var sums = rel.assets.filter(function (a) { return a.name === 'SHA256SUMS.txt'; })[0];
-        status.textContent = 'Version ' + version + (rel.prerelease ? ' (early release)' : '') + '. Choose the download for your computer.' + (sums ? ' Checksums are in SHA256SUMS.txt on the release page.' : '');
+        status.textContent = 'Version ' + version + (rel.prerelease ? ' (early release)' : '') + '. Choose the download for your computer.' + (sums ? ' (Optional: SHA256SUMS.txt on the release page lists a fingerprint for each file, so you can check a download arrived complete and unchanged.)' : '');
         return;
       }
       throw new Error('no release');

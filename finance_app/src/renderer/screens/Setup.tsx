@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, IS_WEB } from '../lib/api';
 import { useApp } from '../lib/app';
+import { RecoverForm, RecoveryKeyPanel } from '../components/recovery';
 import { BrandMark, Callout, Checkbox, DateField, ErrorText, Icon, MoneyField, SelectField, TextField } from '../components/ui';
 import { ACCOUNT_TYPE_LABEL, AccountType } from '@domain/accounts';
 import type { PeriodKind } from '@domain/periods';
@@ -26,6 +27,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [recovery, setRecovery] = useState<{ key: string; createdAt: string | null } | null>(null);
   const weakOs = status?.osBackend === 'basic_text' || !status?.osStoreAvailable;
 
   const create = async () => {
@@ -34,7 +36,12 @@ export function Setup({ onDone }: { onDone: () => void }) {
     setBusy(true);
     try {
       await api('app.initialise', { password: mode === 'os' ? null : { secret, kind: mode } });
-      onDone();
+      // Straight away, offer a recovery key for a forgotten password (or a new computer).
+      try {
+        setRecovery(await api('security.createRecoveryKey'));
+      } catch {
+        onDone(); // it can still be made later in Settings
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -49,7 +56,13 @@ export function Setup({ onDone }: { onDone: () => void }) {
           <BrandMark />
           <div><div className="brand-name">Geranium</div><div className="brand-sub">See where your money went · Understand where it is going · Model where it could go next</div></div>
         </div>
-        {step === 1 ? (
+        {recovery ? (
+          <>
+            <h1>Your recovery key</h1>
+            <RecoveryKeyPanel recoveryKey={recovery.key} createdAt={recovery.createdAt} onDone={onDone} />
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onDone}>Skip for now — I can make one later in Settings</button>
+          </>
+        ) : step === 1 ? (
           <>
             <h1>{IS_WEB ? 'Your finances, in your browser' : 'Your finances, on your computer'}</h1>
             <p><strong>Your financial records stay {IS_WEB ? 'in this browser' : 'on this computer'} unless you export or back them up.</strong></p>
@@ -85,7 +98,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
                 <TextField label={mode === 'pin' ? 'Confirm PIN' : 'Confirm password'} type="password" value={confirm} onChange={setConfirm} />
               </div>
             )}
-            {mode !== 'os' && <Callout kind="warn" title="There is no password reset">Your password is not stored anywhere and cannot be recovered. If it is forgotten, the data can only be restored from an encrypted backup (which has its own password).</Callout>}
+            {mode !== 'os' && <Callout kind="info" title="If you forget your password">Your password isn’t stored anywhere, so no one can reset it for you. Next, Geranium gives you a <strong>recovery key</strong>: keep it safe and it lets you choose a new password. Without the password or the recovery key, the data can only come back from an encrypted backup.</Callout>}
             <ErrorText error={error} />
             <div className="row-between">
               <button className="btn" onClick={() => setStep(1)}>Back</button>
@@ -139,15 +152,20 @@ export function Unlock({ onDone }: { onDone: () => void }) {
           <button type="button" className="btn btn-ghost" onClick={async () => { await api('app.enterDemo'); onDone(); }}>Explore demo data</button>
           <button type="submit" className="btn btn-primary" disabled={busy || (pw && !secret)}>{busy ? 'Unlocking…' : 'Unlock'}</button>
         </div>
-        {pw && (
+        {(pw || (error && status?.recoveryCreatedAt)) && (
           <div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setForgot((f) => !f)} aria-expanded={forgot}>Forgotten your {status?.lockKind === 'pin' ? 'PIN' : 'password'}?</button>
-            {forgot && (
-              <div className="disclaimer" style={{ marginTop: 8 }}>
-                The password is not stored anywhere, so it cannot be reset — this is what keeps your data private. If you have an encrypted backup,
-                you can move the data folder aside (<code>{status?.dataFolder}</code>), start Geranium again, set a new password and restore the backup.
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setForgot((f) => !f)} aria-expanded={forgot}>{pw ? `Forgotten your ${status?.lockKind === 'pin' ? 'PIN' : 'password'}?` : 'Use your recovery key'}</button>
+            {forgot && (status?.recoveryCreatedAt ? (
+              <div className="stack" style={{ marginTop: 8 }}>
+                <p className="small">Enter the recovery key you kept when you set up Geranium, then choose a new {status?.lockKind === 'pin' ? 'PIN' : 'password'}.</p>
+                <RecoverForm onDone={onDone} />
               </div>
-            )}
+            ) : (
+              <div className="disclaimer" style={{ marginTop: 8 }}>
+                There’s no recovery key for this data, and the password isn’t stored anywhere, so it can’t be reset — this is what keeps your data private.
+                If you have an encrypted backup, {IS_WEB ? 'clear this site’s data in your browser settings' : <>move the data folder aside (<code>{status?.dataFolder}</code>)</>}, open Geranium again, set a new password and restore the backup.
+              </div>
+            ))}
           </div>
         )}
       </form>

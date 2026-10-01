@@ -354,3 +354,17 @@ details.explain[open] .explain-body { margin-top: 6px; padding: 10px 12px; backg
   .page-head h1 { font-size: 1.45rem; }
   .dialog { padding: 16px; border-radius: 10px; }
 }
+
+/* Recovery key: shown once, large and easy to copy by hand. */
+.recovery-key { border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 14px 16px; background: var(--surface-2); text-align: center; }
+.recovery-key-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin-bottom: 6px; }
+.recovery-key code { font-size: 1.35rem; font-weight: 700; letter-spacing: 0.08em; word-break: break-word; user-select: all; }
+.print-only { display: none; }
+@media print {
+  body.printing-recovery * { visibility: hidden; }
+  body.printing-recovery .print-recovery, body.printing-recovery .print-recovery * { visibility: visible; }
+  body.printing-recovery .print-recovery { position: absolute; left: 0; top: 0; width: 100%; border: 1px solid #000; background: #fff; color: #000; text-align: left; }
+  body.printing-recovery .print-recovery .print-only { display: block; white-space: pre-wrap; font: 12pt/1.5 system-ui, sans-serif; margin-top: 12px; }
+}
+a.btn, a.btn:hover { text-decoration: none; color: var(--text); }
+a.btn.btn-primary, a.btn.btn-primary:hover { color: var(--accent-text); }

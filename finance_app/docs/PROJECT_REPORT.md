@@ -36,7 +36,7 @@ Tauri was considered; Electron was chosen because the parsing work depends on ma
 Full detail: [SECURITY_PRIVACY.md](SECURITY_PRIVACY.md).
 
 - **Local storage:** one per-user data folder (`…/Geranium/vault`); no server, no account, no analytics, no bank connections. Owner-only file permissions.
-- **Encryption:** a random 256-bit data key encrypts the SQLite database (whole-file AES-256-GCM, authenticated header, atomic writes with a `.prev` copy) and every stored document. The data key is wrapped either by the OS credential store (Keychain / DPAPI / Secret Service, via Electron `safeStorage`) or by a password/PIN through scrypt (N = 2¹⁷). No recovery without the password — by design.
+- **Encryption:** a random 256-bit data key encrypts the SQLite database (whole-file AES-256-GCM, authenticated header, atomic writes with a `.prev` copy) and every stored document. The data key is wrapped either by the OS credential store (Keychain / DPAPI / Secret Service, via Electron `safeStorage`) or by a password/PIN through scrypt (N = 2¹⁷). A recovery key (shown once, kept by the user — saved, printed or emailed to themselves) can replace a forgotten password; there is no server-side reset, by design.
 - **Application lock:** manual lock (Ctrl+L), auto-lock on idle, sleep, screen lock or minimise, maximum session length; unlock throttling after 5 failures; the key is wiped from memory on lock (best effort). With OS protection the lock hides data but does not stop someone signed in as the user — the app explains this and recommends a password. Privacy mode masks every amount.
 - **Backup:** one `.geranium-backup` file encrypted with its own password (scrypt + AES-256-GCM), saved wherever the user chooses; restore checks the password and contents, keeps an encrypted copy of current data and migrates older schemas.
 - **Network:** renderer has none; the main process can only reach three Google API hosts over HTTPS, and only for a user-initiated Sheets export; every request is listed in an in-app network log.
@@ -109,7 +109,7 @@ Does not work (yet): automatic price feeds (deliberately — no network); corpor
 
 ## Tests
 
-**185 automated tests in 14 files — all passing** (vitest 3.2.7, Node 22, 1 October 2026):
+**188 automated tests in 14 files — all passing** (vitest 3.2.7, Node 22, 1 October 2026):
 
 | File | Tests | Covers |
 |---|---:|---|
@@ -119,7 +119,7 @@ Does not work (yet): automatic price feeds (deliberately — no network); corpor
 | `tests/domain/planning.test.ts` | 20 | compound growth, goals, loans and offsets, debts, term deposits and ladders, forecasts, scenarios |
 | `tests/domain/tax.test.ts` | 21 | year rules and sources, rates, LITO, Medicare phase-in and study loans against ATO examples, estimates, CGT, GST/BAS, payslips |
 | `tests/domain/records.test.ts` | 13 | investments (FIFO holdings, franking only from statements), super caps and projection, calculated balances, net worth and history, search parsing, CSV formula-injection protection, XLSX output |
-| `tests/main/storage.test.ts` | 8 | encryption and tamper detection, no plaintext on disk, fallback to the previous copy, migrations and newer-version refusal, key store (OS store, weak Linux store, password set/change/remove, no-OS-store case) |
+| `tests/main/storage.test.ts` | 12 | encryption and tamper detection, no plaintext on disk, fallback to the previous copy, migrations and newer-version refusal, key store (OS store, weak Linux store, password set/change/remove, no-OS-store case); renamed-app migration; recovery keys (format, round trip, wrong keys, surviving password changes, forgotten-password flow, slow-down) |
 | `tests/main/pdfImport.test.ts` | 7 | generated PDF statements: periods, balances, reconciliation, misread rows, card statements, scanned PDFs, non-PDFs |
 | `tests/main/importService.test.ts` | 9 | end-to-end imports: categorising and staging, saved profiles and duplicate skipping, PDF reconciliation, corrections before import with history, mapping questions, undo, learning only with consent, splits, transfer linking |
 | `tests/main/xlsxLibreOffice.test.ts` | 1 | the generated XLSX recalculated in LibreOffice (runs when `soffice` is installed; it ran here) |

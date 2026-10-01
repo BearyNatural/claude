@@ -120,6 +120,14 @@ export function buildRegistry({ state, platform }: Deps) {
     'app.openDataFolder': m(none, () => platform.openPath(state.dataDir)),
     'security.setPassword': m(z.object({ secret: z.string().max(200), kind: z.enum(['password', 'pin']) }), async (i) => { await state.setPassword(i.secret, i.kind); return state.status(); }),
     'security.removePassword': m(z.object({ secret: z.string().max(200) }), async (i) => { await state.removePassword(i.secret); return state.status(); }),
+    'security.createRecoveryKey': m(none, async () => {
+      const key = await state.createRecoveryKey();
+      return { key, createdAt: state.status().recoveryCreatedAt };
+    }),
+    'security.removeRecoveryKey': m(none, () => { state.removeRecoveryKey(); return state.status(); }),
+    'security.saveRecoveryKey': m(z.object({ text: z.string().max(4000) }), (i) =>
+      platform.saveFile({ title: 'Save your recovery key', defaultName: 'Geranium recovery key.txt', filters: [{ name: 'Text file', extensions: ['txt'] }] }, i.text)),
+    'app.recover': m(z.object({ key: z.string().max(100), secret: z.string().max(200), kind: z.enum(['password', 'pin']) }), async (i) => { await state.recover(i.key, i.secret, i.kind); return state.status(); }),
 
     /* ---------- settings ---------- */
     'settings.get': m(none, () => core.getSettings(ctx())),
@@ -429,7 +437,7 @@ export type ApiInput<K extends ApiMethod> = z.input<Registry[K]['schema']>;
 export type ApiOutput<K extends ApiMethod> = Awaited<ReturnType<Registry[K]['handler']>>;
 
 /** Calls allowed while the app is locked (or before it is set up). */
-export const PUBLIC_METHODS = new Set<string>(['app.status', 'app.initialise', 'app.unlock', 'app.lock', 'app.enterDemo', 'app.exitDemo', 'app.networkLog']);
+export const PUBLIC_METHODS = new Set<string>(['app.status', 'app.initialise', 'app.unlock', 'app.recover', 'app.lock', 'app.enterDemo', 'app.exitDemo', 'app.networkLog']);
 
 export interface ApiResult<T> {
   ok: boolean;
@@ -451,7 +459,7 @@ export async function dispatch(registry: Registry, state: AppState, method: stri
   } catch (e) {
     const err = e as Error;
     if (err.message === 'LOCKED') return { ok: false, error: { code: 'LOCKED', message: 'Geranium is locked.' } };
-    const known = ['UserError', 'DecryptError', 'BackupPasswordError', 'BackupDamagedError', 'PdfPasswordError', 'NetworkBlockedError'].includes(err.name) || err instanceof core.UserError;
+    const known = ['UserError', 'DecryptError', 'BackupPasswordError', 'BackupDamagedError', 'PdfPasswordError', 'NetworkBlockedError', 'RecoveryKeyFormatError'].includes(err.name) || err instanceof core.UserError;
     // Error messages from services are written for the user; anything unexpected gets a generic message.
     if (known || /^(Geranium|Unlock|Use a|A PIN|Too many|Incorrect|This |No |Google|Enter|Choose|Connect|That )/.test(err.message)) {
       return { ok: false, error: { code: err.name || 'ERROR', message: err.message } };

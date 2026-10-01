@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFil
 import { join } from 'node:path';
 import { AppDatabase, encryptDatabase } from '../db/database';
 import { migrate, currentVersion, SCHEMA_VERSION } from '../db/schema';
-import { KeyStore, LockKind, OsProtector } from '../crypto/keyStore';
+import { KeyStore, LockKind, OsProtector, newRecoveryKey } from '../crypto/keyStore';
 import { randomKey, wipe } from '../crypto/crypto';
 import { Ctx, makeCtx, seedDefaults, updateSettings, getSettings } from '../services/core';
 import { DocumentStore } from '../services/documents';
@@ -26,6 +26,8 @@ export interface AppStatus {
   osStoreAvailable: boolean;
   dataFolder: string;
   schemaVersion: number;
+  /** When the current recovery key was made, or null if there is none. */
+  recoveryCreatedAt: string | null;
 }
 
 export class AppState {
@@ -66,6 +68,7 @@ export class AppState {
       osStoreAvailable: this.os.available(),
       dataFolder: this.dataDir,
       schemaVersion: this.db ? currentVersion(this.db) : SCHEMA_VERSION,
+      recoveryCreatedAt: s.recoveryCreatedAt,
     };
   }
 
@@ -102,22 +105,62 @@ export class AppState {
     await this.openWith(dek);
   }
 
+  private checkThrottle(): void {
+    if (Date.now() < this.lockedUntil) throw new Error(`Too many attempts. Try again in ${Math.ceil((this.lockedUntil - Date.now()) / 1000)} seconds.`);
+  }
+
+  private failedAttempt(): void {
+    this.failedAttempts++;
+    // Slow down repeated guesses: 5 free attempts, then growing delays.
+    if (this.failedAttempts >= 5) this.lockedUntil = Date.now() + Math.min(300, 2 ** (this.failedAttempts - 4) * 5) * 1000;
+  }
+
   async unlock(secret?: string): Promise<void> {
     if (this.ctx) return;
-    if (Date.now() < this.lockedUntil) throw new Error(`Too many attempts. Try again in ${Math.ceil((this.lockedUntil - Date.now()) / 1000)} seconds.`);
+    this.checkThrottle();
     const st = this.keyStore.status();
     try {
       const dek = st.protection === 'password' ? await this.keyStore.unlockWithPassword(secret ?? '') : this.keyStore.unlockWithOs();
       this.failedAttempts = 0;
       await this.openWith(dek);
     } catch (e) {
-      if (st.protection === 'password') {
-        this.failedAttempts++;
-        // Slow down repeated guesses: 5 free attempts, then growing delays.
-        if (this.failedAttempts >= 5) this.lockedUntil = Date.now() + Math.min(300, 2 ** (this.failedAttempts - 4) * 5) * 1000;
-      }
+      if (st.protection === 'password') this.failedAttempt();
       throw e;
     }
+  }
+
+  /**
+   * Forgotten password: unlock with the recovery key and set a new password or PIN.
+   * Works whichever way the data was protected (for example after moving to a new computer,
+   * where the old computer's login can no longer unlock it).
+   */
+  async recover(recoveryKey: string, secret: string, kind: LockKind): Promise<void> {
+    if (this.ctx) return;
+    this.checkThrottle();
+    validateSecret(secret, kind);
+    let dek: Buffer;
+    try {
+      dek = await this.keyStore.unlockWithRecovery(recoveryKey);
+    } catch (e) {
+      this.failedAttempt();
+      throw e;
+    }
+    this.failedAttempts = 0;
+    await this.keyStore.setPassword(dek, secret, kind);
+    await this.openWith(dek);
+  }
+
+  /** Make a new recovery key (the old one stops working). Returned once, never stored in readable form. */
+  async createRecoveryKey(): Promise<string> {
+    if (!this.dek || this.demo) throw new Error('Unlock Geranium (not demo mode) to make a recovery key.');
+    const key = newRecoveryKey();
+    await this.keyStore.setRecovery(this.dek, key);
+    return key;
+  }
+
+  removeRecoveryKey(): void {
+    if (!this.dek || this.demo) throw new Error('Unlock Geranium first.');
+    this.keyStore.removeRecovery();
   }
 
   /** Save, then remove the data and key from memory. */

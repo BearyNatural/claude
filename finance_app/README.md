@@ -27,7 +27,7 @@ It is **local-first**: there is no account and no server. Your data is encrypted
 | **Tax** | Versioned Australian tax rules for 2024–25 to 2027–28 with ATO sources and review dates: resident rates, Medicare levy and low-income reduction, LITO, study-loan repayments, franking credits, CGT records (12-month discount), payslips, deductions, PAYG instalments, sole-trader/contractor income, business-use percentages, and GST/BAS preparation summaries. See [docs/TAX_RULES.md](docs/TAX_RULES.md). |
 | **Records** | Encrypted document storage (receipts, statements, payslips), investment holdings with trades, dividends and franking, super statements and contribution caps. |
 | **Export** | Excel workbooks with **live formulas** (checked by recalculating in LibreOffice), CSV (spreadsheet-safe), Google Sheets (snapshot or managed, using only the `drive.file` permission), 17 reports and an accountant package (a zip in the browser). |
-| **Privacy & safety** | AES-256-GCM encrypted database and documents, OS keychain or password protection, auto-lock, privacy mode (hide amounts), encrypted backups you store wherever you like, a network log that shows every request the app has made. See [docs/SECURITY_PRIVACY.md](docs/SECURITY_PRIVACY.md). |
+| **Privacy & safety** | AES-256-GCM encrypted database and documents, OS keychain or password protection, a recovery key for a forgotten password (save, print or email it to yourself), auto-lock, privacy mode (hide amounts), encrypted backups you store wherever you like, a network log that shows every request the app has made. See [docs/SECURITY_PRIVACY.md](docs/SECURITY_PRIVACY.md). |
 | **Accessible** | Keyboard navigation, focus management in dialogs, a table view for every chart, light/dark/high-contrast themes, adjustable text size, colour never the only signal, and a layout that works on narrow windows and phones. |
 
 Every calculated figure has a **"How was this calculated?"** panel showing the inputs, the period covered and any gaps. When data is missing (for example a credit card with no statements since July), Geranium says so instead of presenting incomplete numbers as complete.
@@ -70,7 +70,7 @@ cd finance_app
 npm ci
 npm run dev          # build (development) and start the desktop app
 npm run dev:web      # the browser version at http://localhost:5173
-npm test             # 185 unit and integration tests
+npm test             # 188 unit and integration tests
 npm run typecheck
 npm run package      # installers for the current OS → release/
 npm run build:web    # the browser version → dist/web
