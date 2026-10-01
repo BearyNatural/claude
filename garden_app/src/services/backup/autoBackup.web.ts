@@ -11,6 +11,7 @@ export interface AutoBackupSettings {
   folderName?: string;
   includePhotos: boolean;
   lastSavedAt?: string;
+  fileUri?: string;
   lastHash?: string;
   lastError?: string;
 }
@@ -19,6 +20,6 @@ export const autoBackupSupported = () => false;
 export const loadAutoBackup = async (_store: KeyValueStore): Promise<AutoBackupSettings | null> => null;
 export const saveAutoBackup = async (_store: KeyValueStore, _s: AutoBackupSettings | null): Promise<void> => undefined;
 export const chooseBackupFolder = async (): Promise<{ uri: string; name?: string } | null> => null;
-export function writeAutoBackupFile(_folderUri: string, _json: string): void {
+export function writeAutoBackupFile(_folderUri: string, _json: string, _knownFileUri?: string): string {
   throw new Error('Automatic backup is not available in the browser.');
 }

@@ -18,6 +18,8 @@ export interface AutoBackupSettings {
   folderName?: string;
   includePhotos: boolean;
   lastSavedAt?: string;
+  /** Link to the backup file this app created, so it's overwritten rather than duplicated. */
+  fileUri?: string;
   /** Fingerprint of what was last saved, to skip unchanged saves. */
   lastHash?: string;
   lastError?: string;
@@ -53,10 +55,57 @@ export async function chooseBackupFolder(): Promise<{ uri: string; name?: string
   }
 }
 
-/** Write (or overwrite) the automatic backup file in the chosen folder. */
-export function writeAutoBackupFile(folderUri: string, json: string): void {
+/**
+ * Write (or overwrite) the automatic backup file in the chosen folder and
+ * return its link, which the caller keeps so the same file is reused next time.
+ *
+ * Cloud folders (Google Drive, OneDrive) give files opaque links, so the file
+ * can't be found again by its name — that is why the link is remembered.
+ * Some storage apps also don't shorten a file when it's overwritten, which
+ * would leave old data on the end; the size is checked after writing and, if
+ * it's wrong, the file is replaced with a fresh one.
+ */
+export function writeAutoBackupFile(folderUri: string, json: string, knownFileUri?: string): string {
   const dir = new Directory(folderUri);
-  const existing = dir.list().find((x): x is File => x instanceof File && x.name === AUTO_BACKUP_FILE);
-  const file = existing ?? dir.createFile(AUTO_BACKUP_FILE, 'application/json');
+  let file = knownFileUri ? new File(knownFileUri) : null;
+  if (file && !safeExists(file)) file = null;
+  // Folders on the phone itself keep the name in the link ("…%2FSowBySeason-AutoBackup.json").
+  file ??= dir.list().find((x): x is File => x instanceof File && /[/:]SowBySeason-AutoBackup\.json$/.test(safeDecode(x.uri))) ?? null;
+  if (!file) return createAndWrite(dir, json);
   file.write(json);
+  if (writtenCorrectly(file, json)) return file.uri;
+  file.delete();
+  return createAndWrite(dir, json);
+}
+
+function createAndWrite(dir: Directory, json: string): string {
+  const file = dir.createFile(AUTO_BACKUP_FILE, 'application/json');
+  file.write(json);
+  return file.uri;
+}
+
+function writtenCorrectly(file: File, json: string): boolean {
+  try {
+    const expected = new TextEncoder().encode(json).length;
+    if (file.size === expected) return true;
+    return file.textSync() === json;
+  } catch {
+    return true; // Can't check on this phone; the write itself succeeded.
+  }
+}
+
+function safeExists(file: File): boolean {
+  try {
+    return file.exists;
+  } catch {
+    return false;
+  }
+}
+
+function safeDecode(uri: string): string {
+  try {
+    return decodeURIComponent(uri);
+  } catch {
+    return uri;
+  }
 }

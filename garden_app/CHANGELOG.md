@@ -2,6 +2,9 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `garden_app-v<version>-build<n>`). The newest Android version can always be downloaded from https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html.
 
+## 1.9.3 — 1 October 2026
+- **Automatic backup overwrites one file** instead of adding a new copy each time. In Google Drive and OneDrive the app couldn't recognise its earlier file by name, so it now remembers the file it created and updates that one. If a storage app doesn't fully replace the old contents, the file is replaced cleanly.
+
 ## 1.9.2 — 28 September 2026
 - Fixed: after installing 1.9.1 the "new version available" banner kept offering 1.9.1. The app now reads its own version from the same place Android and the releases do, so the two can't disagree again.
 

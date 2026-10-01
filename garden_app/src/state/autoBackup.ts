@@ -86,8 +86,8 @@ export class AutoBackupController {
     try {
       const photos = s.includePhotos ? await this.garden.photoFilesForBackup() : undefined;
       const json = serialiseBackup(createBackup(data, { now: new Date(), appVersion: ENV.appVersion, catalogueVersion: CATALOGUE_VERSION, photos }));
-      writeAutoBackupFile(s.folderUri, json);
-      this.settings = { ...s, lastSavedAt: new Date().toISOString(), lastHash: hash, lastError: undefined };
+      const fileUri = writeAutoBackupFile(s.folderUri, json, s.fileUri);
+      this.settings = { ...s, fileUri, lastSavedAt: new Date().toISOString(), lastHash: hash, lastError: undefined };
       await this.garden.saveSettings({ lastBackupAt: this.settings.lastSavedAt });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
