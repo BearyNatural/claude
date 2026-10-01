@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AppDatabase, encryptDatabase } from '../db/database';
 import { migrate, currentVersion, SCHEMA_VERSION } from '../db/schema';
@@ -40,11 +40,17 @@ export class AppState {
 
   constructor(readonly dataDir: string, private readonly os: OsProtector, readonly appVersion: string, private readonly onChanged: (area: string) => void = () => undefined, scryptN = 2 ** 17) {
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+    // The app was first released as Paperbark: carry its database file name over.
+    for (const suffix of ['', '.prev']) {
+      const legacy = join(dataDir, `paperbark.pbdb${suffix}`);
+      const current = join(dataDir, `geranium.db${suffix}`);
+      if (existsSync(legacy) && !existsSync(current)) renameSync(legacy, current);
+    }
     this.keyStore = new KeyStore(join(dataDir, 'keystore.json'), os, scryptN);
   }
 
   get dbFile(): string {
-    return join(this.dataDir, 'paperbark.pbdb');
+    return join(this.dataDir, 'geranium.db');
   }
 
   status(): AppStatus {
@@ -78,7 +84,7 @@ export class AppState {
     const db = await AppDatabase.openEncrypted(this.dbFile, dek);
     migrate(db, (from) => {
       // Keep an encrypted copy of the database from before the upgrade.
-      if (existed) copyFileSync(this.dbFile, join(this.dataDir, `pre-migration-v${from}-${new Date().toISOString().slice(0, 10)}.pbdb`));
+      if (existed) copyFileSync(this.dbFile, join(this.dataDir, `pre-migration-v${from}-${new Date().toISOString().slice(0, 10)}.db`));
     });
     this.db = db;
     this.dek = dek;
@@ -90,7 +96,7 @@ export class AppState {
 
   /** First run: create the key and an empty encrypted database. */
   async initialise(password?: { secret: string; kind: LockKind }): Promise<void> {
-    if (this.keyStore.exists()) throw new Error('Paperbark has already been set up on this computer.');
+    if (this.keyStore.exists()) throw new Error('Geranium has already been set up on this computer.');
     if (password) validateSecret(password.secret, password.kind);
     const dek = await this.keyStore.create(password);
     await this.openWith(dek);
@@ -134,13 +140,13 @@ export class AppState {
   }
 
   async setPassword(secret: string, kind: LockKind): Promise<void> {
-    if (!this.dek || this.demo) throw new Error('Unlock Paperbark first.');
+    if (!this.dek || this.demo) throw new Error('Unlock Geranium first.');
     validateSecret(secret, kind);
     await this.keyStore.setPassword(this.dek, secret, kind);
   }
 
   async removePassword(currentSecret: string): Promise<void> {
-    if (!this.dek || this.demo) throw new Error('Unlock Paperbark first.');
+    if (!this.dek || this.demo) throw new Error('Unlock Geranium first.');
     await this.keyStore.unlockWithPassword(currentSecret);
     this.keyStore.removePassword(this.dek);
   }
@@ -188,16 +194,16 @@ export class AppState {
 
   /**
    * Replace the current data with a backup. An encrypted copy of the current database is kept
-   * first ("pre-restore-….pbdb"). Older backups are migrated to the current schema.
+   * first ("pre-restore-….db"). Older backups are migrated to the current schema.
    */
   async restoreFrom(file: Uint8Array, password: string): Promise<{ counts: Record<string, number>; preRestoreCopy: string | null }> {
-    if (!this.dek || this.demo) throw new Error('Unlock Paperbark (not demo mode) before restoring.');
+    if (!this.dek || this.demo) throw new Error('Unlock Geranium (not demo mode) before restoring.');
     const restored = await openBackup(file, password);
     const dek = Buffer.from(this.dek);
     let copy: string | null = null;
     if (existsSync(this.dbFile)) {
       this.db?.saveNow();
-      copy = join(this.dataDir, `pre-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.pbdb`);
+      copy = join(this.dataDir, `pre-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.db`);
       copyFileSync(this.dbFile, copy);
     }
     const oldDocs = this.docs?.ids() ?? [];

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, useApi, useAction } from '../lib/api';
+import { api, IS_WEB, useAction, useApi } from '../lib/api';
 import { useApp } from '../lib/app';
 import { Badge, Callout, Card, Checkbox, DataTable, DateField, ErrorText, Loading, NumberField, Page, SelectField, Tabs, TextField } from '../components/ui';
 import type { AppSettings, ReminderType } from '../../shared/types';
@@ -39,7 +39,7 @@ function Preferences({ s }: { s: AppSettings }) {
         </div>
         <div className="stack" style={{ marginTop: 10 }}>
           <Checkbox label="High contrast" checked={s.highContrast} onChange={(v) => update({ highContrast: v })} />
-          <Checkbox label="Hide amounts when Paperbark opens (privacy mode)" checked={s.privacyModeDefault} onChange={(v) => update({ privacyModeDefault: v })} hint="Toggle any time with the eye button or Ctrl+Shift+H. Stored data is not changed." />
+          <Checkbox label="Hide amounts when Geranium opens (privacy mode)" checked={s.privacyModeDefault} onChange={(v) => update({ privacyModeDefault: v })} hint="Toggle any time with the eye button or Ctrl+Shift+H. Stored data is not changed." />
         </div>
         <p className="small muted" style={{ marginTop: 10 }}>Keyboard: Ctrl+K search · Ctrl+Shift+H hide amounts · Ctrl+L lock · Tab/Shift+Tab move · Enter opens a selected row · Esc closes dialogs.</p>
       </Card>
@@ -66,7 +66,7 @@ function Security() {
     if (secret !== confirmSecret) throw new Error('The two entries do not match.');
     setStatus(await api('security.setPassword', { secret, kind }));
     setSecret(''); setConfirmSecret('');
-    toast(`${kind === 'pin' ? 'PIN' : 'Password'} set. Paperbark will ask for it each time it opens.`, 'success');
+    toast(`${kind === 'pin' ? 'PIN' : 'Password'} set. Geranium will ask for it each time it opens.`, 'success');
   });
   const removePw = useAction(async () => { setStatus(await api('security.removePassword', { secret: current })); setCurrent(''); toast('Password removed. Your computer login now protects the key.', 'success'); });
   if (!status || !settings) return <Loading />;
@@ -75,14 +75,14 @@ function Security() {
     <div className="stack-lg">
       <Card title="Where your data is" sub="Nothing is stored anywhere else unless you export or back it up">
         <dl className="kv">
-          <dt>Data folder</dt><dd><code>{status.dataFolder}</code> <button className="btn btn-sm" onClick={() => api('app.openDataFolder')}>Show</button></dd>
+          {IS_WEB ? <><dt>Stored in</dt><dd>This browser’s storage (IndexedDB) on this device, encrypted. Clearing this site’s data in the browser deletes it, and Safari may clear it after 7 days without a visit unless Geranium is added to the Home Screen — keep an encrypted backup.</dd></> : <><dt>Data folder</dt><dd><code>{status.dataFolder}</code> <button className="btn btn-sm" onClick={() => api('app.openDataFolder')}>Show</button></dd></>}
           <dt>Database</dt><dd>Encrypted with AES-256-GCM (schema version {status.schemaVersion})</dd>
           <dt>Key protection</dt><dd>{status.protection === 'password' ? <Badge kind="ok">{status.lockKind === 'pin' ? 'PIN' : 'Password'}</Badge> : status.strength === 'weak' ? <Badge kind="warn">Computer login — weak on this system</Badge> : <Badge kind="ok">Computer login ({status.osBackend})</Badge>}</dd>
-          <dt>Analytics</dt><dd>None. Paperbark sends no usage data, crash reports or financial information anywhere.</dd>
+          <dt>Analytics</dt><dd>None. Geranium sends no usage data, crash reports or financial information anywhere.</dd>
         </dl>
-        {status.strength === 'weak' && <Callout kind="warn">This computer has no secure keyring available to Paperbark, so the key is only lightly protected. Setting a password is strongly recommended.</Callout>}
+        {status.strength === 'weak' && <Callout kind="warn">This computer has no secure keyring available to Geranium, so the key is only lightly protected. Setting a password is strongly recommended.</Callout>}
       </Card>
-      <Card title="App lock" sub="A password or PIN is required to open Paperbark, and lets it lock itself">
+      <Card title="App lock" sub="A password or PIN is required to open Geranium, and lets it lock itself">
         <div className="stack">
           <div className="form-grid">
             <SelectField label="Protect with" value={kind} onChange={setKind} options={[{ value: 'password', label: 'Password' }, { value: 'pin', label: 'PIN (6–12 digits)' }]} />
@@ -110,11 +110,11 @@ function Security() {
             <NumberField label="After inactivity" suffix="minutes" value={a.idleMinutes} step="1" min={1} onChange={(v) => update({ autoLock: { ...a, idleMinutes: Math.max(1, Math.round(v ?? 10)) } })} />
             <NumberField label="Always lock after" suffix="minutes (blank = never)" value={a.maxSessionMinutes} step="1" onChange={(v) => update({ autoLock: { ...a, maxSessionMinutes: v ? Math.round(v) : null } })} />
           </div>
-          <Checkbox label="Lock when the computer sleeps or its screen locks" checked={a.onSleep} onChange={(v) => update({ autoLock: { ...a, onSleep: v } })} />
-          <Checkbox label="Lock when Paperbark is minimised" checked={a.onMinimise} onChange={(v) => update({ autoLock: { ...a, onMinimise: v } })} />
+          {!IS_WEB && <Checkbox label="Lock when the computer sleeps or its screen locks" checked={a.onSleep} onChange={(v) => update({ autoLock: { ...a, onSleep: v } })} />}
+          <Checkbox label={IS_WEB ? 'Lock when you switch to another tab or window' : 'Lock when Geranium is minimised'} checked={a.onMinimise} onChange={(v) => update({ autoLock: { ...a, onMinimise: v } })} />
         </div>
       </Card>
-      <Card title="Network activity this session" sub="Paperbark only goes online when you export to Google Sheets. Every request is listed here (no content is logged).">
+      <Card title="Network activity this session" sub="Geranium only goes online when you export to Google Sheets. Every request is listed here (no content is logged).">
         <DataTable rows={log.data ?? []} rowKey={(r) => r.at + r.host} empty={<p className="muted">No network requests have been made.</p>} columns={[
           { key: 't', header: 'Time', render: (r) => new Date(r.at).toLocaleTimeString('en-AU') },
           { key: 'h', header: 'Host', render: (r) => r.host },
@@ -131,7 +131,7 @@ function Notifications({ s }: { s: AppSettings }) {
   const update = useSettingsUpdate();
   const n = s.notifications;
   return (
-    <Card title="Reminders" sub="Desktop notifications from this computer only — no server is involved. They appear while Paperbark is open and unlocked.">
+    <Card title="Reminders" sub="Desktop notifications from this computer only — no server is involved. They appear while Geranium is open and unlocked.">
       <div className="stack">
         <Checkbox label="Show reminders" checked={n.enabled} onChange={(v) => update({ notifications: { ...n, enabled: v } })} />
         <div className="form-grid">
@@ -168,8 +168,8 @@ export function Settings() {
   const [tab, setTab] = useState<'preferences' | 'security' | 'notifications' | 'imports'>('preferences');
   if (!settings) return <Loading />;
   return (
-    <Page title="Settings & privacy" intro="Your preferences, how your data is protected, and what (if anything) leaves this computer.">
-      <Tabs label="Section" value={tab} onChange={setTab} tabs={[{ value: 'preferences', label: 'Preferences' }, { value: 'security', label: 'Privacy & security' }, { value: 'notifications', label: 'Reminders' }, { value: 'imports', label: 'Import review' }]} />
+    <Page title="Settings & privacy" intro={`Your preferences, how your data is protected, and what (if anything) leaves ${IS_WEB ? 'this browser' : 'this computer'}.`}>
+      <Tabs label="Section" value={tab} onChange={setTab} tabs={[{ value: 'preferences', label: 'Preferences' }, { value: 'security', label: 'Privacy & security' }, ...(IS_WEB ? [] : [{ value: 'notifications' as const, label: 'Reminders' }]), { value: 'imports', label: 'Import review' }]} />
       {tab === 'preferences' && <Preferences s={settings} />}
       {tab === 'security' && (status?.demo ? <Callout kind="neutral">Security settings apply to your own data, not demo mode. <button className="btn btn-sm" onClick={async () => setStatus(await api('app.exitDemo'))}>Leave demo</button></Callout> : <Security />)}
       {tab === 'notifications' && <Notifications s={settings} />}

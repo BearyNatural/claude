@@ -3,7 +3,7 @@ import { Cents } from '../money';
 import { Cell, Sheet, Workbook, date, formula, money, pct, ref, sheetRef } from './workbook';
 
 /**
- * Builders for the worksheets Paperbark can generate. Where it makes sense the cells are
+ * Builders for the worksheets Geranium can generate. Where it makes sense the cells are
  * real formulas (totals, differences, SUMIFS over the Transactions sheet) so the workbook
  * keeps working when the user edits it.
  */
@@ -206,7 +206,7 @@ export function holdingsSheet(rows: { code: string; name: string; quantity: numb
       const n = i + 2;
       return [r.code, r.name, r.quantity, r.costCents === null ? 'Unknown' : money(r.costCents), r.valueCents === null ? null : money(r.valueCents), date(r.valuationDate), formula(`IF(OR(D${n}="Unknown",E${n}=""),"",E${n}-D${n})`, 'currency')];
     }),
-    notes: ['Values are prices you entered, with their dates. Paperbark does not fetch market prices.'],
+    notes: ['Values are prices you entered, with their dates. Geranium does not fetch market prices.'],
   };
 }
 
@@ -263,9 +263,9 @@ export function simpleSheet(name: string, columns: Sheet['columns'], rows: Cell[
 export function aboutSheet(wb: Workbook): Sheet {
   const rows: Cell[][] = [
     [wb.title],
-    [`Created by Paperbark on ${formatDate(wb.createdAt, { long: true })}.`],
-    ['This workbook is a copy of your data. It does not update from Paperbark and does not need Paperbark to open.'],
-    ['Paperbark is a tracking and planning tool, not financial or tax advice.'],
+    [`Created by Geranium on ${formatDate(wb.createdAt, { long: true })}.`],
+    ['This workbook is a copy of your data. It does not update from Geranium and does not need Geranium to open.'],
+    ['Geranium is a tracking and planning tool, not financial or tax advice.'],
     [null],
   ];
   for (const s of wb.sheets) {

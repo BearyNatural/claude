@@ -12,7 +12,7 @@ import { money } from '../domain/output/workbook';
 import { financialYearOf, localToday, previousFy } from '../domain/dates';
 
 /**
- * `Paperbark --self-test`: checks that a packaged build can load everything it needs
+ * `Geranium --self-test`: checks that a packaged build can load everything it needs
  * (SQLite wasm, encryption, PDF.js, SheetJS, the XLSX writer and the finance engines)
  * from inside its app archive. Uses only built-in sample data in memory; it never opens
  * the user's data folder and makes no network requests.
@@ -54,9 +54,9 @@ export async function runSelfTest(): Promise<{ ok: boolean; lines: string[] }> {
   });
 
   await check('PDF text (PDF.js)', async () => {
-    const r = await extractPdfText(samplePdf('Paperbark self-test 12.34'));
+    const r = await extractPdfText(samplePdf('Geranium self-test 12.34'));
     const text = r.pages.flatMap((p) => p.items.map((i) => i.str)).join(' ');
-    if (!text.includes('Paperbark self-test')) throw new Error(`unexpected text "${text}"`);
+    if (!text.includes('Geranium self-test')) throw new Error(`unexpected text "${text}"`);
     return `${r.pageCount} page read`;
   });
 

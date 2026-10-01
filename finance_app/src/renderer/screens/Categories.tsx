@@ -128,7 +128,7 @@ function Suggestions() {
   const q = useApi('rules.suggestions', undefined, []);
   const [apply, setApply] = useState(true);
   return (
-    <Card title="Learning from your corrections" sub="When you change the same merchant to the same category more than once, Paperbark offers a rule. It is only created if you agree.">
+    <Card title="Learning from your corrections" sub="When you change the same merchant to the same category more than once, Geranium offers a rule. It is only created if you agree.">
       <div className="stack">
         {settings && (
           <div className="row">
@@ -183,7 +183,7 @@ export function Categories() {
   const confirm = useConfirm();
   useCategories();
   return (
-    <Page title="Categories & rules" intro="Categories are yours to change. Rules are always visible, editable and removable — Paperbark prefers clear rules over guesswork.">
+    <Page title="Categories & rules" intro="Categories are yours to change. Rules are always visible, editable and removable — Geranium prefers clear rules over guesswork.">
       <Tabs label="Sections" value={tab} onChange={setTab} tabs={[{ value: 'categories', label: 'Categories' }, { value: 'rules', label: 'Rules' }, { value: 'suggestions', label: 'Suggestions', count: s.data?.length }, { value: 'transfers', label: 'Transfers', count: t.data?.length }]} />
       {tab === 'categories' && <CategoryList />}
       {tab === 'rules' && <Rules />}

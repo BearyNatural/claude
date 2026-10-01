@@ -1,8 +1,8 @@
-# OSV-Scanner exceptions for finance_app (Paperbark). Keep each one narrow, explained and time-limited.
+# OSV-Scanner exceptions for finance_app (Geranium). Keep each one narrow, explained and time-limited.
 
 [[IgnoredVulns]]
 id = "GHSA-4r6h-8v6p-xvw6"
-# SheetJS prototype pollution, fixed in 0.19.3. Paperbark installs xlsx 0.20.3 from
+# SheetJS prototype pollution, fixed in 0.19.3. Geranium installs xlsx 0.20.3 from
 # https://cdn.sheetjs.com (see package.json), which includes the fix. The advisory lists
 # every npm version as affected only because fixed releases are no longer published to npm.
 ignoreUntil = 2027-06-30T00:00:00Z
@@ -18,7 +18,7 @@ reason = "False positive: installed xlsx is the fixed 0.20.3 build from cdn.shee
 id = "GHSA-82fw-gwwq-j7x9"
 # Dev-only (vitest / @vitest/mocker 3.2.7). The flaw needs an attacker to reach a Vite dev
 # server WebSocket that registers redirect mocks (browser mode, --ui/--api, or third-party dev
-# servers using mockerPlugin). Paperbark only runs `vitest run` in the Node environment, starts
+# servers using mockerPlugin). Geranium only runs `vitest run` in the Node environment, starts
 # no such server, and vitest is not in the packaged app. The fix (4.1.11) cannot be adopted yet:
 # npm 10 (bundled with Node 22, used by CI and the weekly `npm update`) crashes with
 # "Cannot read properties of null (reading 'edgesOut')" resolving vitest 4's optional peers.

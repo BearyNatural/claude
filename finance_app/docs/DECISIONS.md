@@ -1,6 +1,6 @@
 # Key decisions
 
-Short records of the choices that shape Paperbark, and what each one costs.
+Short records of the choices that shape Geranium, and what each one costs.
 
 ## 1. Electron rather than Tauri
 
@@ -24,11 +24,11 @@ All money is integer cents with one rounding rule (half away from zero). Frequen
 
 ## 4. Deterministic rules, suggestions instead of silent learning
 
-Categorisation uses visible, editable rules (user rules beat learned rules beat defaults). When the user corrects similar transactions repeatedly, Paperbark *suggests* a rule; it only creates rules automatically if the user turns that on. Nothing uses a statistical model whose decisions cannot be explained.
+Categorisation uses visible, editable rules (user rules beat learned rules beat defaults). When the user corrects similar transactions repeatedly, Geranium *suggests* a rule; it only creates rules automatically if the user turns that on. Nothing uses a statistical model whose decisions cannot be explained.
 
 ## 5. No bank connections
 
-Paperbark only reads files the user downloads (CSV, OFX/QFX, QIF, XLS/XLSX, PDF). No credentials, no CDR/Open Banking, no scraping. This keeps the privacy promise simple and the app usable without any third party. The cost is manual imports; the import wizard, saved profiles, duplicate detection and reconciliation are there to make that quick and safe.
+Geranium only reads files the user downloads (CSV, OFX/QFX, QIF, XLS/XLSX, PDF). No credentials, no CDR/Open Banking, no scraping. This keeps the privacy promise simple and the app usable without any third party. The cost is manual imports; the import wizard, saved profiles, duplicate detection and reconciliation are there to make that quick and safe.
 
 ## 6. No OCR
 
@@ -48,7 +48,7 @@ Charts are a few hundred lines of SVG components rather than a charting library,
 
 ## 10. Google Sheets with the user's own OAuth client and `drive.file`
 
-Embedding a shared client secret in an open-source desktop app is not safe, and a verified public Google app requires a review process. Users create their own OAuth client (instructions are in the app); Paperbark asks only for `drive.file`, which limits access to spreadsheets Paperbark created.
+Embedding a shared client secret in an open-source desktop app is not safe, and a verified public Google app requires a review process. Users create their own OAuth client (instructions are in the app); Geranium asks only for `drive.file`, which limits access to spreadsheets Geranium created.
 
 ## 11. Validated IPC surface
 
@@ -57,3 +57,15 @@ One IPC channel, ~150 named methods, each with a zod input schema, sender-frame 
 ## 12. vitest 3 for now
 
 vitest 4 cannot be installed by npm 10 (bundled with Node 22, used in CI and the weekly updates) because of an npm crash resolving its optional peer dependencies. vitest 3.2.7 is kept, with a documented, time-limited OSV exception for a dev-server advisory that does not apply to how tests run here. Revisit when CI moves to npm 11.
+
+## 13. A browser version from the same code
+
+**Decision:** publish the existing app as a website by running its "main process" code (API, services, encrypted storage) in a Web Worker, with small shims for `fs`, `crypto` and `path`, rather than writing a second app.
+
+**Why:** one codebase, one set of tests, identical file formats, so backups move between the website and the desktop app. The domain layer was already pure; Node-specific code was confined to six storage files. Audited `@noble` libraries provide synchronous AES-GCM and scrypt with output identical to Node's (tested).
+
+**Cost:** the website can't use an OS keychain (always a password), can't run reminders in the background, keeps its data in browser storage that the browser or user can clear, and its code is delivered by the web host on each visit. These are documented in the app and in SECURITY_PRIVACY.md.
+
+## 14. The name: Geranium
+
+First released as Paperbark; renamed in 0.2.0 because many finance, budgeting and bookkeeping products already use "Paperbark". Format identifiers inside encrypted files (the key-wrapping label and the backup check value) keep the original name so existing keystores and backups still open, and the old data folder and file names are migrated on first start.

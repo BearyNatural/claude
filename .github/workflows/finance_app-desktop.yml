@@ -1,4 +1,4 @@
-# ── finance_app (Paperbark) — desktop builds & release ───────────────────────
+# ── finance_app (Geranium) — desktop builds & release ───────────────────────
 # Project-scoped: only runs for changes inside finance_app/, and only ever
 # builds, tags and releases finance_app. Tags are prefixed "finance_app-v" so
 # they never mix with other projects in this repository. Releases are marked
@@ -30,6 +30,9 @@ on:
       - '!finance_app/docs/**'
       - '!finance_app/*.md'
       - '!finance_app/tests/**'
+      - '!finance_app/web-public/**'
+      - '!finance_app/src/web/**'
+      - '!finance_app/vite.web.config.ts'
   workflow_dispatch:
     inputs:
       reason:
@@ -89,6 +92,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Build
+        env:
+          GERANIUM_GOOGLE_DESKTOP_CLIENT_ID: ${{ secrets.GERANIUM_GOOGLE_DESKTOP_CLIENT_ID }}
+          GERANIUM_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.GERANIUM_GOOGLE_DESKTOP_CLIENT_SECRET }}
         run: npm run build
       - name: Package
         env:
@@ -99,19 +105,19 @@ jobs:
         timeout-minutes: 5
         run: |
           set -uo pipefail
-          export PAPERBARK_SELF_TEST_OUT="$PWD/self-test.txt"
+          export GERANIUM_SELF_TEST_OUT="$PWD/self-test.txt"
           status=0
           case "${{ matrix.os }}" in
             linux)
               sudo apt-get update -qq && sudo apt-get install -y -qq xvfb >/dev/null
               sudo chown root:root release/linux-unpacked/chrome-sandbox
               sudo chmod 4755 release/linux-unpacked/chrome-sandbox
-              xvfb-run -a release/linux-unpacked/paperbark --self-test || status=$? ;;
+              xvfb-run -a release/linux-unpacked/geranium --self-test || status=$? ;;
             windows)
-              ./release/win-unpacked/Paperbark.exe --self-test || status=$? ;;
+              ./release/win-unpacked/Geranium.exe --self-test || status=$? ;;
             mac)
-              app=$(ls -d release/mac*/Paperbark.app | head -1)
-              "$app/Contents/MacOS/Paperbark" --self-test || status=$? ;;
+              app=$(ls -d release/mac*/Geranium.app | head -1)
+              "$app/Contents/MacOS/Geranium" --self-test || status=$? ;;
           esac
           cat self-test.txt || echo "::error title=finance_app self-test::No self-test report was written."
           [ "$status" -eq 0 ] && grep -q '^PASSED' self-test.txt
@@ -157,16 +163,16 @@ jobs:
             const hit = log.split(/^(?=## )/m).find((x) => x.startsWith(`## ${v} `));
             const changes = hit ? hit.replace(/^## [^\n]*\n/, "").trim() : "- Dependency updates and maintenance.";
             fs.writeFileSync(process.env.RUNNER_TEMP + "/release-notes.md", [
-              "**Project:** `finance_app` — Paperbark (desktop: Windows, macOS, Linux)",
+              "**Project:** `finance_app` — Geranium (desktop: Windows, macOS, Linux)",
               "",
-              "Local-first personal finance for Australian households. Your data stays encrypted on your computer; Paperbark never connects to your bank. It is a tracking and planning tool, not financial or tax advice.",
+              "Local-first personal finance for Australian households. Your data stays encrypted on your computer; Geranium never connects to your bank. It is a tracking and planning tool, not financial or tax advice.",
               "",
               "## What’s new in " + v,
               changes,
               "",
               "## Install",
               "- **Windows:** download the `.exe`, run it. These builds are not code-signed yet, so Windows may show “Windows protected your PC” — choose **More info › Run anyway**.",
-              "- **macOS:** download the `.dmg`, drag Paperbark to Applications, then right-click it › **Open** the first time (the build is not notarised yet).",
+              "- **macOS:** download the `.dmg`, drag Geranium to Applications, then right-click it › **Open** the first time (the build is not notarised yet).",
               "- **Linux:** the `.deb` (Debian/Ubuntu) is recommended; the `.AppImage` runs anywhere after `chmod +x`.",
               "- Check downloads against `SHA256SUMS.txt`.",
               "",
@@ -181,7 +187,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: finance_app-v${{ env.VERSION }}-build${{ github.run_number }}
-          name: "Paperbark ${{ env.VERSION }} (build ${{ github.run_number }})"
+          name: "Geranium ${{ env.VERSION }} (build ${{ github.run_number }})"
           prerelease: true
           make_latest: false
           files: finance_app/dist-release/*

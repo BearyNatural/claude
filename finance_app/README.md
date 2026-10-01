@@ -1,12 +1,12 @@
-# Paperbark — personal finance for Australian households
+# Geranium — personal finance for Australian households
 
 **See where your money went. Understand where it is going. Model where it could go next.**
 
-Paperbark is a desktop app (Windows, macOS, Linux) for tracking, understanding and planning household money in Australia. You import the statements you download from your bank; Paperbark shows where the money went, what it really costs to live, what is coming up, and what different decisions could look like — including an estimate of your Australian income tax.
+Geranium is an app for tracking, understanding and planning household money in Australia — **in your browser** at [daydreaminginthecloud.bearynatural.dev/geranium](https://daydreaminginthecloud.bearynatural.dev/geranium/), or as a **desktop app** for Windows, macOS and Linux. You import the statements you download from your bank; Geranium shows where the money went, what it really costs to live, what is coming up, and what different decisions could look like — including an estimate of your Australian income tax.
 
-It is **local-first**: there is no account and no server. Your data is encrypted on your own computer. Paperbark never logs in to your bank, never uses Open Banking/CDR, never scrapes websites, and sends no analytics.
+It is **local-first**: there is no account and no server. Your data is encrypted on your own device — in the desktop app's data folder, or in your browser's own storage. Nothing is uploaded. Geranium never logs in to your bank, never uses Open Banking/CDR, never scrapes websites, and sends no analytics.
 
-> **Not financial or tax advice.** Paperbark does arithmetic on the records and assumptions you enter. It never recommends a product, a lender, an investment or a course of action. Tax figures are estimates, not an ATO assessment.
+> **Not financial or tax advice.** Geranium does arithmetic on the records and assumptions you enter. It never recommends a product, a lender, an investment or a course of action. Tax figures are estimates, not an ATO assessment.
 
 | Dashboard | Spending & cost of living | Forecast & scenarios | Tax estimate |
 |---|---|---|---|
@@ -26,20 +26,22 @@ It is **local-first**: there is no account and no server. Your data is encrypted
 | **Plan** | A cash-flow calendar, a day-by-day forecast with scenarios (career break, reduced hours, retirement, property purchase, rate change… all editable examples), saved snapshots to compare later, savings goals, compound-growth, loan and super calculators, mortgage modelling with **offset accounts**, debt payoff by an order you choose, and term-deposit ladders. |
 | **Tax** | Versioned Australian tax rules for 2024–25 to 2027–28 with ATO sources and review dates: resident rates, Medicare levy and low-income reduction, LITO, study-loan repayments, franking credits, CGT records (12-month discount), payslips, deductions, PAYG instalments, sole-trader/contractor income, business-use percentages, and GST/BAS preparation summaries. See [docs/TAX_RULES.md](docs/TAX_RULES.md). |
 | **Records** | Encrypted document storage (receipts, statements, payslips), investment holdings with trades, dividends and franking, super statements and contribution caps. |
-| **Export** | Excel workbooks with **live formulas** (checked by recalculating in LibreOffice), CSV (spreadsheet-safe), Google Sheets (snapshot or managed, using only the `drive.file` permission), 17 reports and an accountant package. |
+| **Export** | Excel workbooks with **live formulas** (checked by recalculating in LibreOffice), CSV (spreadsheet-safe), Google Sheets (snapshot or managed, using only the `drive.file` permission), 17 reports and an accountant package (a zip in the browser). |
 | **Privacy & safety** | AES-256-GCM encrypted database and documents, OS keychain or password protection, auto-lock, privacy mode (hide amounts), encrypted backups you store wherever you like, a network log that shows every request the app has made. See [docs/SECURITY_PRIVACY.md](docs/SECURITY_PRIVACY.md). |
-| **Accessible** | Keyboard navigation, focus management in dialogs, a table view for every chart, light/dark/high-contrast themes, adjustable text size, colour never the only signal. |
+| **Accessible** | Keyboard navigation, focus management in dialogs, a table view for every chart, light/dark/high-contrast themes, adjustable text size, colour never the only signal, and a layout that works on narrow windows and phones. |
 
-Every calculated figure has a **"How was this calculated?"** panel showing the inputs, the period covered and any gaps. When data is missing (for example a credit card with no statements since July), Paperbark says so instead of presenting incomplete numbers as complete.
+Every calculated figure has a **"How was this calculated?"** panel showing the inputs, the period covered and any gaps. When data is missing (for example a credit card with no statements since July), Geranium says so instead of presenting incomplete numbers as complete.
 
-## Getting Paperbark
+## Getting Geranium
 
-Installers are published on the [releases page](https://github.com/BearyNatural/claude/releases) with tags `finance_app-v<version>-build<n>` (marked as pre-releases while the app is at 0.x):
+**In the browser:** open **https://daydreaminginthecloud.bearynatural.dev/geranium/** in a current Firefox, Chrome, Edge or Safari (not a private window). Nothing to install; your data stays encrypted in that browser on that device. It can't use your computer's keychain, so it always asks for a password, and it has no desktop reminders.
+
+**Desktop app:** download from **https://daydreaminginthecloud.bearynatural.dev/geranium/download.html**, which always offers the newest version. Installers are published on the [releases page](https://github.com/BearyNatural/claude/releases) with tags `finance_app-v<version>-build<n>` (marked as pre-releases while the app is at 0.x):
 
 | System | Download | First run |
 |---|---|---|
-| **Windows** | `Paperbark-<version>-win-x64.exe` | Not code-signed yet: if Windows says *"Windows protected your PC"*, choose **More info › Run anyway**. |
-| **macOS** (Apple silicon) | `Paperbark-<version>-mac-arm64.dmg` | Not notarised yet: drag to Applications, then **right-click › Open** the first time. |
+| **Windows** | `Geranium-<version>-win-x64.exe` | Not code-signed yet: if Windows says *"Windows protected your PC"*, choose **More info › Run anyway**. |
+| **macOS** (Apple silicon) | `Geranium-<version>-mac-arm64.dmg` | Not notarised yet: drag to Applications, then **right-click › Open** the first time. |
 | **Linux** | `.deb` (Debian/Ubuntu, recommended) or `.AppImage` | The `.deb` sets up Electron's sandbox helper. The AppImage may need `--no-sandbox` on distributions that restrict unprivileged user namespaces (e.g. Ubuntu 24.04). |
 
 Each release includes `SHA256SUMS.txt`. Each installer's app passed a built-in self-test (`--self-test`) on its own operating system before being published.
@@ -50,13 +52,14 @@ Each release includes `SHA256SUMS.txt`. Each installer's app passed a built-in s
 
 Everything is in one folder on your computer:
 
-| System | Folder |
+| Where | Location |
 |---|---|
-| Windows | `%APPDATA%\Paperbark\vault` |
-| macOS | `~/Library/Application Support/Paperbark/vault` |
-| Linux | `~/.config/Paperbark/vault` |
+| Browser version | This browser's IndexedDB storage for the site, on this device (clearing the site's data deletes it; Safari may clear it after 7 days without a visit unless Geranium is added to the Home Screen) |
+| Windows | `%APPDATA%\Geranium\vault` |
+| macOS | `~/Library/Application Support/Geranium/vault` |
+| Linux | `~/.config/Geranium/vault` |
 
-The database (`paperbark.pbdb`) and every attached document are encrypted. Uninstalling Paperbark does not delete this folder. Make regular encrypted backups (**Backup & restore**) to a USB drive, NAS or a synced cloud folder — Paperbark keeps no copy anywhere else, so a lost password or disk cannot be recovered by anyone.
+The database (`geranium.db`) and every attached document are encrypted. Uninstalling Geranium does not delete this folder. (Data from the app's first name, Paperbark, is copied across automatically on first start.) Backups move data between the browser version and the desktop app in either direction. Make regular encrypted backups (**Backup & restore**) to a USB drive, NAS or a synced cloud folder — Geranium keeps no copy anywhere else, so a lost password or disk cannot be recovered by anyone.
 
 ## Running from source
 
@@ -65,10 +68,12 @@ Requires **Node.js 22.12+** (see `.nvmrc`).
 ```bash
 cd finance_app
 npm ci
-npm run dev          # build (development) and start the app
-npm test             # 175 unit and integration tests
+npm run dev          # build (development) and start the desktop app
+npm run dev:web      # the browser version at http://localhost:5173
+npm test             # 185 unit and integration tests
 npm run typecheck
 npm run package      # installers for the current OS → release/
+npm run build:web    # the browser version → dist/web
 ```
 
 The LibreOffice recalculation test runs only when `soffice` is installed; it is skipped otherwise.
@@ -94,8 +99,11 @@ finance_app/
                   categorising, analysis, budgets, planning, Australian tax, spreadsheet output
   src/main/       Electron main process — encrypted storage, services, validated API, Google, backups
   src/preload/    the narrow bridge the UI may use
-  src/renderer/   React UI
+  src/renderer/   React UI (shared by the desktop app and the browser version)
+  src/web/        browser version: app worker, page bridge, IndexedDB file system, Node shims, Google sign-in
+  web-public/     static pages published with the browser version (sign-in return, privacy, download)
   tests/          vitest: domain, services, storage, imports (incl. generated PDFs), demo integration
-  ci/             finance_app-ci.yml (checks) and finance_app-desktop.yml (installers & release)
+  ci/             finance_app-ci.yml (checks), finance_app-desktop.yml (installers & release),
+                  finance_app-web.yml (publishes the browser version)
   build/          app icon
 ```

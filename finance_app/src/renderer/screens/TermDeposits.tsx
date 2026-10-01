@@ -76,7 +76,7 @@ export function TermDeposits() {
             ]} />
             <Explain><p>{active[0]?.schedule.explanation ?? 'Interest = balance × rate × days ÷ 365 for each interest period.'}</p></Explain>
           </Card>
-          <Callout kind="neutral">Check your deposit confirmation for the institution’s exact figures and rollover instructions. Paperbark reminds you before maturity if reminders are on.</Callout>
+          <Callout kind="neutral">Check your deposit confirmation for the institution’s exact figures and rollover instructions. Geranium reminds you before maturity if reminders are on.</Callout>
         </>
       )}
       {edit && <TdForm initial={edit === 'new' ? undefined : edit} onClose={() => setEdit(null)} />}

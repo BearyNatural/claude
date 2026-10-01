@@ -31,7 +31,7 @@ function TradeForm({ ov, onClose }: { ov: Overview; onClose: () => void }) {
         <MoneyField label="Brokerage" cents={t.brokerage} onChange={(c) => setT({ ...t, brokerage: c })} />
         <AccountSelect label="Broker account (optional)" value={t.accountId} onChange={(v) => setT({ ...t, accountId: v })} allowNone types={['brokerage', 'brokerage-cash']} />
       </div>
-      {t.type === 'buy' && <Checkbox label="I don’t know what these units cost (for example inherited)" checked={t.costUnknown} onChange={(v) => setT({ ...t, costUnknown: v })} hint="Paperbark will not guess a cost base. Any capital gain estimate for them will show as unavailable." />}
+      {t.type === 'buy' && <Checkbox label="I don’t know what these units cost (for example inherited)" checked={t.costUnknown} onChange={(v) => setT({ ...t, costUnknown: v })} hint="Geranium will not guess a cost base. Any capital gain estimate for them will show as unavailable." />}
       <ErrorText error={save.error} />
     </Dialog>
   );
@@ -178,7 +178,7 @@ export function Investments() {
             <DateField label="Price as at" value={val.date} onChange={(v) => setVal({ ...val, date: v })} />
             <MoneyField label="Price per unit" cents={val.price} onChange={(c) => setVal({ ...val, price: c })} />
           </div>
-          <p className="small muted">Paperbark does not fetch market prices. Values are shown with the date of the price you enter.</p>
+          <p className="small muted">Geranium does not fetch market prices. Values are shown with the date of the price you enter.</p>
         </Dialog>
       )}
     </Page>

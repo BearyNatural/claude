@@ -8,6 +8,7 @@ coverage/
 # Never commit real financial data, databases, backups or keys
 *.pbdb
 *.pbbackup
+*.geranium-backup
 *.db
 *.sqlite
 keystore.json

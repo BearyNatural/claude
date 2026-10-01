@@ -18,12 +18,12 @@ function hasSoffice(): boolean {
 
 /**
  * Opens a generated workbook in LibreOffice (a different spreadsheet program) and reads the
- * recalculated results, proving the formulas work outside Paperbark. Skipped when LibreOffice
+ * recalculated results, proving the formulas work outside Geranium. Skipped when LibreOffice
  * is not installed.
  */
 describe.skipIf(!hasSoffice())('generated XLSX recalculates in LibreOffice', () => {
   it('computes SUMIFS, differences, tax brackets and term-deposit interest', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'paperbark-xlsx-'));
+    const dir = mkdtempSync(join(tmpdir(), 'geranium-xlsx-'));
     try {
       const wb = {
         title: 'Check', createdAt: '2026-09-27', sheets: [

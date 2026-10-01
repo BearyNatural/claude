@@ -12,9 +12,12 @@ interface Bridge {
 
 declare global {
   interface Window {
-    paperbark: Bridge;
+    geranium: Bridge;
   }
 }
+
+/** True in the browser version (its bridge is installed before the UI loads). */
+export const IS_WEB = typeof window !== 'undefined' && window.geranium?.platform === 'web';
 
 export class ApiError extends Error {
   constructor(readonly code: string, message: string) {
@@ -23,10 +26,10 @@ export class ApiError extends Error {
 }
 
 export async function api<K extends ApiMethod>(method: K, ...input: undefined extends ApiInput<K> ? [ApiInput<K>?] : [ApiInput<K>]): Promise<ApiOutput<K>> {
-  const res = await window.paperbark.invoke(method, input[0]);
+  const res = await window.geranium.invoke(method, input[0]);
   if (!res.ok) {
     const err = new ApiError(res.error?.code ?? 'ERROR', res.error?.message ?? 'Something went wrong.');
-    if (err.code === 'LOCKED') window.dispatchEvent(new CustomEvent('paperbark:locked'));
+    if (err.code === 'LOCKED') window.dispatchEvent(new CustomEvent('geranium:locked'));
     throw err;
   }
   return res.data as ApiOutput<K>;
@@ -37,9 +40,9 @@ const listeners = new Set<Listener>();
 let wired = false;
 
 function wire() {
-  if (wired || !window.paperbark) return;
+  if (wired || !window.geranium) return;
   wired = true;
-  window.paperbark.on('data:changed', (areas) => {
+  window.geranium.on('data:changed', (areas) => {
     for (const l of listeners) l(areas as string[]);
   });
 }

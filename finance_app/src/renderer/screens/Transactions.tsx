@@ -112,7 +112,7 @@ function TransactionDrawer({ id, onClose }: { id: string; onClose: () => void })
               {tx.categoryExplanation && <span className="muted small">{tx.categoryExplanation}</span>}
               <div className="row">
                 <button className="btn btn-sm" onClick={() => setSplitting(true)}><Icon name="split" size={14} /> Split across categories</button>
-                <button className="btn btn-sm" onClick={async () => { await api('transfers.link', { outId: tx.id, inId: null, note: 'Transfer to an account not tracked in Paperbark' }); q.reload(); }}>Mark as transfer to my own account</button>
+                <button className="btn btn-sm" onClick={async () => { await api('transfers.link', { outId: tx.id, inId: null, note: 'Transfer to an account not tracked in Geranium' }); q.reload(); }}>Mark as transfer to my own account</button>
               </div>
             </div>
           )}

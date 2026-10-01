@@ -1,0 +1,97 @@
+# ── finance_app (Geranium) — publish the browser version ─────────────────────
+# Builds the browser version of Geranium and publishes it to the /geranium/
+# folder of BearyNatural/BearyNatural.github.io
+# (daydreaminginthecloud.bearynatural.dev/geranium/). Only that folder is
+# replaced; the rest of the site is untouched.
+#
+# The browser version keeps each person's data encrypted in their own browser.
+# The published files contain no secrets: the Google "Web application" OAuth
+# client ID is public (it appears in every Google sign-in link) and comes from
+# the repository variable GERANIUM_GOOGLE_WEB_CLIENT_ID. Without it, Google
+# Sheets export is simply switched off on the website.
+#
+# Access: SITE_DEPLOY_KEY is a deploy key with write access to that site
+# repository only (shared with garden_app's browser version).
+
+name: "finance_app · publish browser version"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'finance_app/**'
+      - '.github/workflows/finance_app-web.yml'
+      - '!finance_app/ci/finance_app-ci.yml'
+      - '!finance_app/ci/finance_app-desktop.yml'
+      - '!finance_app/docs/**'
+      - '!finance_app/*.md'
+      - '!finance_app/tests/**'
+      - '!finance_app/build/**'
+      - '!finance_app/electron-builder.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance_app-web
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: finance_app
+
+jobs:
+  publish:
+    name: finance_app · publish browser version
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Tests & type-check
+        run: |
+          npm test
+          npm run typecheck
+      - name: Build the browser version
+        env:
+          GERANIUM_GOOGLE_WEB_CLIENT_ID: ${{ vars.GERANIUM_GOOGLE_WEB_CLIENT_ID }}
+        run: npm run build:web
+      - name: Publish to daydreaminginthecloud.bearynatural.dev/geranium/
+        env:
+          DEPLOY_KEY: ${{ secrets.SITE_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOY_KEY:-}" ]; then
+            echo "::error title=finance_app web::SITE_DEPLOY_KEY secret is missing."; exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/site_key
+          chmod 600 ~/.ssh/site_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/site_key -o IdentitiesOnly=yes"
+          SITE="$RUNNER_TEMP/site"
+          git clone --depth 1 git@github.com:BearyNatural/BearyNatural.github.io.git "$SITE"
+          rm -rf "$SITE/geranium"
+          mkdir -p "$SITE/geranium"
+          cp -R dist/web/. "$SITE/geranium/"
+          # GitHub Pages' Jekyll step skips some files; serve everything as-is.
+          touch "$SITE/.nojekyll"
+          cd "$SITE"
+          git add -A geranium .nojekyll
+          if git diff --cached --quiet; then echo "Browser version unchanged."; exit 0; fi
+          VERSION=$(node -p 'require(process.env.GITHUB_WORKSPACE + "/finance_app/package.json").version')
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Geranium browser version ${VERSION}"
+          for i in 1 2 3 4 5; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && break
+            sleep $((i * 5))
+          done
+          echo "Published Geranium ${VERSION} to /geranium/."
+      - name: Remove the deploy key
+        if: always()
+        run: rm -f ~/.ssh/site_key

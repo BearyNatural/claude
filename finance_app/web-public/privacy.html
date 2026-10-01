@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy · Geranium</title>
+  <link rel="stylesheet" href="page.css" />
+  <link rel="icon" href="icon-192.png" />
+</head>
+<body>
+  <main>
+    <div class="card">
+      <div class="brand"><img src="icon-192.png" alt="" /><h1>Geranium privacy</h1></div>
+      <p><strong>Short version: your financial data stays on your device. Geranium has no server and no account, and BearyNatural never receives your data.</strong></p>
+
+      <h2>Where your data is kept</h2>
+      <p>In the desktop app, your records are kept in an encrypted file on your computer. In the browser version, they are kept encrypted in your browser’s own storage on that device. Either way the data is encrypted with AES-256-GCM, using a key protected by your password (or, in the desktop app, your computer’s login). Nothing is uploaded.</p>
+
+      <h2>What Geranium does not do</h2>
+      <ul>
+        <li>It never asks for bank, broker or super passwords, and never connects to your bank. You import statements yourself.</li>
+        <li>It sends no analytics, tracking, crash reports or usage data, and shows no advertising.</li>
+        <li>It does not sell, share or transfer your information to anyone.</li>
+      </ul>
+
+      <h2>Google Sheets (optional)</h2>
+      <p>If you choose to export to Google Sheets, Geranium asks Google for the <code>drive.file</code> permission only. That lets Geranium create spreadsheets in your Google Drive and update the spreadsheets it created — it cannot see or change any of your other files. The export goes directly from your device to Google; it does not pass through any BearyNatural server. The permission is stored inside your encrypted Geranium data. In the browser version it expires after about an hour; in the desktop app it lasts until you disconnect, which also revokes it at Google.</p>
+      <p>Geranium’s use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. Data from Google is used only to create and update the spreadsheets you ask for.</p>
+
+      <h2>Backups</h2>
+      <p>Backups are encrypted files that you save wherever you choose. Geranium never uploads them.</p>
+
+      <h2>Deleting your data</h2>
+      <p>Desktop: delete Geranium’s data folder (shown under Settings › Privacy &amp; security). Browser: clear this website’s data in your browser settings. To remove Geranium’s Google access, disconnect in Geranium or visit your Google Account’s security settings.</p>
+
+      <h2>Not financial advice</h2>
+      <p>Geranium tracks, explains and models your finances using the information you enter. It is not financial, tax or legal advice, and tax figures are estimates, not an ATO assessment.</p>
+
+      <h2>Contact</h2>
+      <p>Geranium is made by BearyNatural. Questions: <a href="https://github.com/BearyNatural/claude/issues">github.com/BearyNatural/claude/issues</a>.</p>
+      <p class="small">Last updated 1 October 2026.</p>
+    </div>
+    <p class="small"><a href="./">Open Geranium</a> · <a href="download.html">Desktop app</a></p>
+  </main>
+</body>
+</html>

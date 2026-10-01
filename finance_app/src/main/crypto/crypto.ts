@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes, scrypt, timingSafeEqual, createHash } from 'node:crypto';
 
 /**
- * Cryptography used by Paperbark. Only established primitives from Node's crypto module:
+ * Cryptography used by Geranium. Only established primitives from Node's crypto module:
  *  - AES-256-GCM (authenticated encryption) for the database, attachments and backups
  *  - scrypt for deriving keys from passwords
  * No custom algorithms.

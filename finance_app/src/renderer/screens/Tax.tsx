@@ -98,7 +98,7 @@ function Bas({ fy }: { fy: string }) {
       {q.data && (
         <>
           <Card title="BAS preparation summary" sub={q.data.quarter.label} actions={<SelectField label="Quarter" value={String(quarter)} onChange={(v) => setQuarter(Number(v))} options={q.data.quarters.map((x, i) => ({ value: String(i), label: x.label }))} />}>
-            <div className="disclaimer"><strong>{q.data.summary.disclaimer}</strong> Paperbark does not lodge anything.</div>
+            <div className="disclaimer"><strong>{q.data.summary.disclaimer}</strong> Geranium does not lodge anything.</div>
             <div className="grid grid-4" style={{ marginTop: 12 }}>
               <Stat label="G1 Total sales" value={<Money cents={q.data.summary.g1TotalSalesCents} />} note={`${q.data.summary.salesCount} sale(s)`} />
               <Stat label="1A GST on sales" value={<Money cents={q.data.summary.gstOnSales1ACents} />} />
@@ -158,7 +158,7 @@ export function Tax() {
   const [fy, setFy] = useState(month >= 7 && month <= 10 ? previousFy(current) : current);
   const [tab, setTab] = useState<'estimate' | 'records' | 'bas' | 'rules'>((params.tab as 'bas') ?? 'estimate');
   return (
-    <Page title="Tax estimate & GST" intro="An estimate of your Australian income tax position from the records in Paperbark. It is not tax preparation, an ATO assessment, or tax advice."
+    <Page title="Tax estimate & GST" intro="An estimate of your Australian income tax position from the records in Geranium. It is not tax preparation, an ATO assessment, or tax advice."
       actions={<SelectField label="Financial year" value={fy} onChange={setFy} options={years.map((y) => ({ value: y, label: `FY ${fyDisplay(y)}${y === current ? ' (current)' : ''}` }))} />}>
       {settings && (
         <Card>

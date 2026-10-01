@@ -14,7 +14,7 @@ const SECTION_LABEL: Record<string, string> = {
 
 function difference(now: number, before: number, noun: string, prevLabel: string, money: (c: number) => string): string {
   const d = now - before;
-  if (d === 0) return `Same ${noun} as ${prevLabel}.`;
+  if (d === 0) return now === 0 ? 'Nothing recorded for this period yet.' : `No change from ${prevLabel}.`;
   return `${money(Math.abs(d))} ${d > 0 ? 'more' : 'less'} ${noun} than ${prevLabel}.`;
 }
 
@@ -95,7 +95,7 @@ export function Dashboard() {
     ),
     budget: (
       <Card key="budget" title="Budget" sub={active ? `${active.name}${budget.data ? ` · ${budget.data.period.label}` : ''}` : undefined} actions={<button className="btn btn-sm" onClick={() => navigate('budgets')}>Budgets</button>}>
-        {!active ? <p className="muted">No budget yet. Paperbark can suggest one from your history.</p> : !budget.data ? <Loading /> : (
+        {!active ? <p className="muted">No budget yet. Geranium can suggest one from your history.</p> : !budget.data ? <Loading /> : (
           <div className="stack">
             <div className="row-between"><span>Allocated <Money cents={budget.data.totals.budgetCents} /></span><span>Spent so far <Money cents={budget.data.totals.actualCents} /></span></div>
             {budget.data.elapsedFraction !== null && <Meter value={budget.data.totals.actualCents} max={Math.max(1, budget.data.totals.budgetCents)} label="Budget used" />}

@@ -199,7 +199,7 @@ export function currentVersion(db: AppDatabase): number {
 export function migrate(db: AppDatabase, beforeMigrate?: (fromVersion: number) => void): { from: number; to: number } {
   const from = currentVersion(db);
   if (from > SCHEMA_VERSION) {
-    throw new Error(`This database uses schema version ${from}, which is newer than this version of Paperbark supports (${SCHEMA_VERSION}). Please update Paperbark.`);
+    throw new Error(`This database uses schema version ${from}, which is newer than this version of Geranium supports (${SCHEMA_VERSION}). Please update Geranium.`);
   }
   if (from === SCHEMA_VERSION) return { from, to: from };
   if (from > 0 && beforeMigrate) beforeMigrate(from);

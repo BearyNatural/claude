@@ -1,4 +1,4 @@
-import { ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { ReactNode, useLayoutEffect, useState } from 'react';
 import { formatMoney } from '@domain/money';
 import { addDays, addMonths, diffDays, diffMonths, formatDate, formatMonth, startOfMonth } from '@domain/dates';
 import { useApp } from '../lib/app';
@@ -31,16 +31,18 @@ export function timeTicks(first: string, last: string, max = 6): { date: string;
   return out;
 }
 
-function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] {
-  const ref = useRef<T>(null);
+/** Width of an element, kept up to date. Uses a callback ref so it works whenever the element mounts. */
+function useWidth<T extends HTMLElement>(): [(el: T | null) => void, number] {
+  const [el, setEl] = useState<T | null>(null);
   const [w, setW] = useState(600);
   useLayoutEffect(() => {
-    if (!ref.current) return;
+    if (!el) return;
+    setW(Math.max(240, Math.floor(el.getBoundingClientRect().width)));
     const ro = new ResizeObserver((entries) => setW(Math.max(240, Math.floor(entries[0].contentRect.width))));
-    ro.observe(ref.current);
+    ro.observe(el);
     return () => ro.disconnect();
-  }, []);
-  return [ref, w];
+  }, [el]);
+  return [setEl, w];
 }
 
 export function niceTicks(min: number, max: number, count = 5): number[] {

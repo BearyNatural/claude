@@ -1,7 +1,7 @@
 {
-  "name": "paperbark-finance",
-  "productName": "Paperbark",
-  "version": "0.1.0",
+  "name": "geranium-finance",
+  "productName": "Geranium",
+  "version": "0.2.0",
   "private": true,
   "description": "Local-first personal finance, budgeting and planning for Australian households. A tracking, understanding and planning tool — not financial advice.",
   "author": "BearyNatural",
@@ -13,7 +13,9 @@
   },
   "scripts": {
     "dev": "node scripts/build.mjs --dev && electron .",
+    "dev:web": "vite --config vite.web.config.ts",
     "build": "node scripts/build.mjs",
+    "build:web": "vite build --config vite.web.config.ts",
     "start": "electron .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -24,6 +26,9 @@
     "package:mac": "npm run build && electron-builder --mac dmg --publish never"
   },
   "dependencies": {
+    "@noble/ciphers": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "buffer": "^6.0.3",
     "fflate": "^0.8.3",
     "papaparse": "^5.7.0",
     "pdfjs-dist": "^6.3.289",

@@ -158,7 +158,7 @@ export function buildWorkbook(ctx: Ctx, opts: WorkbookOptions): Workbook {
       }
     }
   }
-  return { title: opts.title ?? `Paperbark — ${periodLabel}`, createdAt: ctx.today(), sheets };
+  return { title: opts.title ?? `Geranium — ${periodLabel}`, createdAt: ctx.today(), sheets };
 }
 
 /* ------------------------------ CSV exports ------------------------------ */
@@ -362,10 +362,10 @@ export function accountantPackage(ctx: Ctx, fy: string, opts: { include: string[
   files.push({
     path: 'README.txt',
     content: [
-      `Records exported from Paperbark for the ${fyDisplay(fy)} financial year (${formatDate(start)} to ${formatDate(end)}).`,
+      `Records exported from Geranium for the ${fyDisplay(fy)} financial year (${formatDate(start)} to ${formatDate(end)}).`,
       `Prepared on ${formatDate(ctx.today(), { long: true })}.`,
       '',
-      'These are the records entered or imported into Paperbark by its user. They are not a tax return.',
+      'These are the records entered or imported into Geranium by its user. They are not a tax return.',
       est.disclaimer,
       '',
       'Files:',

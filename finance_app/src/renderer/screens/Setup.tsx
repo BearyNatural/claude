@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { api } from '../lib/api';
+import { api, IS_WEB } from '../lib/api';
 import { useApp } from '../lib/app';
-import { Callout, Checkbox, DateField, ErrorText, Icon, MoneyField, SelectField, TextField } from '../components/ui';
+import { BrandMark, Callout, Checkbox, DateField, ErrorText, Icon, MoneyField, SelectField, TextField } from '../components/ui';
 import { ACCOUNT_TYPE_LABEL, AccountType } from '@domain/accounts';
 import type { PeriodKind } from '@domain/periods';
 import { todayLocal } from '../components/pickers';
@@ -9,11 +9,11 @@ import { todayLocal } from '../components/pickers';
 function PrivacyPoints() {
   return (
     <ul className="list-plain small">
-      <li><strong>Stays on this computer.</strong> Your records are kept in an encrypted file on this computer. There is no Paperbark account and no Paperbark server.</li>
-      <li><strong>No bank logins.</strong> Paperbark never asks for bank, broker or super passwords. You import statements and exports yourself.</li>
-      <li><strong>No tracking.</strong> Nothing about your finances is sent anywhere. The only time Paperbark uses the internet is if you choose to export to Google Sheets.</li>
+      <li><strong>{IS_WEB ? 'Stays in this browser.' : 'Stays on this computer.'}</strong> {IS_WEB ? 'Your records are kept encrypted in this browser’s storage on this device — nothing is uploaded. Clearing this site’s data in your browser deletes them, so keep a backup.' : 'Your records are kept in an encrypted file on this computer.'} There is no Geranium account and no Geranium server.</li>
+      <li><strong>No bank logins.</strong> Geranium never asks for bank, broker or super passwords. You import statements and exports yourself.</li>
+      <li><strong>No tracking.</strong> Nothing about your finances is sent anywhere. The only time Geranium uses the internet is if you choose to export to Google Sheets.</li>
       <li><strong>You own the data.</strong> Export it to CSV or Excel at any time, and make encrypted backups wherever you like.</li>
-      <li><strong>Not financial advice.</strong> Paperbark tracks, explains and models. It does not tell you what to buy, sell or decide.</li>
+      <li><strong>Not financial advice.</strong> Geranium tracks, explains and models. It does not tell you what to buy, sell or decide.</li>
     </ul>
   );
 }
@@ -46,17 +46,17 @@ export function Setup({ onDone }: { onDone: () => void }) {
     <div className="lock-wrap">
       <div className="card lock-card stack-lg">
         <div className="brand" style={{ padding: 0 }}>
-          <div className="brand-mark" aria-hidden="true">P</div>
-          <div><div className="brand-name">Paperbark</div><div className="brand-sub">See where your money went · Understand where it is going · Model where it could go next</div></div>
+          <BrandMark />
+          <div><div className="brand-name">Geranium</div><div className="brand-sub">See where your money went · Understand where it is going · Model where it could go next</div></div>
         </div>
         {step === 1 ? (
           <>
-            <h1>Your finances, on your computer</h1>
-            <p><strong>Your financial records stay on this computer unless you export or back them up.</strong></p>
+            <h1>{IS_WEB ? 'Your finances, in your browser' : 'Your finances, on your computer'}</h1>
+            <p><strong>Your financial records stay {IS_WEB ? 'in this browser' : 'on this computer'} unless you export or back them up.</strong></p>
             <PrivacyPoints />
             <div className="row-between">
               <button className="btn" onClick={async () => { await api('app.enterDemo'); onDone(); }}>Explore with demo data</button>
-              <button className="btn btn-primary" onClick={() => setStep(2)}>Set up Paperbark</button>
+              <button className="btn btn-primary" onClick={() => setStep(2)}>Set up Geranium</button>
             </div>
           </>
         ) : (
@@ -65,17 +65,19 @@ export function Setup({ onDone }: { onDone: () => void }) {
             <p>Your records are encrypted. Choose how the encryption key is protected.</p>
             <div className="choice-grid" role="radiogroup" aria-label="Protection">
               <button className="choice" role="radio" aria-checked={mode === 'password'} aria-pressed={mode === 'password'} onClick={() => setMode('password')}>
-                <strong>Password</strong><div className="small muted">Needed each time Paperbark opens. Allows locking and auto-lock.</div>
+                <strong>Password</strong><div className="small muted">Needed each time Geranium opens. Allows locking and auto-lock.</div>
               </button>
               <button className="choice" role="radio" aria-checked={mode === 'pin'} aria-pressed={mode === 'pin'} onClick={() => setMode('pin')}>
                 <strong>PIN</strong><div className="small muted">6–12 digits. Quicker, but less strong than a password.</div>
               </button>
-              <button className="choice" role="radio" aria-checked={mode === 'os'} aria-pressed={mode === 'os'} disabled={!status?.osStoreAvailable} onClick={() => setMode('os')}>
-                <strong>This computer’s login</strong><div className="small muted">No password in Paperbark. Anyone who can use your computer account can open it.</div>
-              </button>
+              {!IS_WEB && (
+                <button className="choice" role="radio" aria-checked={mode === 'os'} aria-pressed={mode === 'os'} disabled={!status?.osStoreAvailable} onClick={() => setMode('os')}>
+                  <strong>This computer’s login</strong><div className="small muted">No password in Geranium. Anyone who can use your computer account can open it.</div>
+                </button>
+              )}
             </div>
             {mode === 'os' && weakOs && (
-              <Callout kind="warn">This computer does not have a secure credential store available to Paperbark (for example no keyring on Linux), so the key would only be lightly protected. A password is strongly recommended.</Callout>
+              <Callout kind="warn">This computer does not have a secure credential store available to Geranium (for example no keyring on Linux), so the key would only be lightly protected. A password is strongly recommended.</Callout>
             )}
             {mode !== 'os' && (
               <div className="grid grid-2">
@@ -126,11 +128,11 @@ export function Unlock({ onDone }: { onDone: () => void }) {
   return (
     <div className="lock-wrap">
       <form className="card lock-card stack-lg" onSubmit={(e) => { e.preventDefault(); void unlock(); }}>
-        <div className="row"><Icon name="lock" size={22} /><h1>Paperbark is locked</h1></div>
+        <div className="row"><Icon name="lock" size={22} /><h1>Geranium is locked</h1></div>
         {pw ? (
           <TextField label={status?.lockKind === 'pin' ? 'PIN' : 'Password'} type="password" value={secret} onChange={setSecret} autoFocus />
         ) : (
-          <p>Paperbark uses this computer’s login to unlock your data.</p>
+          <p>Geranium uses this computer’s login to unlock your data.</p>
         )}
         <ErrorText error={error} />
         <div className="row-between">
@@ -143,7 +145,7 @@ export function Unlock({ onDone }: { onDone: () => void }) {
             {forgot && (
               <div className="disclaimer" style={{ marginTop: 8 }}>
                 The password is not stored anywhere, so it cannot be reset — this is what keeps your data private. If you have an encrypted backup,
-                you can move the data folder aside (<code>{status?.dataFolder}</code>), start Paperbark again, set a new password and restore the backup.
+                you can move the data folder aside (<code>{status?.dataFolder}</code>), start Geranium again, set a new password and restore the backup.
               </div>
             )}
           </div>
@@ -196,7 +198,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     <div className="lock-wrap">
       <div className="card lock-card stack-lg" style={{ width: 'min(720px, 100%)' }}>
         <div className="steps" aria-label={`Step ${step} of ${total}`}>{Array.from({ length: total }, (_, i) => <span key={i} className={i < step ? 'done' : ''} />)}</div>
-        {step === 1 && (<><h1>Privacy</h1><p><strong>Your financial records stay on this computer unless you export or back them up.</strong></p><PrivacyPoints /></>)}
+        {step === 1 && (<><h1>Privacy</h1><p><strong>Your financial records stay {IS_WEB ? 'in this browser' : 'on this computer'} unless you export or back them up.</strong></p><PrivacyPoints /></>)}
         {step === 2 && (
           <>
             <h1>How do you like to look at money?</h1>
@@ -209,14 +211,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           <>
             <h1>Where does your income come from?</h1>
             <div className="choice-grid">{INCOME_KINDS.map((k) => <button key={k.value} className="choice" aria-pressed={kinds.includes(k.value)} onClick={() => setKinds(toggle(kinds, k.value))}><strong>{k.label}</strong></button>)}</div>
-            {(kinds.includes('contracting') || kinds.includes('sole-trader')) && <Checkbox label="I am registered for GST" checked={gst} onChange={setGst} hint="Only tick this if you have registered. Paperbark does not assume sole traders are registered." />}
+            {(kinds.includes('contracting') || kinds.includes('sole-trader')) && <Checkbox label="I am registered for GST" checked={gst} onChange={setGst} hint="Only tick this if you have registered. Geranium does not assume sole traders are registered." />}
             <Checkbox label="I have a HELP or other study/training loan" checked={help} onChange={setHelp} hint="Used only for the tax estimate." />
           </>
         )}
         {step === 4 && (
           <>
             <h1>Add your accounts</h1>
-            <p>Add the accounts you want to track. Balances are optional and are shown with the date you enter — Paperbark never shows them as live.</p>
+            <p>Add the accounts you want to track. Balances are optional and are shown with the date you enter — Geranium never shows them as live.</p>
             {accounts.length > 0 && <ul className="list-plain">{accounts.map((a, i) => <li key={i} className="row-between"><span>{a.name} <span className="muted small">· {ACCOUNT_TYPE_LABEL[a.type]}</span></span><button className="btn btn-ghost btn-sm" onClick={() => setAccounts(accounts.filter((_, j) => j !== i))}>Remove</button></li>)}</ul>}
             <div className="form-grid">
               <TextField label="Account name" value={draft.name} onChange={(v) => setDraft({ ...draft, name: v })} placeholder="e.g. Everyday" />
@@ -235,11 +237,11 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             <Callout>Imports go through a review screen first. Anything uncertain — possible duplicates, possible transfers, unclear categories — waits in the Review inbox so it never quietly changes your figures.</Callout>
           </>
         )}
-        {step === 6 && (<><h1>Review and categorise</h1><p>Paperbark suggests categories using transparent rules you can see and change. When you correct the same merchant a couple of times, it offers to create a rule — it never creates one without asking unless you turn on automatic learning.</p></>)}
+        {step === 6 && (<><h1>Review and categorise</h1><p>Geranium suggests categories using transparent rules you can see and change. When you correct the same merchant a couple of times, it offers to create a rule — it never creates one without asking unless you turn on automatic learning.</p></>)}
         {step === 7 && (
           <>
             <h1>Reminders (optional)</h1>
-            <p>Paperbark can show desktop notifications for bills, term-deposit maturities, tax time and backups. Nothing is sent from a server; reminders appear while Paperbark is open.</p>
+            <p>Geranium can show desktop notifications for bills, term-deposit maturities, tax time and backups. Nothing is sent from a server; reminders appear while Geranium is open.</p>
             <Checkbox label="Turn on reminders" checked={notify} onChange={setNotify} hint="You can choose which reminders and when in Settings. Amounts are hidden in notifications unless you allow them." />
           </>
         )}
@@ -249,7 +251,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           <div className="row">
             {step < total && step > 1 && <button className="btn btn-ghost" onClick={() => setStep(step + 1)}>Skip</button>}
             {step === 5 && <button className="btn" onClick={() => finish('import')}>Finish and import a file</button>}
-            {step < total ? <button className="btn btn-primary" onClick={() => setStep(step + 1)}>Continue</button> : <button className="btn btn-primary" onClick={() => finish()}>Start using Paperbark</button>}
+            {step < total ? <button className="btn btn-primary" onClick={() => setStep(step + 1)}>Continue</button> : <button className="btn btn-primary" onClick={() => finish()}>Start using Geranium</button>}
           </div>
         </div>
       </div>

@@ -344,7 +344,7 @@ export function investmentsOverview(ctx: Ctx, fy?: string) {
     holdings: holdings(securities, trades, listValuations(ctx), ctx.today()),
     dividendTotals: dividendTotals(listDividends(ctx), year),
     capitalGains: capitalGains(parcels, disposals, year),
-    note: 'Values are prices you entered, with their dates. Paperbark does not fetch prices, rate investments or suggest trades.',
+    note: 'Values are prices you entered, with their dates. Geranium does not fetch prices, rate investments or suggest trades.',
   };
 }
 

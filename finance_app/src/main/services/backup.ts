@@ -6,7 +6,7 @@ import { DocumentStore } from './documents';
 
 /**
  * Encrypted backups. A backup is one file the user saves wherever they like (local disk,
- * USB drive, NAS, or a Dropbox/OneDrive/Google Drive/iCloud folder). Paperbark never uploads it.
+ * USB drive, NAS, or a Dropbox/OneDrive/Google Drive/iCloud folder). Geranium never uploads it.
  *
  * Layout: "PBBACKUP" | version (1 byte) | header length (4 bytes) | header JSON | encrypted payload
  *  - header: scrypt parameters and salt, creation date, schema version, and a small encrypted
@@ -17,6 +17,7 @@ import { DocumentStore } from './documents';
 
 const MAGIC = Buffer.from('PBBACKUP');
 const VERSION = 1;
+// Format identifier from the app's first name (Paperbark). Never change it: existing backups depend on it.
 const CHECK_TEXT = Buffer.from('paperbark-backup-check-v1');
 
 interface BackupHeader {
@@ -89,8 +90,8 @@ export async function createBackup(db: AppDatabase, docs: DocumentStore | null, 
 
 function parse(file: Uint8Array): { header: BackupHeader; prefix: Buffer; payload: Buffer } {
   const buf = Buffer.from(file.buffer, file.byteOffset, file.byteLength);
-  if (buf.length < 13 || !buf.subarray(0, 8).equals(MAGIC)) throw new BackupDamagedError('This is not a Paperbark backup file.');
-  if (buf[8] !== VERSION) throw new BackupDamagedError('This backup was made by a newer version of Paperbark.');
+  if (buf.length < 13 || !buf.subarray(0, 8).equals(MAGIC)) throw new BackupDamagedError('This is not a Geranium backup file.');
+  if (buf[8] !== VERSION) throw new BackupDamagedError('This backup was made by a newer version of Geranium.');
   const len = buf.readUInt32BE(9);
   if (13 + len > buf.length) throw new BackupDamagedError();
   let header: BackupHeader;
@@ -127,7 +128,7 @@ export async function openBackup(file: Uint8Array, password: string): Promise<{ 
     }
     if (!entries['manifest.json'] || !entries['database.sqlite']) throw new BackupDamagedError();
     const manifest = JSON.parse(strFromU8(entries['manifest.json'])) as BackupManifest;
-    if (manifest.schemaVersion > SCHEMA_VERSION) throw new BackupDamagedError('This backup was made by a newer version of Paperbark. Update Paperbark to restore it.');
+    if (manifest.schemaVersion > SCHEMA_VERSION) throw new BackupDamagedError('This backup was made by a newer version of Geranium. Update Geranium to restore it.');
     const documents = new Map<string, Uint8Array>();
     for (const d of manifest.documents) {
       const bytes = entries[`documents/${d.id}`];

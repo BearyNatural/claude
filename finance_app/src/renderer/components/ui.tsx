@@ -32,6 +32,7 @@ const PATHS: Record<string, string> = {
   eye: 'M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   eyeOff: 'M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A10.4 10.4 0 0 1 12 5c7 0 11 7 11 7a18 18 0 0 1-3.2 3.9M6.1 6.1C3.3 7.9 1 12 1 12s4 7 11 7a10.6 10.6 0 0 0 5.9-1.9',
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
+  menu: 'M3 6h18M3 12h18M3 18h18',
   info: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 16v-4M12 8h.01',
   alert: 'M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01',
   check: 'M20 6L9 17l-5-5',
@@ -184,6 +185,20 @@ export function Loading({ what = 'Loading' }: { what?: string }) {
 export function ErrorText({ error }: { error: string | null | undefined }) {
   if (!error) return null;
   return <Callout kind="danger">{error}</Callout>;
+}
+
+/** The Geranium flower mark (same drawing as the app icon). */
+export function BrandMark() {
+  return (
+    <div className="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22">
+        <g fill="#ef5b6e" stroke="#c7354f" strokeWidth="0.9"><ellipse cx="12.00" cy="6.70" rx="5.4" ry="6.2" transform="rotate(0 12.00 6.70)" /> <ellipse cx="17.04" cy="10.36" rx="5.4" ry="6.2" transform="rotate(72 17.04 10.36)" /> <ellipse cx="15.12" cy="16.29" rx="5.4" ry="6.2" transform="rotate(144 15.12 16.29)" /> <ellipse cx="8.88" cy="16.29" rx="5.4" ry="6.2" transform="rotate(216 8.88 16.29)" /> <ellipse cx="6.96" cy="10.36" rx="5.4" ry="6.2" transform="rotate(288 6.96 10.36)" /></g>
+        <g fill="#ef5b6e"><ellipse cx="12.00" cy="6.70" rx="5.4" ry="6.2" transform="rotate(0 12.00 6.70)" /> <ellipse cx="17.04" cy="10.36" rx="5.4" ry="6.2" transform="rotate(72 17.04 10.36)" /> <ellipse cx="15.12" cy="16.29" rx="5.4" ry="6.2" transform="rotate(144 15.12 16.29)" /> <ellipse cx="8.88" cy="16.29" rx="5.4" ry="6.2" transform="rotate(216 8.88 16.29)" /> <ellipse cx="6.96" cy="10.36" rx="5.4" ry="6.2" transform="rotate(288 6.96 10.36)" /></g>
+        <circle cx="12" cy="12" r="2.6" fill="#fdfcf9" />
+        <circle cx="12" cy="12" r="1.1" fill="#f2b84b" />
+      </svg>
+    </div>
+  );
 }
 
 export function Badge({ children, kind, className }: { children: ReactNode; kind?: 'info' | 'warn' | 'ok' | 'danger' | 'accent' | 'outline'; className?: string }) {

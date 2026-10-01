@@ -18,7 +18,16 @@ const common = {
   sourcemap: dev ? 'inline' : false,
   minify: !dev,
   logLevel: 'warning',
-  define: { 'process.env.PAPERBARK_DEV': JSON.stringify(dev ? '1' : '') },
+  define: {
+    'process.env.GERANIUM_DEV': JSON.stringify(dev ? '1' : ''),
+    // Optional built-in Google "Desktop app" OAuth client (CI passes it from repository secrets).
+    // Google treats a desktop client's secret as not confidential; without these the app asks
+    // for a client in Reports › Google Sheets instead.
+    ...(process.env.GERANIUM_GOOGLE_DESKTOP_CLIENT_ID ? {
+      'process.env.GERANIUM_GOOGLE_CLIENT_ID': JSON.stringify(process.env.GERANIUM_GOOGLE_DESKTOP_CLIENT_ID),
+      'process.env.GERANIUM_GOOGLE_CLIENT_SECRET': JSON.stringify(process.env.GERANIUM_GOOGLE_DESKTOP_CLIENT_SECRET ?? ''),
+    } : {}),
+  },
 };
 
 await esbuild({
@@ -37,4 +46,4 @@ await esbuild({
 });
 
 await viteBuild({ configFile: 'vite.config.ts', logLevel: 'warn' });
-console.log(`Built Paperbark (${dev ? 'development' : 'production'})`);
+console.log(`Built Geranium (${dev ? 'development' : 'production'})`);

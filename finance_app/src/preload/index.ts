@@ -6,7 +6,7 @@ import { contextBridge, ipcRenderer } from 'electron';
  */
 const EVENTS = new Set(['data:changed', 'app:locked', 'navigate']);
 
-contextBridge.exposeInMainWorld('paperbark', {
+contextBridge.exposeInMainWorld('geranium', {
   invoke: (method: string, input?: unknown) => ipcRenderer.invoke('api', method, input),
   on: (channel: string, cb: (payload: unknown) => void) => {
     if (!EVENTS.has(channel)) return () => undefined;

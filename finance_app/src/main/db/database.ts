@@ -16,12 +16,19 @@ const FORMAT_VERSION = 1;
 const HEADER = Buffer.concat([MAGIC, Buffer.from([FORMAT_VERSION])]);
 
 let sqlPromise: Promise<SqlJsStatic> | null = null;
+let customLoader: (() => Promise<SqlJsStatic>) | null = null;
 
-// The bundled main process is CommonJS (has `require`); tests run as ES modules.
-const nodeRequire: NodeRequire = typeof require === 'function' ? require : createRequire(`${process.cwd()}/`);
+/** The browser build loads SQLite's WebAssembly from its own URL instead of the file system. */
+export function setSqlLoader(loader: () => Promise<SqlJsStatic>): void {
+  customLoader = loader;
+  sqlPromise = null;
+}
 
 function loadSql(): Promise<SqlJsStatic> {
+  if (!sqlPromise && customLoader) sqlPromise = customLoader();
   if (!sqlPromise) {
+    // The bundled main process is CommonJS (has `require`); tests run as ES modules.
+    const nodeRequire: NodeRequire = typeof require === 'function' ? require : createRequire(`${process.cwd()}/`);
     // Read the WebAssembly binary directly so it works inside packaged apps as well as tests.
     const wasmPath = nodeRequire.resolve('sql.js/dist/sql-wasm.wasm');
     const wasm = readFileSync(wasmPath);
@@ -39,8 +46,8 @@ export function encryptDatabase(bytes: Uint8Array, key: Buffer): Buffer {
 
 export function decryptDatabase(file: Uint8Array, key: Buffer): Uint8Array {
   const buf = Buffer.from(file.buffer, file.byteOffset, file.byteLength);
-  if (buf.length < HEADER.length || !buf.subarray(0, 4).equals(MAGIC)) throw new Error('This is not a Paperbark database file.');
-  if (buf[4] !== FORMAT_VERSION) throw new Error('This database was written by a newer version of Paperbark.');
+  if (buf.length < HEADER.length || !buf.subarray(0, 4).equals(MAGIC)) throw new Error('This is not a Geranium database file.');
+  if (buf[4] !== FORMAT_VERSION) throw new Error('This database was written by a newer version of Geranium.');
   return decrypt(key, buf.subarray(HEADER.length), HEADER);
 }
 

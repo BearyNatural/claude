@@ -6,8 +6,8 @@ import { guardedFetch } from '../net';
 /**
  * Google sign-in for Sheets export, using the installed-app flow (RFC 8252): the system browser
  * opens Google's consent page and Google redirects to a temporary server on 127.0.0.1.
- * PKCE protects the exchange. Only the "drive.file" scope is requested — it lets Paperbark create
- * spreadsheets and edit only the files Paperbark itself created. No other Google data is accessible.
+ * PKCE protects the exchange. Only the "drive.file" scope is requested — it lets Geranium create
+ * spreadsheets and edit only the files Geranium itself created. No other Google data is accessible.
  */
 
 export const SHEETS_SCOPE = 'https://www.googleapis.com/auth/drive.file';
@@ -46,7 +46,7 @@ export function authUrl(client: GoogleClient, redirectUri: string, challenge: st
   return `https://accounts.google.com/o/oauth2/v2/auth?${p.toString()}`;
 }
 
-const PAGE = (msg: string) => `<!doctype html><meta charset="utf-8"><title>Paperbark</title><body style="font-family:system-ui;padding:3rem;max-width:36rem"><h1>Paperbark</h1><p>${msg}</p><p>You can close this browser tab and return to Paperbark.</p></body>`;
+const PAGE = (msg: string) => `<!doctype html><meta charset="utf-8"><title>Geranium</title><body style="font-family:system-ui;padding:3rem;max-width:36rem"><h1>Geranium</h1><p>${msg}</p><p>You can close this browser tab and return to Geranium.</p></body>`;
 
 /** Run the consent flow. `openBrowser` opens the URL in the user's default browser. */
 export async function signIn(client: GoogleClient, openBrowser: (url: string) => Promise<void>, timeoutMs = 5 * 60 * 1000): Promise<GoogleTokens> {
@@ -69,7 +69,7 @@ export async function signIn(client: GoogleClient, openBrowser: (url: string) =>
           return;
         }
         if (url.searchParams.get('state') !== state) {
-          res.writeHead(400, { 'Content-Type': 'text/html' }).end(PAGE('This sign-in response did not match. Please try again from Paperbark.'));
+          res.writeHead(400, { 'Content-Type': 'text/html' }).end(PAGE('This sign-in response did not match. Please try again from Geranium.'));
           return;
         }
         res.writeHead(200, { 'Content-Type': 'text/html' }).end(PAGE('Google Sheets is now connected.'));

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, useApi, useAction } from '../lib/api';
+import { api, IS_WEB, useAction, useApi } from '../lib/api';
 import { useApp } from '../lib/app';
 import { Badge, Callout, Card, Checkbox, DataTable, DateText, Explain, Loading, Page, SelectField, Tabs, TextField } from '../components/ui';
 import { RangePicker, RangePreset, presetRange, todayLocal } from '../components/pickers';
@@ -96,36 +96,38 @@ function Spreadsheets() {
           <div className="choice-grid">
             {(names.data ?? []).map((n) => <Checkbox key={n} label={n} checked={chosen.includes(n)} onChange={(v) => setSheets(v ? [...chosen, n] : chosen.filter((x) => x !== n))} />)}
           </div>
-          <p className="small muted">Sheets with nothing to show are left out. Totals and differences are real spreadsheet formulas (for example SUMIFS over the Transactions sheet), so the workbook keeps working without Paperbark.</p>
+          <p className="small muted">Sheets with nothing to show are left out. Totals and differences are real spreadsheet formulas (for example SUMIFS over the Transactions sheet), so the workbook keeps working without Geranium.</p>
         </div>
       </Card>
       <div className="grid grid-2">
         <Card title="Excel workbook (.xlsx)" sub="Works without Microsoft Excel — opens in Excel, LibreOffice, Numbers or Google Sheets">
           <div className="stack">
-            <Checkbox label="Open the workbook after saving" checked={openAfter} onChange={setOpenAfter} hint="Uses whichever spreadsheet program your computer opens .xlsx files with." />
+            {!IS_WEB && <Checkbox label="Open the workbook after saving" checked={openAfter} onChange={setOpenAfter} hint="Uses whichever spreadsheet program your computer opens .xlsx files with." />}
             <div><button className="btn btn-primary" onClick={() => xlsx.run()} disabled={xlsx.pending}>{xlsx.pending ? 'Building…' : 'Save Excel workbook…'}</button></div>
             {xlsx.error && <Callout kind="danger">{xlsx.error}</Callout>}
           </div>
         </Card>
-        <Card title="Google Sheets" sub="Only runs when you choose to export. Your Paperbark data file is never uploaded.">
-          {status?.demo ? <p className="muted">Not available in demo mode.</p> : !google.data ? <Loading /> : !google.data.configured ? (
+        <Card title="Google Sheets" sub="Only runs when you choose to export. Your Geranium data file is never uploaded.">
+          {status?.demo ? <p className="muted">Not available in demo mode.</p> : !google.data ? <Loading /> : !google.data.configured && IS_WEB ? (
+            <p className="small muted">Google Sheets export isn’t set up for this website yet. Excel and CSV exports work now.</p>
+          ) : !google.data.configured ? (
             <div className="stack">
-              <p className="small">Paperbark has no Google account of its own. To use Google Sheets, create a free “Desktop app” OAuth client in your Google Cloud project, enable the Google Sheets API, and paste the client details here.</p>
+              <p className="small">Geranium has no Google account of its own. To use Google Sheets, create a free “Desktop app” OAuth client in your Google Cloud project, enable the Google Sheets API, and paste the client details here.</p>
               <TextField label="OAuth client ID" value={clientId} onChange={setClientId} />
               <TextField label="Client secret (Desktop app clients have one)" value={secret} onChange={setSecret} type="password" />
               <div><button className="btn" disabled={!clientId.trim()} onClick={async () => { await api('google.setClient', { clientId, clientSecret: secret || null }); google.reload(); }}>Save</button></div>
             </div>
           ) : !google.data.connected ? (
             <div className="stack">
-              <p className="small">Connecting opens Google in your web browser. Paperbark asks only for permission to create spreadsheets and edit the spreadsheets it created (<code>drive.file</code>) — it cannot see your other Google files.</p>
+              <p className="small">{IS_WEB ? 'Connecting opens Google in a pop-up window; in the browser the connection lasts about an hour.' : 'Connecting opens Google in your web browser.'} Geranium asks only for permission to create spreadsheets and edit the spreadsheets it created (<code>drive.file</code>) — it cannot see your other Google files.</p>
               <div className="row"><button className="btn btn-primary" onClick={() => connect.run()} disabled={connect.pending}>{connect.pending ? 'Waiting for Google…' : 'Connect Google Sheets'}</button><button className="btn btn-ghost btn-sm" onClick={async () => { await api('google.setClient', { clientId: '', clientSecret: null }); google.reload(); }}>Change client</button></div>
               {connect.error && <Callout kind="danger">{connect.error}</Callout>}
             </div>
           ) : (
             <div className="stack">
-              <SelectField label="Export as" value={mode} onChange={setMode} options={[{ value: 'snapshot', label: 'A new spreadsheet (snapshot)' }, { value: 'managed', label: 'Update a spreadsheet Paperbark manages' }]} />
+              <SelectField label="Export as" value={mode} onChange={setMode} options={[{ value: 'snapshot', label: 'A new spreadsheet (snapshot)' }, { value: 'managed', label: 'Update a spreadsheet Geranium manages' }]} />
               {mode === 'managed' && <SelectField label="Managed spreadsheet" value={managedId ?? ''} placeholder="Create a new managed spreadsheet" onChange={(v) => setManagedId(v || null)} options={google.data.exports.filter((e) => e.managed).map((e) => ({ value: e.id, label: `${e.name} (updated ${e.updatedAt.slice(0, 10)})` }))} />}
-              <p className="small muted">Paperbark only ever updates spreadsheets it created and recorded as managed. It never changes other Google Sheets.</p>
+              <p className="small muted">Geranium only ever updates spreadsheets it created and recorded as managed. It never changes other Google Sheets.</p>
               <div className="row"><button className="btn btn-primary" onClick={() => gexp.run()} disabled={gexp.pending}>{gexp.pending ? 'Writing…' : 'Export to Google Sheets'}</button><button className="btn btn-ghost btn-sm" onClick={async () => { await api('google.disconnect'); google.reload(); }}>Disconnect</button></div>
               {gexp.error && <Callout kind="danger">{gexp.error}</Callout>}
               {google.data.exports.length > 0 && (

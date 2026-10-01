@@ -1,9 +1,9 @@
-# Packaging for Paperbark (electron-builder). Build with `npm run package` (current OS)
+# Packaging for Geranium (electron-builder). Build with `npm run package` (current OS)
 # or `npm run package:linux|win|mac`. Output goes to release/ (git-ignored).
-appId: au.bearynatural.paperbark
-productName: Paperbark
+appId: au.bearynatural.geranium
+productName: Geranium
 copyright: Copyright © BearyNatural
-artifactName: Paperbark-${version}-${os}-${arch}.${ext}
+artifactName: Geranium-${version}-${os}-${arch}.${ext}
 
 directories:
   output: release
@@ -12,6 +12,7 @@ directories:
 # Only the built app and its runtime dependencies are shipped: no sources, tests or maps.
 files:
   - dist/**
+  - '!dist/web/**'
   - package.json
   - '!**/*.map'
   - '!**/*.d.ts'
@@ -37,13 +38,13 @@ electronFuses:
 publish: null
 
 linux:
-  executableName: paperbark
+  executableName: geranium
   target:
     - AppImage
     - deb
   category: Office
   synopsis: Local-first personal finance for Australian households
-  description: Paperbark imports bank statements you download yourself and keeps everything encrypted on this computer.
+  description: Geranium imports bank statements you download yourself and keeps everything encrypted on this computer.
   maintainer: BearyNatural <42864379+BearyNatural@users.noreply.github.com>
 
 deb:

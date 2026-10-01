@@ -1,6 +1,6 @@
 # Australian tax rules
 
-Paperbark estimates income tax for an **Australian resident individual** from the records in the app. It is **not tax preparation, not an ATO assessment and not tax advice**. Every estimate on screen carries: *"This is an estimate based on the information currently entered or imported. It is not an ATO assessment or tax advice."*
+Geranium estimates income tax for an **Australian resident individual** from the records in the app. It is **not tax preparation, not an ATO assessment and not tax advice**. Every estimate on screen carries: *"This is an estimate based on the information currently entered or imported. It is not an ATO assessment or tax advice."*
 
 Rules were last reviewed on **27 September 2026**. Each rule has a status:
 
@@ -24,7 +24,7 @@ Bracket thresholds for all years: $18,200 (tax-free threshold), $45,000, $135,00
 
 1. **Assessable income**
    - Employment income from **payslips** (gross, allowances, salary sacrifice as reportable super). Bank deposits are *net* pay and are never treated as gross income; if salary deposits exist without payslips, the estimate warns and leaves employment income out rather than guessing.
-   - **Business / contractor / sole-trader** net income: payments classified as business income less business expenses (the business-use share of mixed expenses). Incoming payments are not assumed to be profit. A business **loss** is not deducted from other income, because whether the non-commercial loss rules allow that depends on tests Paperbark does not assess.
+   - **Business / contractor / sole-trader** net income: payments classified as business income less business expenses (the business-use share of mixed expenses). Incoming payments are not assumed to be profit. A business **loss** is not deducted from other income, because whether the non-commercial loss rules allow that depends on tests Geranium does not assess.
    - **Interest** credited to accounts.
    - **Dividends**: cash plus **franking credits** from dividend statements you enter. Dividend deposits without a statement are included as unfranked cash with a warning.
    - **Net capital gains** from recorded share/unit trades (see CGT below).
@@ -57,7 +57,7 @@ Each step shows its amount, how it was worked out, its rule status and the sourc
 
 ## Super
 
-Contributions (employer, salary sacrifice, personal deductible, after-tax), fees, insurance premiums and earnings from super statements are recorded by financial year and compared with the general concessional and non-concessional caps for that year. Carry-forward of unused concessional cap and the bring-forward rule are mentioned but **not** calculated, because they depend on details Paperbark does not hold (total super balance history, prior contributions).
+Contributions (employer, salary sacrifice, personal deductible, after-tax), fees, insurance premiums and earnings from super statements are recorded by financial year and compared with the general concessional and non-concessional caps for that year. Carry-forward of unused concessional cap and the bring-forward rule are mentioned but **not** calculated, because they depend on details Geranium does not hold (total super balance history, prior contributions).
 
 ## Known omissions
 

@@ -1,4 +1,4 @@
-# How Paperbark calculates things
+# How Geranium calculates things
 
 Every figure in the app has a **"How was this calculated?"** panel with the inputs for that figure. This page describes the methods behind those panels. The code lives in `src/domain/` and each method has unit tests in `tests/domain/`.
 

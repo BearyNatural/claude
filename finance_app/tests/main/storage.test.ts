@@ -29,7 +29,7 @@ describe('encrypted database file', () => {
   it('never writes plaintext and survives reopening', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'pb-db-'));
     try {
-      const file = join(dir, 'paperbark.pbdb');
+      const file = join(dir, 'geranium.db');
       const key = randomKey();
       const db = await AppDatabase.openEncrypted(file, key);
       migrate(db);
@@ -53,7 +53,7 @@ describe('encrypted database file', () => {
   it('falls back to the previous copy if the main file is damaged', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'pb-db-'));
     try {
-      const file = join(dir, 'paperbark.pbdb');
+      const file = join(dir, 'geranium.db');
       const key = randomKey();
       const db = await AppDatabase.openEncrypted(file, key);
       migrate(db);
@@ -68,7 +68,7 @@ describe('encrypted database file', () => {
       const reopened = await AppDatabase.openEncrypted(file, key);
       expect(currentVersion(reopened)).toBe(SCHEMA_VERSION);
       reopened.close();
-      expect(() => decryptDatabase(Buffer.from('nope'), key)).toThrow(/not a Paperbark database/);
+      expect(() => decryptDatabase(Buffer.from('nope'), key)).toThrow(/not a Geranium database/);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -137,6 +137,30 @@ describe('key store', () => {
       await expect(ks.create()).rejects.toThrow(/Set an app password/);
       const dek = await ks.create({ secret: 'long enough password', kind: 'password' });
       expect(dek).toHaveLength(32);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('renamed app (Paperbark → Geranium)', () => {
+  it('keeps using a vault made under the first name', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pb-legacy-'));
+    try {
+      const { AppState } = await import('@main/app/state');
+      const os = fakeOs();
+      const first = new AppState(dir, os, '0.1.0', undefined, 2 ** 10);
+      await first.initialise();
+      first.lock();
+      // Recreate the 0.1.0 file name, as a Paperbark install would have left it.
+      const { renameSync } = await import('node:fs');
+      renameSync(join(dir, 'geranium.db'), join(dir, 'paperbark.pbdb'));
+      const again = new AppState(dir, os, '0.2.0', undefined, 2 ** 10);
+      expect(existsSync(join(dir, 'geranium.db'))).toBe(true);
+      expect(existsSync(join(dir, 'paperbark.pbdb'))).toBe(false);
+      await again.unlock();
+      expect(again.status().unlocked).toBe(true);
+      again.lock();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

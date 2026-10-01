@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, clearShared, onDataChanged, useApi } from './lib/api';
+import { api, clearShared, IS_WEB, onDataChanged, useApi } from './lib/api';
 import { Route, useApp } from './lib/app';
-import { Icon } from './components/ui';
+import { BrandMark, Icon } from './components/ui';
 import { Setup, Unlock, Onboarding } from './screens/Setup';
 import { Dashboard } from './screens/Dashboard';
 import { Accounts } from './screens/Accounts';
@@ -80,6 +80,7 @@ function Screen({ route }: { route: Route }) {
 function Shell() {
   const { route, navigate, privacy, setPrivacy, status, setStatus, settings } = useApp();
   const [query, setQuery] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const inboxQ = useApi('inbox.list', undefined, []);
   const inboxCount = inboxQ.data?.count ?? 0;
@@ -92,6 +93,7 @@ function Shell() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
+      if (e.key === 'Escape') setMenuOpen(false);
       if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); searchRef.current?.focus(); }
       if (mod && e.shiftKey && e.key.toLowerCase() === 'h') { e.preventDefault(); setPrivacy(!privacy); }
     };
@@ -100,21 +102,22 @@ function Shell() {
   }, [privacy, setPrivacy]);
 
   return (
-    <div className="shell">
+    <div className={`shell${menuOpen ? ' menu-open' : ''}`}>
       <a href="#main" className="skip-link">Skip to main content</a>
-      <nav className="sidebar" aria-label="Main">
+      {menuOpen && <div className="nav-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
+      <nav className="sidebar" id="main-nav" aria-label="Main">
         <div className="brand">
-          <div className="brand-mark" aria-hidden="true">P</div>
+          <BrandMark />
           <div>
-            <div className="brand-name">Paperbark</div>
-            <div className="brand-sub">Your data stays on this computer</div>
+            <div className="brand-name">Geranium</div>
+            <div className="brand-sub">{IS_WEB ? 'Your data stays in this browser' : 'Your data stays on this computer'}</div>
           </div>
         </div>
         {NAV.map((g) => (
           <div className="nav-group" key={g.title}>
             <div className="nav-group-title">{g.title}</div>
             {g.items.map((it) => (
-              <button key={it.route} className="nav-item" aria-current={route === it.route ? 'page' : undefined} onClick={() => navigate(it.route)}>
+              <button key={it.route} className="nav-item" aria-current={route === it.route ? 'page' : undefined} onClick={() => { setMenuOpen(false); navigate(it.route); }}>
                 <span className="row" style={{ gap: 8 }}><Icon name={it.icon} size={16} />{it.label}</span>
                 {it.route === 'inbox' && inboxCount > 0 && <span className="nav-count" aria-label={`${inboxCount} to review`}>{inboxCount}</span>}
               </button>
@@ -130,6 +133,7 @@ function Shell() {
           </div>
         )}
         <header className="topbar">
+          <button className="icon-btn menu-btn" aria-controls="main-nav" aria-expanded={menuOpen} aria-label="Menu" onClick={() => setMenuOpen(!menuOpen)}><Icon name="menu" /></button>
           <form className="search" role="search" onSubmit={(e) => { e.preventDefault(); navigate('transactions', { search: query }); }}>
             <Icon name="search" size={16} />
             <input ref={searchRef} aria-label="Search transactions" placeholder='Search, e.g. "electricity last 3 years", "over $500", "tag:property"  (Ctrl+K)' value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -139,10 +143,10 @@ function Shell() {
             <Icon name={privacy ? 'eyeOff' : 'eye'} />
           </button>
           {status?.protection === 'password' && !status.demo && (
-            <button className="icon-btn" onClick={lock} title="Lock Paperbark (Ctrl+L)" aria-label="Lock Paperbark"><Icon name="lock" /></button>
+            <button className="icon-btn" onClick={lock} title="Lock Geranium (Ctrl+L)" aria-label="Lock Geranium"><Icon name="lock" /></button>
           )}
           {settings && !status?.demo && status?.protection !== 'password' && (
-            <button className="btn btn-sm btn-ghost" onClick={() => navigate('settings')} title="Set a password to be able to lock Paperbark">Set up app lock</button>
+            <button className="btn btn-sm btn-ghost" onClick={() => navigate('settings')} title="Set a password to be able to lock Geranium">Set up app lock</button>
           )}
         </header>
         <main id="main" className="content" tabIndex={-1}>
@@ -184,10 +188,10 @@ export function App() {
 
   useEffect(() => {
     void refreshStatus();
-    const offLocked = window.paperbark.on('app:locked', () => void refreshStatus());
-    const offNav = window.paperbark.on('navigate', (r) => navigate(r as Route));
+    const offLocked = window.geranium.on('app:locked', () => void refreshStatus());
+    const offNav = window.geranium.on('navigate', (r) => navigate(r as Route));
     const onLocked = () => void refreshStatus();
-    window.addEventListener('paperbark:locked', onLocked);
+    window.addEventListener('geranium:locked', onLocked);
     const offChanged = onDataChanged((areas) => {
       if (areas.includes('settings') || areas.includes('all')) void api('settings.get').then(setSettings).catch(() => undefined);
     });
@@ -196,7 +200,7 @@ export function App() {
     const ping = () => {
       if (Date.now() - last > 20_000) {
         last = Date.now();
-        window.paperbark.activity();
+        window.geranium.activity();
       }
     };
     window.addEventListener('keydown', ping);
@@ -205,7 +209,7 @@ export function App() {
       offLocked();
       offNav();
       offChanged();
-      window.removeEventListener('paperbark:locked', onLocked);
+      window.removeEventListener('geranium:locked', onLocked);
       window.removeEventListener('keydown', ping);
       window.removeEventListener('mousemove', ping);
     };
@@ -220,7 +224,7 @@ export function App() {
     root.style.fontSize = `${Math.round(16 * (settings?.textScale ?? 1))}px`;
   }, [settings]);
 
-  if (error) return <div className="lock-wrap"><div className="card lock-card"><h1>Paperbark could not start</h1><p>{error}</p></div></div>;
+  if (error) return <div className="lock-wrap"><div className="card lock-card"><h1>Geranium could not start</h1><p>{error}</p></div></div>;
   if (!status) return <div className="lock-wrap"><div className="muted" role="status">Starting…</div></div>;
   let body;
   if (!status.initialised && !status.unlocked) body = <Setup onDone={refreshStatus} />;

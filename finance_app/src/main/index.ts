@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, powerMonitor, protocol, safeStorage, session, shell } from 'electron';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -16,8 +16,8 @@ import { getSettings } from './services/core';
 import { localToday } from '../domain/dates';
 import { runSelfTest } from './selfTest';
 
-const DEV = process.env.PAPERBARK_DEV === '1';
-const APP_ORIGIN = 'app://paperbark';
+const DEV = process.env.GERANIUM_DEV === '1';
+const APP_ORIGIN = 'app://geranium';
 /** Sites the app may open in the user's own browser (source links, Google consent). */
 const EXTERNAL_ALLOWED = [/^https:\/\/(www\.)?ato\.gov\.au\//, /^https:\/\/(www\.)?treasury\.gov\.au\//, /^https:\/\/(www\.)?legislation\.gov\.au\//, /^https:\/\/accounts\.google\.com\//, /^https:\/\/docs\.google\.com\//, /^https:\/\/console\.cloud\.google\.com\//];
 
@@ -25,12 +25,12 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: t
 
 /** `--self-test`: verify a packaged build loads its runtime pieces, print the result and exit. */
 const SELF_TEST = process.argv.includes('--self-test');
-if (SELF_TEST) app.setPath('userData', mkdtempSync(join(tmpdir(), 'paperbark-selftest-')));
+if (SELF_TEST) app.setPath('userData', mkdtempSync(join(tmpdir(), 'geranium-selftest-')));
 
 // Only one copy of the app may use the data folder at a time.
 if (!SELF_TEST && !app.requestSingleInstanceLock()) app.quit();
 app.enableSandbox();
-app.setAppUserModelId('au.bearynatural.paperbark');
+app.setAppUserModelId('au.bearynatural.geranium');
 
 const CSP = [
   "default-src 'none'",
@@ -114,13 +114,13 @@ const platform: Platform = {
     await shell.openPath(p);
   },
   async openExternal(url) {
-    if (!EXTERNAL_ALLOWED.some((re) => re.test(url))) throw new Error('That link is not on the list of sites Paperbark can open.');
+    if (!EXTERNAL_ALLOWED.some((re) => re.test(url))) throw new Error('That link is not on the list of sites Geranium can open.');
     await shell.openExternal(url);
   },
   async openDocument(fileName, bytes) {
     // A decrypted copy is needed for another program to show it. It lives in a private temporary
-    // folder and is deleted when Paperbark locks or quits.
-    const dir = mkdtempSync(join(tmpdir(), 'paperbark-open-'));
+    // folder and is deleted when Geranium locks or quits.
+    const dir = mkdtempSync(join(tmpdir(), 'geranium-open-'));
     openedTemp.push(dir);
     const file = join(dir, basename(fileName).replace(/[\\/:*?"<>|]/g, '_'));
     writeFileSync(file, bytes, { mode: 0o600 });
@@ -134,7 +134,7 @@ function createWindow() {
     height: AUTOSHOT ? 960 : 880,
     minWidth: 1024,
     minHeight: 680,
-    title: 'Paperbark',
+    title: 'Geranium',
     backgroundColor: '#f6f3ec',
     show: false,
     webPreferences: {
@@ -167,7 +167,7 @@ function hardenSessions() {
   });
   ses.protocol.handle('app', async (req) => {
     const url = new URL(req.url);
-    if (url.host !== 'paperbark') return new Response('Not found', { status: 404 });
+    if (url.host !== 'geranium') return new Response('Not found', { status: 404 });
     const root = resolve(__dirname, '../renderer');
     const target = resolve(root, `.${decodeURIComponent(url.pathname)}`);
     if (!target.startsWith(root + sep)) return new Response('Not found', { status: 404 });
@@ -199,7 +199,7 @@ app.on('web-contents-created', (_e, contents) => {
 function menu() {
   const template: Electron.MenuItemConstructorOptions[] = [
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
-    { label: 'File', submenu: [{ label: 'Lock Paperbark', accelerator: 'CmdOrCtrl+L', click: () => doLock('menu') }, { type: 'separator' }, process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' }] },
+    { label: 'File', submenu: [{ label: 'Lock Geranium', accelerator: 'CmdOrCtrl+L', click: () => doLock('menu') }, { type: 'separator' }, process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' }] },
     { role: 'editMenu' },
     { label: 'View', submenu: [{ role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }, ...(DEV ? [{ role: 'toggleDevTools' as const }] : [])] },
     { role: 'windowMenu' },
@@ -242,14 +242,14 @@ function timers() {
  * Development-only visual check: runs hidden with a throwaway data folder and demo data,
  * and saves a screenshot of each screen. Not present in production builds.
  */
-const AUTOSHOT = DEV ? process.env.PAPERBARK_AUTOSHOT ?? '' : '';
+const AUTOSHOT = DEV ? process.env.GERANIUM_AUTOSHOT ?? '' : '';
 if (AUTOSHOT) {
-  app.setPath('userData', mkdtempSync(join(tmpdir(), 'paperbark-autoshot-')));
+  app.setPath('userData', mkdtempSync(join(tmpdir(), 'geranium-autoshot-')));
   app.commandLine.appendSwitch('force-color-profile', 'srgb');
 }
 
 async function runAutoShots(dir: string) {
-  const routes = (process.env.PAPERBARK_AUTOSHOT_ROUTES ?? 'dashboard').split(',');
+  const routes = (process.env.GERANIUM_AUTOSHOT_ROUTES ?? 'dashboard').split(',');
   const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
   mkdirSync(dir, { recursive: true });
   await state.enterDemo();
@@ -274,12 +274,12 @@ app.whenReady().then(async () => {
     try {
       const r = await runSelfTest();
       ok = r.ok;
-      const report = `Paperbark ${app.getVersion()} self-test\n${r.lines.join('\n')}\n${r.ok ? 'PASSED' : 'FAILED'}\n`;
+      const report = `Geranium ${app.getVersion()} self-test\n${r.lines.join('\n')}\n${r.ok ? 'PASSED' : 'FAILED'}\n`;
       process.stdout.write(report);
       // Windows GUI apps have no console, so CI can ask for the report in a file too.
-      if (process.env.PAPERBARK_SELF_TEST_OUT) writeFileSync(process.env.PAPERBARK_SELF_TEST_OUT, report);
+      if (process.env.GERANIUM_SELF_TEST_OUT) writeFileSync(process.env.GERANIUM_SELF_TEST_OUT, report);
     } catch (e) {
-      process.stdout.write(`Paperbark self-test crashed: ${e instanceof Error ? e.message : String(e)}\nFAILED\n`);
+      process.stdout.write(`Geranium self-test crashed: ${e instanceof Error ? e.message : String(e)}\nFAILED\n`);
     } finally {
       // Windows keeps Chromium's files in this temporary folder open until exit, so removal can
       // fail there; the folder is in the OS temp directory and is left for the OS to clean up.
@@ -289,6 +289,11 @@ app.whenReady().then(async () => {
     return;
   }
   const dataDir = join(app.getPath('userData'), 'vault');
+  // The app was first released as Paperbark: bring that data folder across once.
+  const legacyDir = join(app.getPath('appData'), 'Paperbark', 'vault');
+  if (!existsSync(join(dataDir, 'keystore.json')) && existsSync(join(legacyDir, 'keystore.json'))) {
+    cpSync(legacyDir, dataDir, { recursive: true, errorOnExist: false, force: false });
+  }
   state = new AppState(dataDir, osProtector, app.getVersion(), onChanged);
   const registry = buildRegistry({ state, platform });
   hardenSessions();

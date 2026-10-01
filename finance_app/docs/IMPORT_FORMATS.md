@@ -1,6 +1,6 @@
 # Import formats
 
-Paperbark reads statement files you download from your bank, card provider, broker or super fund. It never connects to those institutions. Every import goes through **Import review**: you see each row, what Paperbark understood, anything it rejected and why, possible duplicates, and whether the balances reconcile — before anything is saved. Imports can be undone.
+Geranium reads statement files you download from your bank, card provider, broker or super fund. It never connects to those institutions. Every import goes through **Import review**: you see each row, what Geranium understood, anything it rejected and why, possible duplicates, and whether the balances reconcile — before anything is saved. Imports can be undone.
 
 ## Summary
 
@@ -22,7 +22,7 @@ Files larger than 50 MB are refused (export a shorter date range instead).
 
 **Reading.** Text is decoded as UTF-8, falling back to Windows-1252 for older exports; a byte-order mark is ignored. Delimiters (comma, semicolon, tab, pipe) and quoting are handled by PapaParse. Empty lines and footer rows ("Total", "Opening/Closing balance", "End of statement", "Page n") are skipped.
 
-**Detecting columns.** Paperbark finds the header row (or recognises that there is none) and assigns each column a role: date, processing/posting date, description (one or more columns joined), amount, debit, credit, CR/DR indicator, balance, reference, account, payee, category, or ignore. Header keywords are matched first; otherwise the content decides (dates, money, text). A **running balance** column is recognised when balance changes match the amounts row by row, in either sort order.
+**Detecting columns.** Geranium finds the header row (or recognises that there is none) and assigns each column a role: date, processing/posting date, description (one or more columns joined), amount, debit, credit, CR/DR indicator, balance, reference, account, payee, category, or ignore. Header keywords are matched first; otherwise the content decides (dates, money, text). A **running balance** column is recognised when balance changes match the amounts row by row, in either sort order.
 
 **Amounts.** Three layouts are supported:
 - one amount column (the sign convention is detected, or asked about: "positive numbers are money in?"),
@@ -31,7 +31,7 @@ Files larger than 50 MB are refused (export a shorter date range instead).
 
 Money values may include `$`, thousands separators, a leading or trailing minus, parentheses for negatives, or `CR`/`DR` suffixes (`4,102.17CR`).
 
-**Dates.** Supported: `02/08/2026`, `2/8/26`, `02-08-2026`, `2026-08-02`, `02 Aug 2026`, `2-Aug-26`, `Aug 02 2026`, `20260802`, and Excel serial dates in spreadsheets. The format is chosen by scoring every row in the column. When a column fits both day-first and month-first (e.g. every day is 12 or less), Paperbark assumes day-first (Australian) and **asks you to confirm**.
+**Dates.** Supported: `02/08/2026`, `2/8/26`, `02-08-2026`, `2026-08-02`, `02 Aug 2026`, `2-Aug-26`, `Aug 02 2026`, `20260802`, and Excel serial dates in spreadsheets. The format is chosen by scoring every row in the column. When a column fits both day-first and month-first (e.g. every day is 12 or less), Geranium assumes day-first (Australian) and **asks you to confirm**.
 
 **Questions.** When something cannot be decided safely — which column is the amount, the sign convention, an ambiguous date order — the mapping screen asks in plain language instead of guessing. Rows that cannot be read are rejected with a reason (shown on the review screen), never silently dropped or guessed.
 
@@ -43,11 +43,11 @@ Parsed without an XML library so that SGML-style OFX 1.x files with unclosed tag
 
 ## QIF
 
-`!Type:Bank`, `!Type:Cash`, `!Type:CCard` and `!Type:Oth A`/`Oth L` sections are imported; account lists, category lists, classes and memorised transactions are ignored. Fields: `D` date, `T`/`U` amount, `P` payee, `M` memo, `N` number/reference, `L` category (as a hint). QIF dates have no fixed order (`02/08/2026`, `8/2'26`, `02-08-26`): Paperbark looks at every date in the file to decide day-first or month-first and asks when it cannot tell. Split lines (`S`/`$`) are not imported as splits — the transaction is imported whole and the split categories are shown as hints. A file with an investment section (`!Type:Invst`) is refused with a message pointing to **Investments › Import broker CSV**.
+`!Type:Bank`, `!Type:Cash`, `!Type:CCard` and `!Type:Oth A`/`Oth L` sections are imported; account lists, category lists, classes and memorised transactions are ignored. Fields: `D` date, `T`/`U` amount, `P` payee, `M` memo, `N` number/reference, `L` category (as a hint). QIF dates have no fixed order (`02/08/2026`, `8/2'26`, `02-08-26`): Geranium looks at every date in the file to decide day-first or month-first and asks when it cannot tell. Split lines (`S`/`$`) are not imported as splits — the transaction is imported whole and the split categories are shown as hints. A file with an investment section (`!Type:Invst`) is refused with a message pointing to **Investments › Import broker CSV**.
 
 ## PDF statements
 
-PDF statements have no standard structure. Paperbark:
+PDF statements have no standard structure. Geranium:
 
 1. Extracts the text layer with PDF.js (nothing is rendered; PDF scripts, XFA forms, fonts and network access are disabled).
 2. Rebuilds lines from text positions and finds the column headings (Date, Description/Details, Debit/Withdrawals, Credit/Deposits, Amount, Balance).
@@ -58,7 +58,7 @@ PDF statements have no standard structure. Paperbark:
 
 Every PDF row gets a confidence rating and reasons. By default all PDF rows go to the review inbox for confirmation (this can be changed under Settings › Import review).
 
-**Known PDF limitations:** layouts very different from a date-led table (for example summaries with amounts in sentences, or several transactions per line) may produce few or no rows — Paperbark says so rather than guessing; scanned statements are not read; foreign-currency details (original amount, conversion fees on separate lines) are not recognised as such and need checking in review; statements where the printed balance column is missing cannot be verified row by row (reconciliation then relies on opening/closing totals only).
+**Known PDF limitations:** layouts very different from a date-led table (for example summaries with amounts in sentences, or several transactions per line) may produce few or no rows — Geranium says so rather than guessing; scanned statements are not read; foreign-currency details (original amount, conversion fees on separate lines) are not recognised as such and need checking in review; statements where the printed balance column is missing cannot be verified row by row (reconciliation then relies on opening/closing totals only).
 
 ## Checks on every import
 

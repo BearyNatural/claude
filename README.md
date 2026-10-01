@@ -6,7 +6,7 @@ folder and is built, checked and released on its own.
 | Project | What it is | Releases |
 |---|---|---|
 | [`garden_app`](garden_app/) | **Sow by Season** — Australian garden-planning app: Android APK, plus a browser version published to the personal site ([`/sow-by-season/`](https://daydreaminginthecloud.bearynatural.dev/sow-by-season/)) | tags `garden_app-v…` |
-| [`finance_app`](finance_app/) | **Paperbark** — local-first personal finance, budgeting, planning and tax estimates for Australian households: desktop app for Windows, macOS and Linux | tags `finance_app-v…` (pre-releases) |
+| [`finance_app`](finance_app/) | **Geranium** — local-first personal finance, budgeting, planning and tax estimates for Australian households: desktop app for Windows, macOS and Linux, plus a browser version published to the personal site ([`/geranium/`](https://daydreaminginthecloud.bearynatural.dev/geranium/)) | tags `finance_app-v…` (pre-releases) |
 
 ## How projects are kept apart
 

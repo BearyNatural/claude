@@ -1,16 +1,16 @@
 # Architecture
 
-Paperbark is an Electron app with three strictly separated layers. Every financial calculation lives in a pure TypeScript domain layer that has no access to the file system, the network or Electron, so it can be tested exhaustively and reasoned about on its own.
+Geranium is an Electron app with three strictly separated layers. Every financial calculation lives in a pure TypeScript domain layer that has no access to the file system, the network or Electron, so it can be tested exhaustively and reasoned about on its own.
 
 ```
 ┌────────────────────────────── Renderer (sandboxed Chromium) ──────────────────────────────┐
 │  React 19 UI · 26 screens · charts in plain SVG · no Node, no network (CSP + request block) │
 └───────────────▲──────────────────────────────────────────────────────────────────────────┘
-                │ window.paperbark.invoke(method, input)   (contextBridge, one IPC channel)
+                │ window.geranium.invoke(method, input)   (contextBridge, one IPC channel)
 ┌───────────────┴────────────── Preload (sandboxed) ─────────────────────────────────────────┐
 │  invoke · on(data:changed | app:locked | navigate) · activity ping · platform name        │
 └───────────────▲──────────────────────────────────────────────────────────────────────────┘
-                │ ipcMain.handle('api') — sender must be app://paperbark
+                │ ipcMain.handle('api') — sender must be app://geranium
 ┌───────────────┴────────────── Main process (Node) ─────────────────────────────────────────┐
 │  api.ts: ~150 methods, each with a zod input schema; errors sanitised before returning    │
 │  app/state.ts: locked / unlocked / demo; key management; backup & restore                 │
@@ -45,7 +45,7 @@ Paperbark is an Electron app with three strictly separated layers. Every financi
 
 Tables: `accounts`, `balance_snapshots` (dated balances with a source: imported / manual / estimated / calculated), `transactions` (original and cleaned description, amount, category, income type, one-off flag, status posted/staged/rejected, import id), `transaction_splits`, `tags`, `transaction_tags`, `transfers` (matched pairs), `change_history` (who/what/why for every edit), `categories`, `rules`, `dismissed` (suggestions the user declined), `imports` (file hash, reconciliation result, rejected rows, warnings), `import_profiles`, `recurring`, `bills`, `sinking_funds`, `budgets`, `budget_lines`, `goals`, `loans`, `term_deposits`, `securities`, `trades`, `dividends`, `valuations`, `super_entries`, `payslips`, `tax_entries`, `scenarios`, `scenario_snapshots`, `documents` and `document_links` (metadata; the bytes are separate encrypted files), `reminders_sent`, `exports` (Google Sheets links for managed exports), `settings`, `meta`.
 
-Schema changes go through `db/schema.ts` → `migrate(db, beforeMigrate)`. Before any migration an encrypted copy of the database is written (`pre-migration-v<from>-<date>.pbdb`). Backups record their schema version and are migrated on restore.
+Schema changes go through `db/schema.ts` → `migrate(db, beforeMigrate)`. Before any migration an encrypted copy of the database is written (`pre-migration-v<from>-<date>.db`). Backups record their schema version and are migrated on restore.
 
 ## Storage
 
@@ -60,13 +60,13 @@ See [SECURITY_PRIVACY.md](SECURITY_PRIVACY.md) for keys and locking.
 ## IPC and API
 
 - One channel (`api`), one entry point (`dispatch`). Each method has a zod schema; unknown methods and invalid input are rejected before any service code runs.
-- Only frames loaded from `app://paperbark/` may call it. Everything except a small public set (status, set-up, unlock, lock, demo, network log) requires an unlocked vault.
+- Only frames loaded from `app://geranium/` may call it. Everything except a small public set (status, set-up, unlock, lock, demo, network log) requires an unlocked vault.
 - Errors thrown as `UserError` carry a message written for people; anything else is logged in the main process and returned as *"Something went wrong and this action was not completed."* — stack traces and file paths never reach the UI.
 - After a change, services call `changed(area)`; the main process batches these and emits `data:changed` so screens reload what they show.
 
 ## Renderer
 
-- Served from a custom `app://paperbark` protocol (read with `fs` from the packaged `dist/renderer`, path-checked), with a strict Content-Security-Policy (`default-src 'none'`; scripts only from the app itself; `connect-src 'none'`; inline styles allowed because React sets style attributes; no remote origins at all).
+- Served from a custom `app://geranium` protocol (read with `fs` from the packaged `dist/renderer`, path-checked), with a strict Content-Security-Policy (`default-src 'none'`; scripts only from the app itself; `connect-src 'none'`; inline styles allowed because React sets style attributes; no remote origins at all).
 - `lib/api.ts` provides `useApi` (load + reload on `data:changed`), `useAction` (pending/error state) and a small shared cache for categories/accounts.
 - Components: `Page`, `Card`, `Stat`, `Callout`, `Explain`, `DataTable` (sortable, keyboard-selectable), `Dialog`/`Drawer` (focus trap, Esc), form fields with labels and hints, `Money` (respects privacy mode).
 - Charts (`components/charts.tsx`) are dependency-free SVG: column, line/area, bar list, meter. Each has a legend when there is more than one series, hover details, and a **Show as table** view. Colours come from a palette validated for colour-vision deficiency on the light and dark surfaces.
@@ -75,10 +75,31 @@ See [SECURITY_PRIVACY.md](SECURITY_PRIVACY.md) for keys and locking.
 
 - `scripts/build.mjs`: esbuild bundles the main process (CommonJS; `electron`, `sql.js`, `pdfjs-dist` and `xlsx` stay external because they ship wasm/worker files) and the preload; Vite builds the renderer into `dist/renderer`.
 - `electron-builder.yml`: asar packaging, trimmed dependencies, hardened Electron fuses (no run-as-node, no `NODE_OPTIONS`, no inspector flags, asar integrity, load app only from asar, cookie encryption), NSIS (Windows), dmg (macOS, ad-hoc signed), AppImage + deb (Linux).
-- `paperbark --self-test` runs inside a packaged build and checks the encrypted database, the finance engines with demo data, PDF.js text extraction and XLSX write/read, then exits 0/1. CI runs it on every packaged OS.
+- `geranium --self-test` runs inside a packaged build and checks the encrypted database, the finance engines with demo data, PDF.js text extraction and XLSX write/read, then exits 0/1. CI runs it on every packaged OS.
+
+## Browser version
+
+The website (`npm run build:web`, published to `/geranium/`) runs the **same UI, API, services and storage code**. Only the platform underneath changes:
+
+```
+Page (src/web/main.ts, bridge.ts)                     Web Worker (src/web/worker.ts)
+  React UI from src/renderer                            buildRegistry + dispatch (src/main/api.ts)
+  window.geranium = bridge  ── postMessage ──►          AppState, services, encrypted AppDatabase
+  picks files / opens pop-ups during clicks             Platform: downloads, zip for the accountant package
+  saves downloads, one-tab lock (Web Locks)             data folder '/vault' in a virtual file system
+                                                          └─ IndexedDB (ciphertext and the wrapped key only)
+```
+
+- **Shims** replace the few Node modules the storage code uses: `node:fs` → an in-memory file system persisted to IndexedDB (`src/web/vfs.ts`, every write queued in order); `node:crypto` → AES-256-GCM and scrypt from the audited `@noble` libraries plus `crypto.getRandomValues` (tests check byte-for-byte compatibility with Node); `node:path` → POSIX paths; `Buffer` → the standard polyfill.
+- **SQLite** loads its WebAssembly from the site (`setSqlLoader`); **PDF.js** runs its own worker inside the app worker.
+- **No OS keychain** in a browser, so a password or PIN is always required. Auto-lock uses idle time, session length and "switching tabs".
+- **Google sign-in** uses a pop-up and Google's browser flow for a public *Web application* client; `oauth.html` hands the short-lived token back over a `BroadcastChannel` (`src/web/googleAuth.ts`).
+- **One tab at a time** (Web Locks), because two tabs would each hold their own copy of the database.
+- The desktop app and the website keep separate data; encrypted backups move data between them.
 
 ## CI
 
 - `ci/finance_app-ci.yml` → `.github/workflows/`: tests, type-check, production build, Linux package and packaged self-test on every change to `finance_app/`.
 - `ci/finance_app-desktop.yml`: builds Windows, macOS and Linux installers, self-tests each, and publishes a pre-release tagged `finance_app-v<version>-build<n>` with SHA-256 checksums.
+- `ci/finance_app-web.yml`: builds the browser version and publishes it to the `/geranium/` folder of the personal site (only that folder is replaced).
 - The repository's weekly maintenance workflow runs gitleaks, Semgrep, `npm audit`, OSV-Scanner (exceptions in `osv-scanner.toml`), licence checks, tests and type-check, and updates dependencies.

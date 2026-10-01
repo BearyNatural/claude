@@ -103,8 +103,8 @@ export function buildRegistry({ state, platform }: Deps) {
   const store = () => state.requireDocs();
   const googleClient = () => {
     const c = ctx();
-    const clientId = core.getSettings(c).googleClientId ?? process.env.PAPERBARK_GOOGLE_CLIENT_ID ?? null;
-    const secret = core.getSecretValue<string>(c, 'google.clientSecret') ?? process.env.PAPERBARK_GOOGLE_CLIENT_SECRET ?? null;
+    const clientId = core.getSettings(c).googleClientId ?? process.env.GERANIUM_GOOGLE_CLIENT_ID ?? null;
+    const secret = core.getSecretValue<string>(c, 'google.clientSecret') ?? process.env.GERANIUM_GOOGLE_CLIENT_SECRET ?? null;
     return { clientId: clientId ?? '', clientSecret: secret };
   };
 
@@ -313,12 +313,12 @@ export function buildRegistry({ state, platform }: Deps) {
     'output.sheetNames': m(none, () => out.WORKBOOK_SHEETS),
     'output.exportXlsx': m(z.object({ range, fy: fy.optional(), sheets: z.array(z.string()).optional(), openAfter: z.boolean().optional() }), async (i) => {
       const wb = out.buildWorkbook(ctx(), { range: i.range, fy: i.fy, sheets: i.sheets as out.WorkbookSheetName[] });
-      const path = await platform.saveFile({ title: 'Save Excel workbook', defaultName: `Paperbark ${i.range.start} to ${i.range.end}.xlsx`, filters: [{ name: 'Excel workbook', extensions: ['xlsx'] }] }, workbookToXlsx(wb));
+      const path = await platform.saveFile({ title: 'Save Excel workbook', defaultName: `Geranium ${i.range.start} to ${i.range.end}.xlsx`, filters: [{ name: 'Excel workbook', extensions: ['xlsx'] }] }, workbookToXlsx(wb));
       if (path && i.openAfter) await platform.openPath(path);
       return path;
     }),
     'output.exportCsv': m(z.object({ kind: z.enum(['transactions', 'categories', 'rules', 'budgets', 'bills', 'income', 'goals', 'forecast', 'accounts', 'payslips']), range }), (i) =>
-      platform.saveFile({ title: 'Save CSV', defaultName: `paperbark-${i.kind}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] }, out.exportCsv(ctx(), i.kind, i.range))),
+      platform.saveFile({ title: 'Save CSV', defaultName: `geranium-${i.kind}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] }, out.exportCsv(ctx(), i.kind, i.range))),
     'output.report': m(z.object({ kind: z.string(), range, fy: fy.optional() }), (i) => out.report(ctx(), i.kind as out.ReportKind, i.range, i.fy)),
     'output.exportReport': m(z.object({ kind: z.string(), range, fy: fy.optional(), format: z.enum(['csv', 'xlsx']) }), async (i) => {
       const r = out.report(ctx(), i.kind as out.ReportKind, i.range, i.fy);
@@ -339,7 +339,7 @@ export function buildRegistry({ state, platform }: Deps) {
           files.push({ path: `documents/${d.id.slice(0, 8)}-${r.fileName.replace(/[\\/:*?"<>|]/g, '_')}`, content: r.bytes });
         }
       }
-      const target = `${folder}/Paperbark accountant package ${i.fy}`;
+      const target = `${folder}/Geranium accountant package ${i.fy}`;
       await platform.writeFiles(target, files);
       return { folder: target, files: files.map((f) => f.path) };
     }),
@@ -383,7 +383,7 @@ export function buildRegistry({ state, platform }: Deps) {
       if (i.mode === 'managed' && i.managedId) {
         // Only ever update a spreadsheet this app created and recorded as managed.
         const row = c.db.get("SELECT external_id FROM exports WHERE id = ? AND target = 'google' AND managed = 1", [i.managedId]);
-        if (!row) throw new core.UserError('That spreadsheet was not created by Paperbark as a managed workbook, so it will not be changed.');
+        if (!row) throw new core.UserError('That spreadsheet was not created by Geranium as a managed workbook, so it will not be changed.');
         existing = String(row.external_id);
       }
       const wb = out.buildWorkbook(c, { range: i.range, fy: i.fy, sheets: i.sheets as out.WorkbookSheetName[], title: i.name });
@@ -403,11 +403,11 @@ export function buildRegistry({ state, platform }: Deps) {
     'backup.create': m(z.object({ password: z.string().min(8).max(200) }), async (i) => {
       const { bytes, counts } = await state.backupTo(i.password);
       const date = new Date().toISOString().slice(0, 10);
-      const path = await platform.saveFile({ title: 'Save encrypted backup', defaultName: `Paperbark backup ${date}.pbbackup`, filters: [{ name: 'Paperbark backup', extensions: ['pbbackup'] }] }, bytes);
+      const path = await platform.saveFile({ title: 'Save encrypted backup', defaultName: `Geranium backup ${date}.geranium-backup`, filters: [{ name: 'Geranium backup', extensions: ['geranium-backup'] }] }, bytes);
       return path ? { path, counts } : null;
     }),
     'backup.choose': m(none, async () => {
-      const f = await platform.openFile({ title: 'Choose a Paperbark backup', filters: [{ name: 'Paperbark backup', extensions: ['pbbackup'] }] });
+      const f = await platform.openFile({ title: 'Choose a Geranium backup', filters: [{ name: 'Geranium backup', extensions: ['geranium-backup', 'pbbackup'] }] });
       if (!f) return null;
       pendingRestore = f.bytes;
       return { fileName: f.name, ...state.inspectBackup(f.bytes) };
@@ -440,7 +440,7 @@ export interface ApiResult<T> {
 export async function dispatch(registry: Registry, state: AppState, method: string, input: unknown): Promise<ApiResult<unknown>> {
   const entry = (registry as Record<string, { schema: z.ZodTypeAny; handler: (i: unknown) => unknown }>)[method];
   if (!entry) return { ok: false, error: { code: 'UNKNOWN_METHOD', message: 'Unknown request.' } };
-  if (!PUBLIC_METHODS.has(method) && !state.ctx) return { ok: false, error: { code: 'LOCKED', message: 'Paperbark is locked.' } };
+  if (!PUBLIC_METHODS.has(method) && !state.ctx) return { ok: false, error: { code: 'LOCKED', message: 'Geranium is locked.' } };
   const parsed = entry.schema.safeParse(input ?? undefined);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
@@ -450,10 +450,10 @@ export async function dispatch(registry: Registry, state: AppState, method: stri
     return { ok: true, data: await entry.handler(parsed.data) };
   } catch (e) {
     const err = e as Error;
-    if (err.message === 'LOCKED') return { ok: false, error: { code: 'LOCKED', message: 'Paperbark is locked.' } };
+    if (err.message === 'LOCKED') return { ok: false, error: { code: 'LOCKED', message: 'Geranium is locked.' } };
     const known = ['UserError', 'DecryptError', 'BackupPasswordError', 'BackupDamagedError', 'PdfPasswordError', 'NetworkBlockedError'].includes(err.name) || err instanceof core.UserError;
     // Error messages from services are written for the user; anything unexpected gets a generic message.
-    if (known || /^(Paperbark|Unlock|Use a|A PIN|Too many|Incorrect|This |No |Google|Enter|Choose|Connect|That )/.test(err.message)) {
+    if (known || /^(Geranium|Unlock|Use a|A PIN|Too many|Incorrect|This |No |Google|Enter|Choose|Connect|That )/.test(err.message)) {
       return { ok: false, error: { code: err.name || 'ERROR', message: err.message } };
     }
     console.error(`[api] ${method} failed:`, err.name, err.message.slice(0, 200));

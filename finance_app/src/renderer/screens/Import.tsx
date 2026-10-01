@@ -1,12 +1,36 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, useApi, useAction } from '../lib/api';
+import { api, clearShared, IS_WEB, useAction, useApi } from '../lib/api';
 import { useApp } from '../lib/app';
 import { Badge, Callout, Card, Checkbox, DataTable, DateField, DateText, Dialog, ErrorText, Explain, Icon, Loading, Money, MoneyField, Page, SelectField, TextField, useConfirm } from '../components/ui';
 import { AccountSelect, CategorySelect, useAccounts } from '../components/pickers';
 import { DATE_FORMAT_LABEL, DateFormat } from '@domain/import/dateFormats';
 import { formatDate } from '@domain/dates';
+import { ACCOUNT_TYPE_LABEL, AccountType } from '@domain/accounts';
 import type { ApiOutput } from '../../main/api';
 import type { ImportPreviewRow, ImportSession, ReconciliationDTO } from '../../shared/types';
+
+/** Add an account without leaving the import (the first import usually needs one). */
+function QuickAccount({ onCreated }: { onCreated: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [type, setType] = useState<AccountType>('transaction');
+  const save = useAction(async () => {
+    const id = await api('accounts.save', { name: name.trim(), type });
+    clearShared();
+    onCreated(String(id));
+    setOpen(false);
+    setName('');
+  });
+  if (!open) return <div><button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>New account…</button></div>;
+  return (
+    <div className="stack-sm">
+      <TextField label="Account name" value={name} onChange={setName} hint="For example “Everyday” or “Credit card”" autoFocus />
+      <SelectField label="Type" value={type} onChange={(v) => setType(v as AccountType)} options={Object.entries(ACCOUNT_TYPE_LABEL).map(([value, label]) => ({ value, label }))} />
+      <ErrorText error={save.error} />
+      <div className="row"><button type="button" className="btn btn-sm btn-primary" disabled={!name.trim() || save.pending} onClick={() => save.run()}>Add account</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => setOpen(false)}>Cancel</button></div>
+    </div>
+  );
+}
 
 type Kind = 'date' | 'processing-date' | 'description' | 'amount' | 'debit' | 'credit' | 'indicator' | 'balance' | 'reference' | 'account' | 'payee' | 'category' | 'ignore';
 const KIND_LABEL: Record<Kind, string> = {
@@ -29,7 +53,7 @@ function Mapping({ session, onApplied }: { session: ImportSession; onApplied: (s
   const apply = useAction(async () => onApplied(await api('imports.applyMapping', { sessionId: session.sessionId, kinds, headerRow, firstDataRow, dateFormat, positiveIsCredit })));
   const hasAmount = kinds.includes('amount') || kinds.includes('debit') || kinds.includes('credit');
   return (
-    <Card title="Which column holds what?" sub="Check each column. Paperbark has made its best guess.">
+    <Card title="Which column holds what?" sub="Check each column. Geranium has made its best guess.">
       <div className="stack">
         {session.mappingQuestions.map((q) => <Callout key={q} kind="warn">{q}</Callout>)}
         {session.mappingNotes.map((n) => <Callout key={n} kind="neutral">{n}</Callout>)}
@@ -118,7 +142,10 @@ function Review({ session, onDone, onCancel }: { session: ImportSession; onDone:
           {st.warnings.map((w) => <Callout key={w} kind="warn">{w}</Callout>)}
           {session.alreadyImported && <Callout kind="warn">This exact file was imported on {formatDate(session.alreadyImported.importedAt.slice(0, 10))}. Rows already imported will be recognised as duplicates.</Callout>}
           <div className="form-grid">
-            <AccountSelect label="Import into account" value={accountId} onChange={setAccountId} />
+            <div className="stack-sm">
+              <AccountSelect label="Import into account" value={accountId} onChange={setAccountId} />
+              <QuickAccount onCreated={setAccountId} />
+            </div>
             <MoneyField label="Opening balance (from statement)" cents={opening} onChange={setOpening} allowNegative hint={st.openingBalanceDerived ? 'This file does not include one — type it from your statement to check the import.' : undefined} />
             <MoneyField label="Closing balance (from statement)" cents={closing} onChange={setClosing} allowNegative />
           </div>
@@ -239,7 +266,7 @@ export function ImportScreen() {
   const needsMapping = useMemo(() => !!session && (session.needsMapping || remap), [session, remap]);
   const cancel = async () => { if (session) await api('imports.discard', { sessionId: session.sessionId }); setSession(null); };
   return (
-    <Page title="Import" intro="Bring in statements and exports you downloaded yourself. Paperbark never connects to your bank." actions={session ? <button className="btn" onClick={cancel}>Start again</button> : undefined}>
+    <Page title="Import" intro="Bring in statements and exports you downloaded yourself. Geranium never connects to your bank." actions={session ? <button className="btn" onClick={cancel}>Start again</button> : undefined}>
       {result && (
         <Callout kind={result.reconciliation.status === 'difference' ? 'warn' : 'ok'} title="Import finished">
           {result.added} transaction{result.added === 1 ? '' : 's'} added{result.staged ? `, ${result.staged} waiting in the Review inbox` : ''}{result.skippedDuplicates ? `, ${result.skippedDuplicates} duplicates skipped` : ''}{result.rejectedRows ? `, ${result.rejectedRows} unreadable rows not imported` : ''}. {result.reconciliation.message}
@@ -259,7 +286,7 @@ export function ImportScreen() {
               <div><button className="btn btn-primary" onClick={() => choose.run()} disabled={choose.pending}><Icon name="upload" size={16} /> Choose file…</button></div>
               <ErrorText error={choose.error} />
               <Explain label="What happens to the file?">
-                The file is read on this computer. Nothing is imported until you confirm on the review screen. Uncertain rows (low confidence, possible duplicates or transfers,
+                {IS_WEB ? 'The file is read in this browser and is not uploaded anywhere.' : 'The file is read on this computer.'} Nothing is imported until you confirm on the review screen. Uncertain rows (low confidence, possible duplicates or transfers,
                 unclear categories) wait in the Review inbox and are left out of your figures until you approve them. You can keep an encrypted copy of the original file as a source record.
                 PDF statements are read from their text; scanned (image-only) PDFs cannot be read in this version.
               </Explain>

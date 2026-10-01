@@ -32,6 +32,7 @@ interface KeyFile {
   updatedAt: string;
 }
 
+// Format identifier from the app's first name (Paperbark). Never change it: existing keystores depend on it.
 const AAD = Buffer.from('paperbark-dek-v1');
 
 export interface ProtectionStatus {

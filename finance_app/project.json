@@ -1,9 +1,10 @@
 {
   "name": "finance_app",
-  "displayName": "Paperbark",
-  "description": "Local-first Australian personal finance, budgeting and planning desktop app (Electron)",
+  "displayName": "Geranium",
+  "description": "Geranium: local-first Australian personal finance, budgeting and planning \u2014 desktop app (Electron) and browser version",
   "kind": "electron-app",
   "packageManager": "npm",
+  "install": "npm ci --no-audit --no-fund",
   "test": "npm test",
   "typecheck": "npm run typecheck",
   "dependencyUpdate": "npm",

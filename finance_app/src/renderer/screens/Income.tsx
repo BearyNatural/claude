@@ -90,7 +90,7 @@ export function Income() {
           ]} />
         )}
       </Card>
-      <Callout kind="neutral">Tell Paperbark what each income is — salary, contracting, sole-trader, interest, dividends and so on — by setting the income type on a transaction, or with a rule such as “PAYROLL → Salary”. Contracting payments are not assumed to be profit.</Callout>
+      <Callout kind="neutral">Tell Geranium what each income is — salary, contracting, sole-trader, interest, dividends and so on — by setting the income type on a transaction, or with a rule such as “PAYROLL → Salary”. Contracting payments are not assumed to be profit.</Callout>
       {edit && <PayslipForm initial={edit === 'new' ? undefined : edit} onClose={() => setEdit(null)} />}
       {confirm.node}
     </Page>

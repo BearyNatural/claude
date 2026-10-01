@@ -1,10 +1,12 @@
-# Paperbark — end-of-project report
+# Geranium — end-of-project report
 
-Version 0.1.0 · 27 September 2026 · project folder `finance_app/` in [BearyNatural/claude](https://github.com/BearyNatural/claude)
+Version 0.2.0 · 1 October 2026 · project folder `finance_app/` in [BearyNatural/claude](https://github.com/BearyNatural/claude)
+
+*Geranium was first released (0.1.0) as Paperbark and renamed in 0.2.0, which also added the browser version at [daydreaminginthecloud.bearynatural.dev/geranium](https://daydreaminginthecloud.bearynatural.dev/geranium/).*
 
 ## What was built
 
-A desktop-first, local-first personal finance, budgeting and planning application for Australian households, for Windows, macOS and Linux. It helps people **see where their money went, understand where it is going, and model where it could go next** — without connecting to banks and without making decisions for them.
+A desktop-first, local-first personal finance, budgeting and planning application for Australian households, for Windows, macOS and Linux, plus a browser version built from the same code (data encrypted in the browser, nothing uploaded). It helps people **see where their money went, understand where it is going, and model where it could go next** — without connecting to banks and without making decisions for them.
 
 The pieces work together as one picture. For the demo household (fortnightly salary with PAYG withheld, occasional contracting income with no tax withheld, weekly groceries, quarterly electricity, annual registration and insurance, a mortgage with an offset account, regular savings transfers, term deposits maturing, monthly interest, dividends with franking, a credit card whose statements stop in July):
 
@@ -25,7 +27,7 @@ Electron 44 app in three strictly separated layers (details in [ARCHITECTURE.md]
 
 - **Domain** (`src/domain`, pure TypeScript): all calculations, parsers and rules. Money in integer cents, ISO dates with UTC arithmetic, "today" always passed in. No I/O, fully unit-tested.
 - **Main process** (`src/main`): encrypted storage (sql.js SQLite in memory, AES-256-GCM on disk), key management, services that fetch data and call the domain, a single validated IPC API (~150 methods with zod schemas), Google OAuth/Sheets, backups, reminders.
-- **Renderer** (`src/renderer`): React 19 UI in a sandboxed, context-isolated window served from `app://paperbark` with a strict CSP and no network access. Dependency-free SVG charts with legends, tooltips and table views.
+- **Renderer** (`src/renderer`): React 19 UI in a sandboxed, context-isolated window served from `app://geranium` with a strict CSP and no network access. Dependency-free SVG charts with legends, tooltips and table views.
 
 Tauri was considered; Electron was chosen because the parsing work depends on mature JavaScript libraries (PDF.js, SheetJS, sql.js) that should run outside the webview, and a single language keeps the domain, UI and tests aligned.
 
@@ -33,10 +35,10 @@ Tauri was considered; Electron was chosen because the parsing work depends on ma
 
 Full detail: [SECURITY_PRIVACY.md](SECURITY_PRIVACY.md).
 
-- **Local storage:** one per-user data folder (`…/Paperbark/vault`); no server, no account, no analytics, no bank connections. Owner-only file permissions.
+- **Local storage:** one per-user data folder (`…/Geranium/vault`); no server, no account, no analytics, no bank connections. Owner-only file permissions.
 - **Encryption:** a random 256-bit data key encrypts the SQLite database (whole-file AES-256-GCM, authenticated header, atomic writes with a `.prev` copy) and every stored document. The data key is wrapped either by the OS credential store (Keychain / DPAPI / Secret Service, via Electron `safeStorage`) or by a password/PIN through scrypt (N = 2¹⁷). No recovery without the password — by design.
 - **Application lock:** manual lock (Ctrl+L), auto-lock on idle, sleep, screen lock or minimise, maximum session length; unlock throttling after 5 failures; the key is wiped from memory on lock (best effort). With OS protection the lock hides data but does not stop someone signed in as the user — the app explains this and recommends a password. Privacy mode masks every amount.
-- **Backup:** one `.pbbackup` file encrypted with its own password (scrypt + AES-256-GCM), saved wherever the user chooses; restore checks the password and contents, keeps an encrypted copy of current data and migrates older schemas.
+- **Backup:** one `.geranium-backup` file encrypted with its own password (scrypt + AES-256-GCM), saved wherever the user chooses; restore checks the password and contents, keeps an encrypted copy of current data and migrates older schemas.
 - **Network:** renderer has none; the main process can only reach three Google API hosts over HTTPS, and only for a user-initiated Sheets export; every request is listed in an in-app network log.
 - **Hardening:** sandboxed renderer, context isolation, CSP, blocked navigation/new windows/permissions, sender checks on IPC, error sanitising, Electron fuses (no run-as-node, no `NODE_OPTIONS`, no inspector, asar integrity, load only from asar), CSV formula-injection protection.
 
@@ -96,18 +98,18 @@ Limitations: no invoicing, accounts receivable/payable, payroll or PAYG withhold
 
 Works: securities, buy/sell trades with brokerage, broker CSV import with preview, prices entered by the user with dates, holdings value and unrealised difference, dividends with franked/unfranked amounts and franking credits from statements, investment income by financial year, CGT events and estimates; super statement balances, contributions by type, fees, insurance, earnings, comparison with contribution caps, balance history, and a projection calculator.
 
-Does not work (yet): automatic price feeds (deliberately — no network); corporate actions such as splits, consolidations, DRP parcels and returns of capital (record them as trades); foreign shares and currencies; managed funds' tax statements (AMIT components); carry-forward concessional cap and bring-forward calculations; retirement income streams; fund comparisons (Paperbark never recommends funds or investments).
+Does not work (yet): automatic price feeds (deliberately — no network); corporate actions such as splits, consolidations, DRP parcels and returns of capital (record them as trades); foreign shares and currencies; managed funds' tax statements (AMIT components); carry-forward concessional cap and bring-forward calculations; retirement income streams; fund comparisons (Geranium never recommends funds or investments).
 
 ## Spreadsheet support
 
-- **XLSX:** one workbook model rendered by Paperbark's own OOXML writer: transactions, spending by category (`SUMIFS` over the transaction sheet), budget vs actual (difference formulas), bills, goals, loans (with a `PMT` check), term deposits (interest formulas), holdings, tax estimate (`SUMPRODUCT` over the bracket table), forecast, scenarios, and an About sheet with assumptions and disclaimers. Currency, date and percent formats, frozen headers, full recalculation on open. Verified by reading back with SheetJS and by **recalculating in LibreOffice headless** in the test suite.
+- **XLSX:** one workbook model rendered by Geranium's own OOXML writer: transactions, spending by category (`SUMIFS` over the transaction sheet), budget vs actual (difference formulas), bills, goals, loans (with a `PMT` check), term deposits (interest formulas), holdings, tax estimate (`SUMPRODUCT` over the bracket table), forecast, scenarios, and an About sheet with assumptions and disclaimers. Currency, date and percent formats, frozen headers, full recalculation on open. Verified by reading back with SheetJS and by **recalculating in LibreOffice headless** in the test suite.
 - **CSV:** transactions and every report; UTF-8 with BOM for Excel; cells that could be read as formulas are neutralised.
 - **Google Sheets:** optional; user's own OAuth client, loopback + PKCE sign-in, `drive.file` scope only. **Snapshot** (a new spreadsheet each time) or **managed** (updates the same spreadsheet); the same formulas and formats as the XLSX export. The request plan is unit-tested; it has **not** been exercised against a live Google account in this build (see limitations).
 - **Reports:** 17 reports (cash flow, cost of living, spending by category, recurring, subscriptions, income by source, savings rate, business summary, GST summary, tax estimate, mortgage progress, debt, investment income, interest income, term deposits, net worth, annual expenditure), each viewable, exportable to CSV/XLSX, and an accountant package (README, income, business, tax categories, GST, dividends, interest, transactions, documents index).
 
 ## Tests
 
-**175 automated tests in 12 files — all passing** (vitest 3.2.7, Node 22, 27 September 2026):
+**185 automated tests in 14 files — all passing** (vitest 3.2.7, Node 22, 1 October 2026):
 
 | File | Tests | Covers |
 |---|---:|---|
@@ -122,6 +124,8 @@ Does not work (yet): automatic price feeds (deliberately — no network); corpor
 | `tests/main/importService.test.ts` | 9 | end-to-end imports: categorising and staging, saved profiles and duplicate skipping, PDF reconciliation, corrections before import with history, mapping questions, undo, learning only with consent, splits, transfer linking |
 | `tests/main/xlsxLibreOffice.test.ts` | 1 | the generated XLSX recalculated in LibreOffice (runs when `soffice` is installed; it ran here) |
 | `tests/main/selfTest.test.ts` | 2 | the packaged-app self-test and its sample PDF |
+| `tests/web/shims.test.ts` | 8 | the browser build's crypto (byte-identical AES-GCM, tags and scrypt keys compared with Node; tamper, wrong key and short-tag rejection), file system and paths |
+| `tests/web/browserStorage.test.ts` | 1 | the real storage code on the browser shims: set-up (password required), encrypted save, lock, wrong password, unlock, backup and reopen |
 | `tests/main/demoIntegration.test.ts` | 19 | the whole demo household through every service: reconciliation, inbox, missing-data warnings, dashboard, spending, cost of living, recurring, net worth, budgets, goals, loans, forecasts and scenarios, tax, BAS, investments, super, workbook, CSV and all 17 reports, reminders, encrypted backup and restore (wrong password vs damaged file), search |
 
 Other checks run on this build:
@@ -131,10 +135,11 @@ Other checks run on this build:
 - **gitleaks**: no secrets.
 - **npm audit** (production, high): 0 vulnerabilities.
 - **OSV-Scanner**: no unaddressed findings; 3 documented, time-limited exceptions (two false positives for the fixed SheetJS 0.20.3 CDN build; one dev-only vitest advisory — see [DECISIONS.md](DECISIONS.md) §12).
-- **Licences** (production dependencies): MIT ×7, Apache-2.0 ×2 — all on the allow-list.
-- **Packaged Linux build:** `paperbark --self-test` passed inside the asar package (encrypted database, finance engines with demo data, PDF.js, XLSX write/read); Electron fuses verified; `ELECTRON_RUN_AS_NODE` confirmed ignored. AppImage and .deb built successfully.
+- **Licences** (production dependencies): MIT ×11, Apache-2.0 ×2, BSD-3-Clause ×1 — all on the allow-list.
+- **Packaged Linux build:** `geranium --self-test` passed inside the asar package (encrypted database, finance engines with demo data, PDF.js, XLSX write/read); Electron fuses verified; `ELECTRON_RUN_AS_NODE` confirmed ignored. AppImage and .deb built successfully.
 - **Visual review:** every screen captured with the demo household (light theme, plus the dashboard in dark) and reviewed; issues found were fixed (empty-week dashboard, unfair partial-period comparisons, net-worth history jumps, duplicate chart labels, truncated labels, overflowing inbox table, reference numbers in payee names, missed recurring payments, report month labels, backup screen in demo mode).
 - Windows and macOS installers are built and self-tested by CI (`finance_app-desktop.yml`) on their own runners.
+- **Browser version, checked in a real browser:** set-up with a password (only ciphertext and the wrapped key reach IndexedDB), reload and unlock, CSV import with a new account created during import, PDF statement reading inside the worker, encrypted backup and restore (with the safety copy), narrow-screen layout and menu.
 
 ## Known limitations
 
@@ -142,9 +147,10 @@ Other checks run on this build:
 - **PDF layouts vary:** statements that are not date-led tables may yield few rows (reported, never guessed).
 - **Unsigned installers:** Windows SmartScreen and macOS Gatekeeper warnings; no notarisation; no auto-update.
 - **Linux AppImage** may need `--no-sandbox` on distributions that restrict user namespaces (the .deb does not).
-- **Google Sheets** needs the user's own Google Cloud OAuth client and has not been tested against a live account in this build.
+- **Google Sheets** uses a built-in client once the Geranium Google Cloud project's IDs are added (otherwise the desktop app asks for one); it has not yet been tested against a live Google account.
+- **Browser version:** always needs a password (no OS keychain); no background reminders; data lives in browser storage that clearing site data — or Safari after 7 days without a visit, unless added to the Home Screen — removes; one tab at a time; Google access lasts about an hour per connection; the file picker and downloads follow each browser's rules.
 - **AUD only;** single user per data folder; no sync between devices (backups only).
-- **Reminders** are desktop notifications while Paperbark is running; there is no background service.
+- **Reminders** are desktop notifications while Geranium is running; there is no background service.
 - **Memory:** the decrypted database is held in memory while unlocked; very large histories (hundreds of thousands of transactions) have not been benchmarked. The demo (1,299 transactions, 1.6 MB database) seeds in under a second.
 - **Tax:** resident individuals only, with the omissions listed above; 2026–27 Medicare thresholds and all 2027–28 figures other than the 14% rate are provisional.
 - **Investments/super:** no price feeds, no corporate actions, no foreign securities, no AMIT statements, no carry-forward/bring-forward cap calculations.
@@ -155,7 +161,7 @@ Other checks run on this build:
 
 ## Security work still needed before public release
 
-1. Code signing (Windows certificate, Apple Developer ID), hardened runtime and notarisation on macOS, then a signed auto-update channel.
+1. Code signing (Windows certificate, Apple Developer ID), hardened runtime and notarisation on macOS, then a signed auto-update channel. For the website: Subresource Integrity and published checksums for each web release.
 2. An independent review of the crypto, key-handling, backup and IPC code, and fuzzing of all file parsers with malformed input.
 3. A decision on memory-resident data: consider SQLCipher/native storage if the threat model includes malware on an unlocked machine.
 4. An AppArmor profile or documented install path for the Linux AppImage sandbox.
