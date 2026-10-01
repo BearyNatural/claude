@@ -423,6 +423,8 @@ export interface Observation {
 
 export interface AppSettings {
   id: 'settings';
+  /** When a setting shared between devices last changed (for sync). Device-only fields don't count. */
+  updatedAt?: ISODateTime;
   weatherEnabled: boolean;
   lastBackupAt?: ISODateTime;
   /** Plant IDs the gardener has hidden from recommendations. */
@@ -499,6 +501,20 @@ export interface GardenData {
   customPlants: CustomPlant[];
   /** Gardens besides the home garden (whose location is in the profile). */
   gardens: GardenSite[];
+  /**
+   * Records deleted on this device, so syncing with another device removes
+   * them there too instead of bringing them back. Kept for a while, then dropped.
+   */
+  deletions: Deletion[];
+}
+
+/** A note that a record was deleted (for sync between devices). */
+export interface Deletion {
+  /** `<collection>:<record id>` */
+  id: string;
+  collection: 'areas' | 'plantings' | 'journal' | 'wishlist' | 'successionPlans' | 'taskResponses' | 'observations' | 'customPlants' | 'gardens';
+  recordId: string;
+  at: ISODateTime;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -520,5 +536,6 @@ export function emptyGardenData(): GardenData {
     observations: [],
     customPlants: [],
     gardens: [],
+    deletions: [],
   };
 }

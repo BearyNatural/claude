@@ -43,6 +43,16 @@ To protect your garden, and to use the same garden in both places, **back it up 
 - **Browser:** always up to date — just reload the page.
 - **Plant information** (new plants and corrections) updates on its own between versions: about daily in the Android app, and whenever the website is updated in the browser.
 
+### Sync between your phone and your browser
+
+**Backup & restore › Sync between your devices** connects your own **Dropbox** or **Google Drive**. Connect the same account on each device (the Android app, and the website in any browser — Firefox, Safari, Chrome, Edge, on Windows, Mac or Linux), and Sow by Season keeps one file there, `SowBySeason-Sync.json`, up to date. It syncs shortly after a change, when you open or return to the app, and every few minutes while it's open.
+
+- Changes are brought together **record by record**: something added on either device is kept; if the same planting was changed on both, the most recent change wins; something deleted on one device is deleted on the other (unless it was changed there after it was deleted).
+- Your garden goes from your device **straight to your own account** — never to BearyNatural. The app can only see its own file: Dropbox keeps it in **Apps › Sow by Season Garden**; Google Drive only lets the app open files it created.
+- **Photos aren't synced** — they stay on the device that took them.
+- Google in the browser asks you to confirm about once an hour (one click); in the Android app the sign-in renews itself. While the Google project is in *Testing*, Google ends sign-ins after 7 days and only listed test users can connect.
+- OneDrive and iCloud Drive aren't offered: Microsoft no longer lets personal accounts register apps, and iCloud needs a paid Apple developer account.
+
 ### More than one garden
 
 Keep separate gardens — for example home, a community garden plot or a relative's place — under **More › Gardens**. Each garden has its own location, weather, areas, plantings and notes; switch between them with the garden name at the top of This Week, My Garden and More. Your wish list, your own plants and your settings are shared. All gardens are in the same backup.
@@ -174,7 +184,7 @@ src/
   state/                Store (actions = domain + persistence), React hooks, automatic backup
   ui/                   Theme tokens, accessible components, shared forms, map
   widget/               Android home-screen widget
-tests/                  219 automated tests in 16 files
+tests/                  235 automated tests in 18 files
 data-sources/           Raw captures of source data (Gardening Australia monthly lists)
 scripts/                Data build scripts, the browser build finisher, the plant suggestion checker
 web/                    Browser app icons
@@ -223,7 +233,7 @@ The app expects to be served from `/sow-by-season/` (`experiments.baseUrl` in `a
 npm test
 ```
 
-There are **219 tests in 16 files, and all pass.** They cover Australian season boundaries, timezones and daylight saving, gardens that run across the new year, per-zone recommendations (Brisbane, Hobart, Darwin, Perth, inland Queensland), stale and unavailable weather, modelled soil temperature, frost, heat and heavy rain, household scaling, single-harvest vs repeat-harvest crops, succession limits at the end of the season, succession actions, Three Sisters sequencing, companion evidence levels, overcrowding, rotation, timelines, task generation and prioritisation, available gardening time, reminders, backup, restore, corrupt backups, schema migrations, atomic restore, per-record storage resilience, the weather client and cache, catalogue validation, one integrated scenario taken from the brief, and — added since 1.0 — postcode search, plantings in several areas, the garden map and outline merging, photos and photo backups, plant list updates and your own plants, update notices and plant sharing, several gardens, closed-app weather alerts and the widget. The original test plan is in the [development report](DEVELOPMENT_REPORT.md#testing).
+There are **235 tests in 18 files, and all pass.** They cover Australian season boundaries, timezones and daylight saving, gardens that run across the new year, per-zone recommendations (Brisbane, Hobart, Darwin, Perth, inland Queensland), stale and unavailable weather, modelled soil temperature, frost, heat and heavy rain, household scaling, single-harvest vs repeat-harvest crops, succession limits at the end of the season, succession actions, Three Sisters sequencing, companion evidence levels, overcrowding, rotation, timelines, task generation and prioritisation, available gardening time, reminders, backup, restore, corrupt backups, schema migrations, atomic restore, per-record storage resilience, the weather client and cache, catalogue validation, one integrated scenario taken from the brief, and — added since 1.0 — postcode search, plantings in several areas, the garden map and outline merging, photos and photo backups, plant list updates and your own plants, update notices and plant sharing, several gardens, closed-app weather alerts, the widget, and syncing between devices (merging, deletions, Dropbox and Google Drive). The original test plan is in the [development report](DEVELOPMENT_REPORT.md#testing).
 
 ## Building for devices
 
@@ -249,6 +259,8 @@ The package name is set in `app.json` (`au.com.bearynatural.sowbyseason`). The o
 | Atlas of Living Australia species search (`api.ala.org.au`) | Optional botanical-name lookup for plants you add | The name typed, when "Look up" is pressed | No |
 | GitHub API (`api.github.com`) — reading | Android: plant list updates between releases (about daily; can be turned off in About) and the "new version available" check (at most daily) | Nothing about the garden — file downloads using the app's read-only token | No. The built-in plant list is used offline or without a token |
 | GitHub API — plant sharing | Plants you choose to share, as an issue in the private plant data repository | The plant's details, your notes about it and your climate zone | No. Sharing is opt-in per plant, Android only |
+| Dropbox (`api.dropboxapi.com`, `content.dropboxapi.com`) | Optional sync between your devices | Your garden records (no photos), to your own Dropbox app folder | No. Only if you connect it |
+| Google Drive (`www.googleapis.com`) | Optional sync between your devices | Your garden records (no photos), to a file the app created in your own Drive | No. Only if you connect it |
 | GitHub Pages | Hosting the browser version and its Android download page (which looks up the latest release on the GitHub API) | Normal web requests | Only for the browser version |
 
 There is no BearyNatural server, analytics, advertising or push-notification service.
@@ -290,6 +302,7 @@ In plain language, as it appears on the in-app **Privacy & your data** screen:
 - Your location is used only for climate and weather advice. It's approximate (suburb or postcode, rounded coordinates), and the app never asks for GPS or background location. Closed-app weather alerts (optional, Android) send the same rounded coordinates.
 - Plant list updates and the "new version available" check download files from GitHub; nothing about your garden is sent.
 - **Automatic backup (optional, Android)** writes your backup file to the folder you chose, such as Google Drive — your cloud storage, not BearyNatural's.
+- **Sync (optional)** saves your garden records (no photos) to your own Dropbox or Google Drive and reads them back on your other devices. The sign-in stays on the device that made it.
 - Weather and place-search services receive the information they need to answer each request (approximate coordinates or search text, plus your IP address, as with any web request).
 - Clearing the app's data or uninstalling can remove your garden records. Make backups if you want extra protection.
 - You can delete everything from the device at any time.
@@ -301,7 +314,7 @@ A backup is a JSON file you save wherever your phone lets you: on the device, iC
 ```json
 {
   "format": "sow-by-season-backup",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "createdAt": "2026-09-25T08:00:00.000Z",
   "app": { "name": "Sow by Season", "version": "1.9.0" },
   "catalogueVersion": "2026.09.2",
@@ -317,7 +330,7 @@ A backup is a JSON file you save wherever your phone lets you: on the device, iC
 }
 ```
 
-`attachments` is only there when you choose **Include photos**. Schema history: v2 one area per planting · v3 several areas · v4 photos, street address and bed outlines · v5 your own plants · v6 several gardens · v7 your own plants can leave lifecycle unknown (details in `src/domain/backup/migrations.ts`).
+`attachments` is only there when you choose **Include photos**. Schema history: v2 one area per planting · v3 several areas · v4 photos, street address and bed outlines · v5 your own plants · v6 several gardens · v7 your own plants can leave lifecycle unknown · v8 deletions are remembered for sync (details in `src/domain/backup/migrations.ts`).
 
 Restoring a backup goes through these steps:
 

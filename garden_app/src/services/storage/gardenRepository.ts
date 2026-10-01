@@ -22,6 +22,7 @@ import {
   emptyGardenData,
   type AppSettings,
   type CustomPlant,
+  type Deletion,
   type GardenArea,
   type GardenData,
   type GardenProfile,
@@ -35,6 +36,7 @@ import {
 import {
   validateArea,
   validateCustomPlant,
+  validateDeletion,
   validateGarden,
   validateJournal,
   validateObservation,
@@ -49,7 +51,7 @@ import {
 import type { GardenSite } from '../../domain/gardens';
 import type { KeyValueStore } from './keyValueStore';
 
-export type CollectionName = 'areas' | 'plantings' | 'journal' | 'wishlist' | 'successionPlans' | 'taskResponses' | 'observations' | 'customPlants' | 'gardens';
+export type CollectionName = 'areas' | 'plantings' | 'journal' | 'wishlist' | 'successionPlans' | 'taskResponses' | 'observations' | 'customPlants' | 'gardens' | 'deletions';
 
 export interface CollectionTypes {
   areas: GardenArea;
@@ -61,6 +63,7 @@ export interface CollectionTypes {
   observations: Observation;
   customPlants: CustomPlant;
   gardens: GardenSite;
+  deletions: Deletion;
 }
 
 const VALIDATORS: { [K in CollectionName]: (v: unknown) => Result<CollectionTypes[K]> } = {
@@ -73,6 +76,7 @@ const VALIDATORS: { [K in CollectionName]: (v: unknown) => Result<CollectionType
   observations: validateObservation,
   customPlants: validateCustomPlant,
   gardens: validateGarden,
+  deletions: validateDeletion,
 };
 
 export const COLLECTIONS = Object.keys(VALIDATORS) as CollectionName[];

@@ -10,8 +10,10 @@ import { parseBackup, type ImportPreview } from '../src/domain/backup/restore';
 import { formatDay } from '../src/domain/dates';
 import { canSaveToFolder, pickBackupFile, saveBackupToFolder, shareBackup } from '../src/services/backup/fileAccess';
 import { ENV } from '../src/services/env';
-import { autoBackup } from '../src/state/appStore';
+import { PROVIDER_NAMES } from '../src/services/cloud/config';
+import { autoBackup, cloudSync } from '../src/state/appStore';
 import { useAutoBackupSettings } from '../src/state/autoBackup';
+import { useCloudSync } from '../src/state/cloudSyncHooks';
 import { useGardenView } from '../src/state/hooks';
 import { Button, Card, Choice, Notice, Row, Screen, Section, T } from '../src/ui/components/primitives';
 import { space } from '../src/ui/theme/theme';
@@ -26,6 +28,7 @@ export default function Backup() {
   // Starts from Garden Profile › General (photos included unless turned off there).
   const [withPhotos, setWithPhotos] = useState(data.settings.backupPhotos ?? true);
   const auto = useAutoBackupSettings(autoBackup);
+  const sync = useCloudSync(cloudSync);
 
   const makeJson = async () => {
     const photos = withPhotos && photoCount ? await store.photoFilesForBackup() : undefined;
@@ -85,6 +88,40 @@ export default function Backup() {
       <Notice tone="info" title="Your garden lives on this device">
         BearyNatural doesn&apos;t keep a copy — your garden and any personal details stay on your own device. Clearing the app&apos;s data, uninstalling, or losing your device can remove your garden records. Keep your backup in your own cloud storage (Google Drive, OneDrive or iCloud Drive): it protects your records and lets you open the same garden in the phone app and the browser version by restoring it there.
       </Notice>
+      <Section title="Sync between your devices" subtitle="Phone app and browser, through your own cloud storage">
+        <Card>
+          {sync.connection ? (
+            <>
+              <T variant="small">{`Syncing with ${PROVIDER_NAMES[sync.connection.provider]}. Changes you make here and on your other devices are brought together automatically — shortly after a change, when you open the app, and every few minutes while it's open.`}</T>
+              <T variant="tiny" muted>{sync.busy ? 'Syncing…' : sync.lastSyncAt ? `Last synced ${formatDay(sync.lastSyncAt.slice(0, 10), today)} at ${new Date(sync.lastSyncAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. ${sync.lastResult ?? ''}` : 'Not synced yet.'}</T>
+              {sync.needsReconnect ? (
+                <Notice tone="caution" title={`Connect ${PROVIDER_NAMES[sync.connection.provider]} again`}>
+                  {sync.connection.provider === 'google' && Platform.OS === 'web' ? 'In the browser, Google asks you to confirm about once an hour. Tap Reconnect — if you\'re still signed in to Google it only takes a click.' : 'The sign-in expired or was removed. Tap Reconnect to carry on syncing.'}
+                </Notice>
+              ) : null}
+              {sync.lastError ? <Notice tone="caution">{sync.lastError}</Notice> : null}
+              <Row wrap gap={space.sm}>
+                {sync.needsReconnect ? (
+                  <Button compact icon="log-in-outline" label="Reconnect" onPress={() => void cloudSync.connect(sync.connection!.provider)} />
+                ) : (
+                  <Button compact icon="sync-outline" label={sync.busy ? 'Syncing…' : 'Sync now'} loading={sync.busy} onPress={() => void cloudSync.run()} />
+                )}
+                <Button compact variant="ghost" label="Disconnect" onPress={() => void cloudSync.disconnect()} />
+              </Row>
+            </>
+          ) : (
+            <>
+              <T variant="small">Use the same garden on your phone and in your browser. Connect the same cloud account on each device, and Sow by Season keeps one sync file there up to date, bringing changes from each device together record by record.</T>
+              <Row wrap gap={space.sm}>
+                <Button compact icon="logo-dropbox" label="Connect Dropbox" onPress={() => void cloudSync.connect('dropbox')} />
+                <Button compact icon="logo-google" label="Connect Google Drive" onPress={() => void cloudSync.connect('google')} />
+              </Row>
+              {sync.lastError ? <Notice tone="caution">{sync.lastError}</Notice> : null}
+              <T variant="tiny" muted>Your garden goes straight from this device to your own account — never to BearyNatural. The app can only see its own sync file (in Dropbox: Apps › Sow by Season Garden). Photos stay on the device that took them.</T>
+            </>
+          )}
+        </Card>
+      </Section>
       <Section title="Automatic backup" subtitle={autoBackup.supported ? undefined : Platform.OS === 'web' ? 'Available in the Android app' : undefined}>
         <Card>
           {!autoBackup.supported ? (

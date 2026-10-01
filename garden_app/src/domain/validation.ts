@@ -27,6 +27,7 @@ import type {
   SuccessionBatch,
   SuccessionPlan,
   TaskResponse,
+  Deletion,
   WishListItem,
   Month,
   StartMethod,
@@ -242,6 +243,7 @@ export function validateSettings(v: unknown): Result<AppSettings> {
       hiddenPlantIds: r.arr('hiddenPlantIds', STRING(100), true, 1000),
       plantListUpdates: r.bool('plantListUpdates', true),
       activeGardenId: r.str('activeGardenId', true, 200),
+      updatedAt: r.dateTime('updatedAt', true),
       backgroundAlerts: r.bool('backgroundAlerts', true),
       backupPhotos: r.bool('backupPhotos', true),
       sharePlants: r.bool('sharePlants', true),
@@ -391,6 +393,19 @@ export function validateSuccessionPlan(v: unknown): Result<SuccessionPlan> {
       createdAt: r.dateTime('createdAt'),
       updatedAt: r.dateTime('updatedAt'),
     });
+  });
+}
+
+const DELETABLE = ['areas', 'plantings', 'journal', 'wishlist', 'successionPlans', 'taskResponses', 'observations', 'customPlants', 'gardens'] as const;
+
+export function validateDeletion(v: unknown): Result<Deletion> {
+  return run(() => {
+    const r = reader(v, 'deletion');
+    const collection = r.oneOf('collection', DELETABLE);
+    const recordId = r.id('recordId');
+    const id = r.str('id', false, 400);
+    if (id !== `${collection}:${recordId}`) throw new ValidationError('deletion.id: must be <collection>:<recordId>');
+    return clean({ id, collection, recordId, at: r.dateTime('at') });
   });
 }
 

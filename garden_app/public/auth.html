@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Connecting… · Sow by Season</title>
+  <meta name="robots" content="noindex" />
+</head>
+<body style="font-family: system-ui, sans-serif; padding: 24px;">
+  <p>Connecting your cloud storage to Sow by Season…</p>
+  <script>
+    // Hands the sign-in result to the app (same site, this browser only), then opens the Backup screen.
+    try {
+      localStorage.setItem('sbs:auth:result', JSON.stringify({ search: location.search, hash: location.hash, at: Date.now() }));
+    } catch (e) {}
+    location.replace('./?to=' + encodeURIComponent('/sow-by-season/backup'));
+  </script>
+</body>
+</html>

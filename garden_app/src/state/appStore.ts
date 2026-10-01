@@ -11,6 +11,8 @@ import { submitSuggestion } from '../services/plants/plantSuggestions';
 import { AppUpdates } from '../services/updates/appUpdates';
 import { WeatherService } from '../services/weather/weatherService';
 import { AutoBackupController } from './autoBackup';
+import { finishWebSignIn, signIn } from '../services/cloud/signIn';
+import { CloudSyncController } from './cloudSync';
 import { GardenStore } from './gardenStore';
 
 const netFetch = (url: string, init?: { headers?: Record<string, string> }) => fetch(url, init);
@@ -33,3 +35,6 @@ export const appStore = new GardenStore(
 
 /** Keeps an automatic backup in the gardener's chosen folder (Android; off until they choose one). */
 export const autoBackup = new AutoBackupController(appStore, asyncStorageStore);
+
+/** Keeps this device and the gardener's own Dropbox or Google Drive in sync (off until they connect one). */
+export const cloudSync = new CloudSyncController(appStore, asyncStorageStore, (url, init) => fetch(url, init), { signIn, finishWebSignIn });

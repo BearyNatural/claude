@@ -2,6 +2,10 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `garden_app-v<version>-build<n>`). The newest Android version can always be downloaded from https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html.
 
+## 1.10.0 — 1 October 2026
+- **Sync between your phone and your browser** through your own **Dropbox** or **Google Drive** (Backup & restore › Sync between your devices). Works in every browser. Changes are merged record by record — additions from both sides are kept, the latest edit wins, and deletions carry across. Photos aren't synced.
+- Deletions are now remembered (for 180 days) so sync doesn't bring deleted things back. Backup schema v8.
+
 ## 1.9.3 — 1 October 2026
 - **Automatic backup overwrites one file** instead of adding a new copy each time. In Google Drive and OneDrive the app couldn't recognise its earlier file by name, so it now remembers the file it created and updates that one. If a storage app doesn't fully replace the old contents, the file is replaced cleanly.
 

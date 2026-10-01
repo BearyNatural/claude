@@ -14,9 +14,10 @@
  *  v5 — `customPlants` (plants the gardener added).
  *  v6 — `gardens` (extra gardens) and optional `gardenId` on areas,
  *       plantings, journal notes, plans and observations.
- *  v7 — current: your own plants may leave "how long does it live" unknown;
- *       see format.ts.
- *  v3→v4 … v6→v7 need no data changes, but older app versions would
+ *  v7 — your own plants may leave "how long does it live" unknown.
+ *  v8 — current: `deletions` (what was deleted, so syncing between devices
+ *       doesn't bring it back); see format.ts.
+ *  v3→v4 … v7→v8 need no data changes, but older app versions would
  *  drop the new data, so they refuse newer backups instead.
  */
 
@@ -96,6 +97,7 @@ export const MIGRATIONS: Record<number, (doc: Json) => Json> = {
   4: (doc) => ({ ...doc, schemaVersion: 5 }),
   5: (doc) => ({ ...doc, schemaVersion: 6 }),
   6: (doc) => ({ ...doc, schemaVersion: 7 }),
+  7: (doc) => ({ ...doc, schemaVersion: 8 }),
 };
 
 export function migrate(doc: Json, from: number, to: number): { doc: Json; applied: string[] } {

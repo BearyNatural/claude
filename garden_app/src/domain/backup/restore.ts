@@ -8,6 +8,7 @@ import { emptyGardenData, type GardenData } from '../types';
 import {
   validateArea,
   validateCustomPlant,
+  validateDeletion,
   validateGarden,
   validateJournal,
   validateObservation,
@@ -165,6 +166,7 @@ export function parseBackup(text: string): ImportPreview | ImportError {
   data.observations = collect('observations', d.observations, validateObservation, skipped);
   data.customPlants = collect('customPlants', d.customPlants, validateCustomPlant, skipped);
   data.gardens = collect('gardens', d.gardens, validateGarden, skipped);
+  data.deletions = collect('deletions', d.deletions, validateDeletion, skipped);
 
   // Records for a garden that isn't in the backup go to the home garden.
   const gardenIds = new Set(data.gardens.map((g) => g.id));
@@ -221,6 +223,7 @@ export function parseBackup(text: string): ImportPreview | ImportError {
     successionPlans: data.successionPlans.length,
     customPlants: data.customPlants.length,
     gardens: data.gardens.length,
+    deletions: data.deletions.length,
   };
   const total = Object.values(counts).reduce((s, n) => s + n, 0);
   if (total === 0 && !data.profile) return fail('no-data', 'The backup contains no readable garden data. Nothing was changed.');

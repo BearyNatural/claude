@@ -5,8 +5,9 @@ import * as Notifications from 'expo-notifications';
 import { Linking, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { configureNotifications } from '../src/services/notifications/notificationService';
-import { appStore, autoBackup } from '../src/state/appStore';
+import { appStore, autoBackup, cloudSync } from '../src/state/appStore';
 import { useAutoBackupRunner } from '../src/state/autoBackup';
+import { useCloudSyncRunner } from '../src/state/cloudSyncHooks';
 import { StoreProvider, useGardenState, useGardenView, useReminderSync } from '../src/state/hooks';
 import { CLIMATE_ZONES, seasonFor } from '../src/domain/climate';
 import { syncWeatherAlerts } from '../src/services/alerts/backgroundAlerts';
@@ -102,6 +103,12 @@ function AutoBackupRunner() {
   return null;
 }
 
+function CloudSyncRunner() {
+  const state = useGardenState();
+  useCloudSyncRunner(cloudSync, state.status === 'ready', state.data);
+  return null;
+}
+
 function Gate() {
   const state = useGardenState();
   const p = usePalette();
@@ -122,6 +129,7 @@ function Gate() {
       <ReminderSync />
       <WebDeepLink />
       <AutoBackupRunner />
+      <CloudSyncRunner />
       <WidgetSync />
       <WeatherAlertSync />
       <UpdateCheckSync />

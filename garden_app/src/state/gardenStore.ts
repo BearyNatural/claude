@@ -56,6 +56,7 @@ import { coordinatesForPostcode } from '../services/location/geocode';
 import { memoryPhotoFiles, type PhotoFiles } from '../services/photos/photoFiles';
 import type { CatalogueUpdates } from '../services/catalogue/catalogueUpdates';
 import type { SuggestionSender } from '../services/plants/plantSuggestions';
+import { DEVICE_ONLY_SETTINGS } from '../domain/sync';
 import { UPDATE_CHECK_INTERVAL_MS, type AppRelease, type AppUpdates } from '../services/updates/appUpdates';
 import type { CollectionName, GardenRepository, LoadProblem } from '../services/storage/gardenRepository';
 import type { WeatherService } from '../services/weather/weatherService';
@@ -313,6 +314,8 @@ export class GardenStore {
   private async removeRecord(c: CollectionName, id: string) {
     await this.repo.remove(c, id);
     this.setData((d) => ({ ...d, [c]: (d[c] as { id?: string; taskId?: string }[]).filter((x) => (x.id ?? x.taskId) !== id) }));
+    // Remember the deletion so syncing with another device removes it there too.
+    if (c !== 'deletions') await this.putRecord('deletions', { id: `${c}:${id}`, collection: c, recordId: id, at: this.nowIso() });
   }
 
   // -------------------------------------------------------------------------
@@ -345,7 +348,9 @@ export class GardenStore {
   }
 
   async saveSettings(patch: Partial<AppSettings>) {
-    const settings = { ...this.state.data.settings, ...patch, id: 'settings' as const };
+    // Settings that follow you between devices get a timestamp for sync; device-only ones don't.
+    const shared = Object.keys(patch).some((k) => !DEVICE_ONLY_SETTINGS.includes(k as keyof AppSettings));
+    const settings = { ...this.state.data.settings, ...patch, id: 'settings' as const, ...(shared ? { updatedAt: this.nowIso() } : {}) };
     await this.repo.saveSettings(settings);
     this.setData((d) => ({ ...d, settings }));
   }
@@ -797,6 +802,17 @@ export class GardenStore {
     this.set({ data: loaded, problems });
     this.applyCatalogue();
     void this.refreshWeather(true);
+  }
+
+  /**
+   * Replace the data with a merged copy from cloud sync. Unlike a restore, this
+   * leaves photos alone (they aren't synced) and doesn't refetch the weather.
+   */
+  async applySynced(data: GardenData) {
+    await this.repo.replaceAll(data);
+    const { data: loaded, problems } = await this.repo.load();
+    this.set({ data: loaded, problems });
+    this.applyCatalogue();
   }
 
   async deleteAllData() {

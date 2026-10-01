@@ -2,8 +2,11 @@
   "expo": {
     "name": "Sow by Season",
     "slug": "sow-by-season",
-    "scheme": "sowbyseason",
-    "version": "1.9.3",
+    "scheme": [
+      "sowbyseason",
+      "com.googleusercontent.apps.757296531892-293ik2bgrk4tfopvbctvlamsha9ar2md"
+    ],
+    "version": "1.10.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -80,7 +83,8 @@
           ]
         }
       ],
-      "expo-background-task"
+      "expo-background-task",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": false,

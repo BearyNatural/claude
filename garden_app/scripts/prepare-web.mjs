@@ -45,7 +45,7 @@ writeFileSync(
 const walk = (dir) => readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? walk(join(dir, n)) : [join(dir, n)]));
 const assets = walk(dist)
   .map((f) => `${base}/${relative(dist, f).split('\\').join('/')}`)
-  .filter((u) => !u.endsWith('/index.html') && !u.endsWith('/sw.js') && !u.endsWith('/android.html'));
+  .filter((u) => !u.endsWith('/index.html') && !u.endsWith('/sw.js') && !u.endsWith('/android.html') && !u.endsWith('/auth.html'));
 const version = `${app.version}-${Date.now().toString(36)}`;
 
 writeFileSync(
