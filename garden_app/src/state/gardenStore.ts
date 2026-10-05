@@ -34,6 +34,7 @@ import {
 import { planSystem } from '../domain/systems';
 import {
   emptyGardenData,
+  photoFilesIn,
   type AppSettings,
   type CustomPlant,
   type GardenArea,
@@ -46,6 +47,7 @@ import {
   type PlantingEvent,
   type PlantingEventType,
   type PlantingPhoto,
+  type PestReport,
   type PropertyLocation,
   type SuccessionPlan,
   type TaskResponseStatus,
@@ -425,12 +427,49 @@ export class GardenStore {
   /** Every photo file the garden uses and that is on this phone, as base64 — for backups. */
   async photoFilesForBackup(): Promise<Record<string, string>> {
     const out: Record<string, string> = {};
-    for (const p of this.state.data.plantings) {
-      for (const ph of p.photos ?? []) {
-        if (!out[ph.file] && this.photos.exists(ph.file)) out[ph.file] = await this.photos.readBase64(ph.file);
-      }
+    for (const file of photoFilesIn(this.state.data)) {
+      if (!out[file] && this.photos.exists(file)) out[file] = await this.photos.readBase64(file);
     }
     return out;
+  }
+
+  // -------------------------------------------------------------------------
+  // Pest log
+  // -------------------------------------------------------------------------
+
+  async savePestReport(r: Omit<PestReport, 'id' | 'createdAt' | 'updatedAt' | 'photos'> & { id?: string }) {
+    const now = this.nowIso();
+    const existing = r.id ? this.state.data.pestReports.find((x) => x.id === r.id) : undefined;
+    const report = this.stamp<PestReport>({ ...existing, ...r, id: r.id ?? newId('pest'), createdAt: existing?.createdAt ?? now, updatedAt: now }, existing);
+    return this.putRecord('pestReports', report);
+  }
+
+  async deletePestReport(id: string) {
+    const gone = this.state.data.pestReports.find((x) => x.id === id);
+    for (const ph of gone?.photos ?? []) this.photos.remove(ph.file);
+    await this.removeRecord('pestReports', id);
+  }
+
+  /** Add picked or captured images to a pest report. */
+  async addPestPhotos(reportId: string, images: { uri: string; width?: number; height?: number }[]) {
+    if (!images.length || !this.state.data.pestReports.some((x) => x.id === reportId)) return;
+    const added: PlantingPhoto[] = [];
+    for (const img of images) {
+      const file = await this.photos.importImage(img.uri, img.width && img.height ? { width: img.width, height: img.height } : undefined);
+      added.push({ id: newId('pho'), file, takenAt: this.nowIso() });
+    }
+    const latest = this.state.data.pestReports.find((x) => x.id === reportId)!;
+    await this.putRecord('pestReports', { ...latest, photos: [...(latest.photos ?? []), ...added], updatedAt: this.nowIso() });
+  }
+
+  async removePestPhoto(reportId: string, photoId: string) {
+    const r = this.state.data.pestReports.find((x) => x.id === reportId);
+    const ph = r?.photos?.find((x) => x.id === photoId);
+    if (!r || !ph) return;
+    this.photos.remove(ph.file);
+    const rest = r.photos!.filter((x) => x.id !== photoId);
+    const { photos: _old, ...base } = r;
+    await this.putRecord('pestReports', { ...base, ...(rest.length ? { photos: rest } : {}), updatedAt: this.nowIso() });
   }
 
   // -------------------------------------------------------------------------
@@ -796,7 +835,7 @@ export class GardenStore {
   async restore(data: GardenData, photoFiles: Record<string, string> = {}) {
     for (const [file, b64] of Object.entries(photoFiles)) this.photos.writeBase64(file, b64);
     await this.repo.replaceAll(data);
-    const keep = new Set(data.plantings.flatMap((p) => (p.photos ?? []).map((ph) => ph.file)));
+    const keep = new Set(photoFilesIn(data));
     for (const f of this.photos.list()) if (!keep.has(f)) this.photos.remove(f);
     const { data: loaded, problems } = await this.repo.load();
     this.set({ data: loaded, problems });

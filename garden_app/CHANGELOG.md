@@ -2,6 +2,11 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `garden_app-v<version>-build<n>`). The newest Android version can always be downloaded from https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html.
 
+## 1.11.0 — 5 October 2026
+- **Pests & problems**: log pests and problems on your plants (with photos), and get remedies in order — prevent, remove, natural helpers, home-made spray, organic product, and a chemical only as a last resort. This Week reminds you to check again. Backup schema v9.
+- **Pest & problem guide**: 28 common Australian garden pests, diseases and growing problems, with signs, the plants they affect and sourced remedies.
+- **What to feed**: every plant page says what kind of fertiliser to use, with natural options and what to avoid; *Feed* jobs say what to use. Plant list 2026.10.1.
+
 ## 1.10.2 — 5 October 2026
 - **Typing near the bottom of a screen on Android**: the keyboard no longer hides the box you're typing in (for example sun hours on a garden area). Screens make room for the keyboard and scroll the box into view.
 - Install help for **Samsung phones** (Auto Blocker) and Google Play Protect, on the download page and in the README.

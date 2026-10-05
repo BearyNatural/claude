@@ -336,6 +336,7 @@ const TASK_ICON: Record<GardenTask['kind'], IconName> = {
   'heat-protect': 'sunny-outline',
   'rain-check': 'rainy-outline',
   inspect: 'search-outline',
+  'pest-check': 'bug-outline',
   'prepare-bed': 'construct-outline',
   'buy-seed': 'cart-outline',
   'system-step': 'git-network-outline',

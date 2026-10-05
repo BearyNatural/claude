@@ -278,6 +278,30 @@ export interface PlantingPhoto {
   caption?: string;
 }
 
+/** Every photo file the garden refers to (plantings and pest reports). */
+export function photoFilesIn(data: Pick<GardenData, 'plantings' | 'pestReports'>): string[] {
+  return [...data.plantings, ...(data.pestReports ?? [])].flatMap((r) => (r.photos ?? []).map((ph) => ph.file));
+}
+
+/** A pest, disease or problem the gardener noticed. */
+export interface PestReport {
+  id: string;
+  /** Which garden it belongs to; absent = the home garden. */
+  gardenId?: string;
+  /** The planting it was on (or the plant, when it isn't linked to a planting). */
+  plantingId?: string;
+  plantId?: string;
+  /** A problem id from the pest guide, or 'other' (then otherName says what). */
+  problemId: string;
+  otherName?: string;
+  seenOn: ISODate;
+  amount?: 'few' | 'some' | 'lots';
+  notes?: string;
+  photos?: PlantingPhoto[];
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
 export interface JournalEntry {
   id: string;
   /** Which garden it belongs to; absent = the home garden. */
@@ -348,6 +372,7 @@ export type TaskKind =
   | 'heat-protect'
   | 'rain-check'
   | 'inspect'
+  | 'pest-check'
   | 'prepare-bed'
   | 'buy-seed'
   | 'system-step';
@@ -506,13 +531,15 @@ export interface GardenData {
    * them there too instead of bringing them back. Kept for a while, then dropped.
    */
   deletions: Deletion[];
+  /** Pests and problems noticed (pest log). */
+  pestReports: PestReport[];
 }
 
 /** A note that a record was deleted (for sync between devices). */
 export interface Deletion {
   /** `<collection>:<record id>` */
   id: string;
-  collection: 'areas' | 'plantings' | 'journal' | 'wishlist' | 'successionPlans' | 'taskResponses' | 'observations' | 'customPlants' | 'gardens';
+  collection: 'areas' | 'plantings' | 'journal' | 'wishlist' | 'successionPlans' | 'taskResponses' | 'observations' | 'customPlants' | 'gardens' | 'pestReports';
   recordId: string;
   at: ISODateTime;
 }
@@ -537,5 +564,6 @@ export function emptyGardenData(): GardenData {
     customPlants: [],
     gardens: [],
     deletions: [],
+    pestReports: [],
   };
 }

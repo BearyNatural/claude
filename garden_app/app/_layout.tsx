@@ -145,6 +145,10 @@ function Gate() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="plant/[id]" options={{ title: 'Plant' }} />
+        <Stack.Screen name="pests/index" options={{ title: 'Pests & problems' }} />
+        <Stack.Screen name="pests/new" options={{ title: 'Log a pest or problem' }} />
+        <Stack.Screen name="pests/[id]" options={{ title: 'Pest or problem' }} />
+        <Stack.Screen name="problem/[id]" options={{ title: 'Pest guide' }} />
         <Stack.Screen name="plant/custom" options={{ title: 'Add a plant', presentation: 'modal' }} />
         <Stack.Screen name="planting/new" options={{ title: 'Add a planting', presentation: 'modal' }} />
         <Stack.Screen name="planting/[id]" options={{ title: 'Planting' }} />

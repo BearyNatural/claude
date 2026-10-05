@@ -1,12 +1,13 @@
 /**
- * Photos kept with a planting: take one, add from the gallery, add a caption,
- * or remove. Files live in the app's own storage on this device.
+ * Photos kept with a planting or a pest report: take one, add from the
+ * gallery, add a caption, or remove. Files live in the app's own storage on
+ * this device.
  */
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 import { formatDay } from '../../domain/dates';
-import type { Planting } from '../../domain/types';
+import type { Planting, PlantingPhoto } from '../../domain/types';
 import type { GardenStore } from '../../state/gardenStore';
 import { space, usePalette } from '../theme/theme';
 import { Button, Card, Field, Notice, Row, T } from './primitives';
@@ -20,8 +21,39 @@ export function latestPhotoUri(p: Planting, store: { photoExists(f: string): boo
 }
 
 export function PlantingPhotos({ planting, store, today }: { planting: Planting; store: GardenStore; today: string }) {
+  return (
+    <PhotoStrip
+      photos={planting.photos ?? []}
+      store={store}
+      today={today}
+      empty="No photos yet. Add one so you can recognise this plant at a glance and see how it grows."
+      onAdd={(imgs) => store.addPhotos(planting.id, imgs)}
+      onRemove={(id) => store.removePhoto(planting.id, id)}
+      onCaption={(id, c) => store.setPhotoCaption(planting.id, id, c)}
+    />
+  );
+}
+
+type Img = { uri: string; width?: number; height?: number };
+
+export function PhotoStrip({
+  photos,
+  store,
+  today,
+  empty,
+  onAdd,
+  onRemove,
+  onCaption,
+}: {
+  photos: PlantingPhoto[];
+  store: GardenStore;
+  today: string;
+  empty: string;
+  onAdd: (images: Img[]) => Promise<void>;
+  onRemove: (photoId: string) => Promise<void>;
+  onCaption?: (photoId: string, caption: string) => Promise<void>;
+}) {
   const p = usePalette();
-  const photos = planting.photos ?? [];
   const [openId, setOpenId] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -43,7 +75,7 @@ export function PlantingPhotos({ planting, store, today }: { planting: Planting;
       const res = from === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync({ ...opts, allowsMultipleSelection: true, selectionLimit: 10 });
       if (res.canceled || !res.assets?.length) return;
       setBusy(true);
-      await store.addPhotos(planting.id, res.assets.map((a) => ({ uri: a.uri, width: a.width, height: a.height })));
+      await onAdd(res.assets.map((a) => ({ uri: a.uri, width: a.width, height: a.height })));
     } catch (e) {
       setMessage(`The photo could not be added: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -74,7 +106,7 @@ export function PlantingPhotos({ planting, store, today }: { planting: Planting;
           ))}
         </ScrollView>
       ) : (
-        <T variant="small" muted>No photos yet. Add one so you can recognise this plant at a glance and see how it grows.</T>
+        <T variant="small" muted>{empty}</T>
       )}
 
       {open ? (
@@ -85,12 +117,12 @@ export function PlantingPhotos({ planting, store, today }: { planting: Planting;
             <Notice tone="caution">This photo isn&apos;t on this device — it may have been left out of a backup you restored.</Notice>
           )}
           <T variant="tiny" muted>{`Added ${formatDay(open.takenAt.slice(0, 10), today)}`}</T>
-          <Field label="Caption (optional)" value={caption} onChangeText={setCaption} placeholder="e.g. First flowers, north side" />
+          {onCaption ? <Field label="Caption (optional)" value={caption} onChangeText={setCaption} placeholder="e.g. First flowers, north side" /> : null}
           <Row wrap gap={space.sm}>
-            <Button compact label="Save caption" icon="checkmark" disabled={caption.trim() === (open.caption ?? '')} onPress={() => void store.setPhotoCaption(planting.id, open.id, caption)} />
+            {onCaption ? <Button compact label="Save caption" icon="checkmark" disabled={caption.trim() === (open.caption ?? '')} onPress={() => void onCaption(open.id, caption)} /> : null}
             {confirmDelete ? (
               <>
-                <Button compact variant="danger" label="Delete photo" onPress={async () => { await store.removePhoto(planting.id, open.id); setOpenId(null); setConfirmDelete(false); }} />
+                <Button compact variant="danger" label="Delete photo" onPress={async () => { await onRemove(open.id); setOpenId(null); setConfirmDelete(false); }} />
                 <Button compact variant="secondary" label="Keep" onPress={() => setConfirmDelete(false)} />
               </>
             ) : (

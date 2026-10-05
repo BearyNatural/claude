@@ -18,7 +18,7 @@ import type { Deletion, GardenData, AppSettings } from './types';
 
 export const DELETION_DAYS = 180;
 
-const COLLECTIONS = ['areas', 'plantings', 'journal', 'wishlist', 'successionPlans', 'taskResponses', 'observations', 'customPlants', 'gardens'] as const;
+const COLLECTIONS = ['areas', 'plantings', 'journal', 'wishlist', 'successionPlans', 'taskResponses', 'observations', 'customPlants', 'gardens', 'pestReports'] as const;
 type SyncCollection = (typeof COLLECTIONS)[number];
 
 /** Settings that belong to one device and are never synced. */

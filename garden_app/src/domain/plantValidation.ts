@@ -87,6 +87,7 @@ export function validatePlantRecord(v: unknown): Result<PlantRecord> {
     const climate = r.obj('climate')!;
     const site = r.obj('site')!;
     const feeding = r.obj('feeding', true);
+    const fertiliser = r.obj('fertiliser', true);
     const spacing = r.obj('spacing', true);
     const container = r.obj('container')!;
     const care = r.obj('care', true);
@@ -169,6 +170,7 @@ export function validatePlantRecord(v: unknown): Result<PlantRecord> {
             sourceIds: sourceIds(feeding),
           })
         : undefined,
+      fertiliser: fertiliser ? { profile: fertiliser.str('profile', false, 40), use: fertiliser.str('use', false, 400) } : undefined,
       amendments: r.has('amendments')
         ? r.arr('amendments', (a, p) => {
             const ar = reader(a, p);

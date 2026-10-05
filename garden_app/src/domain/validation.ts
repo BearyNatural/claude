@@ -28,6 +28,7 @@ import type {
   SuccessionPlan,
   TaskResponse,
   Deletion,
+  PestReport,
   WishListItem,
   Month,
   StartMethod,
@@ -396,7 +397,7 @@ export function validateSuccessionPlan(v: unknown): Result<SuccessionPlan> {
   });
 }
 
-const DELETABLE = ['areas', 'plantings', 'journal', 'wishlist', 'successionPlans', 'taskResponses', 'observations', 'customPlants', 'gardens'] as const;
+const DELETABLE = ['areas', 'plantings', 'journal', 'wishlist', 'successionPlans', 'taskResponses', 'observations', 'customPlants', 'gardens', 'pestReports'] as const;
 
 export function validateDeletion(v: unknown): Result<Deletion> {
   return run(() => {
@@ -406,6 +407,29 @@ export function validateDeletion(v: unknown): Result<Deletion> {
     const id = r.str('id', false, 400);
     if (id !== `${collection}:${recordId}`) throw new ValidationError('deletion.id: must be <collection>:<recordId>');
     return clean({ id, collection, recordId, at: r.dateTime('at') });
+  });
+}
+
+export function validatePestReport(v: unknown): Result<PestReport> {
+  return run(() => {
+    const r = reader(v, 'pestReport');
+    const problemId = r.str('problemId', false, 80);
+    const otherName = r.str('otherName', true, 120);
+    if (problemId === 'other' && !otherName) throw new ValidationError('pestReport.otherName: say what the problem is');
+    return clean({
+      id: r.id('id'),
+      gardenId: r.str('gardenId', true, 200),
+      plantingId: r.str('plantingId', true, 200),
+      plantId: r.str('plantId', true, 200),
+      problemId,
+      otherName,
+      seenOn: r.date('seenOn'),
+      amount: r.oneOf('amount', ['few', 'some', 'lots'] as const, true),
+      notes: r.str('notes', true, 2000),
+      photos: r.has('photos') ? r.arr('photos', parsePhoto, true, 100) : undefined,
+      createdAt: r.dateTime('createdAt'),
+      updatedAt: r.dateTime('updatedAt'),
+    });
   });
 }
 

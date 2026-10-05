@@ -4,11 +4,12 @@
  * storage layer applies a validated backup atomically after the gardener
  * confirms (see services/storage/gardenRepository.ts).
  */
-import { emptyGardenData, type GardenData } from '../types';
+import { photoFilesIn, emptyGardenData, type GardenData } from '../types';
 import {
   validateArea,
   validateCustomPlant,
   validateDeletion,
+  validatePestReport,
   validateGarden,
   validateJournal,
   validateObservation,
@@ -167,6 +168,7 @@ export function parseBackup(text: string): ImportPreview | ImportError {
   data.customPlants = collect('customPlants', d.customPlants, validateCustomPlant, skipped);
   data.gardens = collect('gardens', d.gardens, validateGarden, skipped);
   data.deletions = collect('deletions', d.deletions, validateDeletion, skipped);
+  data.pestReports = collect('pestReports', d.pestReports, validatePestReport, skipped);
 
   // Records for a garden that isn't in the backup go to the home garden.
   const gardenIds = new Set(data.gardens.map((g) => g.id));
@@ -183,6 +185,7 @@ export function parseBackup(text: string): ImportPreview | ImportError {
   data.journal = rehome(data.journal);
   data.successionPlans = rehome(data.successionPlans);
   data.observations = rehome(data.observations);
+  data.pestReports = rehome(data.pestReports);
   if (homeless) warnings.push(`${homeless} record${homeless > 1 ? 's belonged' : ' belonged'} to a garden that isn't in the backup; they'll be shown in your home garden.`);
   if (data.settings.activeGardenId && !gardenIds.has(data.settings.activeGardenId)) {
     const { activeGardenId: _a, ...rest } = data.settings;
@@ -204,7 +207,7 @@ export function parseBackup(text: string): ImportPreview | ImportError {
   if (!data.profile) warnings.push('The backup has no Garden Profile; you\'ll be asked to set one up after restoring.');
 
   const photos = readAttachments(doc.attachments, warnings);
-  const referenced = data.plantings.flatMap((p) => (p.photos ?? []).map((ph) => ph.file));
+  const referenced = photoFilesIn(data);
   const missing = referenced.filter((f) => !photos[f]).length;
   if (referenced.length && missing) {
     warnings.push(
@@ -224,6 +227,7 @@ export function parseBackup(text: string): ImportPreview | ImportError {
     customPlants: data.customPlants.length,
     gardens: data.gardens.length,
     deletions: data.deletions.length,
+    pestReports: data.pestReports.length,
   };
   const total = Object.values(counts).reduce((s, n) => s + n, 0);
   if (total === 0 && !data.profile) return fail('no-data', 'The backup contains no readable garden data. Nothing was changed.');

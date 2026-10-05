@@ -7,6 +7,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 import { CATALOGUE_VERSION } from '../data/plants';
 import { createBackup, fnv1a, serialiseBackup, stableStringify } from '../domain/backup/format';
+import { photoFilesIn } from '../domain/types';
 import {
   autoBackupSupported,
   chooseBackupFolder,
@@ -78,7 +79,7 @@ export class AutoBackupController {
     const s = this.settings;
     if (!s || this.busy || this.garden.state.status !== 'ready') return;
     const data = this.garden.exportData();
-    const photoNames = s.includePhotos ? data.plantings.flatMap((p) => (p.photos ?? []).map((ph) => ph.file)).sort() : [];
+    const photoNames = s.includePhotos ? photoFilesIn(data).sort() : [];
     const hash = fnv1a(stableStringify({ data, photoNames }));
     if (!force && hash === s.lastHash) return;
     this.busy = true;

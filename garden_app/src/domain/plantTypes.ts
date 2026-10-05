@@ -223,6 +223,8 @@ export interface PlantRecord {
   care?: CareFlags;
   pruning?: string;
   problems?: string[];
+  /** What kind of fertiliser to use (profile id from src/data/fertilisers.ts) and a one-line summary for feeding jobs. */
+  fertiliser?: { profile: string; use: string };
   production: ProductionProfile;
   tags: string[];
   review: {

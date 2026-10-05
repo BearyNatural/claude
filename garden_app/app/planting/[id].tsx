@@ -10,10 +10,11 @@ import { areaIdsOf, areaNames, primaryAreaId, toAreaIds } from '../../src/domain
 import { buildTimeline, describeProgress, STAGE_LABELS } from '../../src/domain/timeline';
 import type { GrowthStage, PlantingEventType } from '../../src/domain/types';
 import { getPlant } from '../../src/state/gardenStore';
+import { PLANT_PROBLEMS } from '../../src/data/pests';
 import { useGardenView } from '../../src/state/hooks';
 import { DateField, InfoTip, TimelineList } from '../../src/ui/components/garden';
 import { PlantingPhotos } from '../../src/ui/components/photos';
-import { Badge, Button, Card, Chip, EmptyState, Field, Notice, Row, Screen, Section, Stepper, T } from '../../src/ui/components/primitives';
+import { Badge, Button, Card, Chip, EmptyState, Field, ListRow, Notice, Row, Screen, Section, Stepper, T } from '../../src/ui/components/primitives';
 import { AreaPicker, resolveAreaIds, useSelectNewAreas, type NewPot } from '../../src/ui/forms/areaPicker';
 import { METHOD_LABELS } from '../../src/ui/labels';
 import { space } from '../../src/ui/theme/theme';
@@ -85,6 +86,20 @@ export default function PlantingDetail() {
 
       {p.successionPlanId ? <Button variant="secondary" icon="repeat" label="Open succession plan" onPress={() => router.push(`/succession/${p.successionPlanId}`)} /> : null}
 
+      <Section title="Pests & problems" action={<Button compact variant="ghost" icon="add" label="Log one" onPress={() => router.push({ pathname: '/pests/new', params: { plantingId: p.id } })} />}>
+        {data.pestReports.filter((x) => x.plantingId === p.id).length ? (
+          <Card>
+            {data.pestReports
+              .filter((x) => x.plantingId === p.id)
+              .sort((a, b) => (a.seenOn < b.seenOn ? 1 : -1))
+              .map((x) => (
+                <ListRow key={x.id} icon="bug-outline" title={PLANT_PROBLEMS.find((pr) => pr.id === x.problemId)?.name ?? x.otherName ?? 'Problem'} subtitle={formatDay(x.seenOn, today)} onPress={() => router.push(`/pests/${x.id}`)} />
+              ))}
+          </Card>
+        ) : (
+          <T variant="small" muted>Spotted a pest or something wrong? Log it to get remedies and a reminder to check again.</T>
+        )}
+      </Section>
       <Section title="Photos">
         <PlantingPhotos planting={p} store={store} today={today} />
       </Section>

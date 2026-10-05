@@ -101,3 +101,9 @@ Every relationship in `src/data/companions.ts` has reasons and an evidence level
 - There are **156** reference towns. **27** of them are named as zone examples by the cited references (ABC Organic Gardener, The Seed Collection) and are marked `zoneFromReference`. The rest were assigned by the developer from general climate knowledge.
 - The frost exposure for each town is a coarse typical value. Towns worth a specific check: Toowoomba, Warwick, Stanthorpe, Dalby, Kingaroy and Gatton (Darling Downs and Lockyer frost); Tamworth and other inland NSW towns; Albury, Wagga Wagga and Dubbo (classed arid by the cited references); Geraldton, Carnarvon, Albany and Manjimup (WA); Emerald and Charters Towers (inland QLD).
 - Coordinates are approximate town centres (2 decimal places).
+
+## Pests, problems and fertiliser (added 2026-10-05)
+
+- The 28 entries in `src/data/pests.ts` cite Sustainable Gardening Australia, the Pacific Pests, Pathogens & Weeds fact sheets, Agriculture Victoria and University of Adelaide research. The fact sheets are written partly for Pacific farms; only home-garden steps were used, and derris (rotenone) was left out. A reviewer should check the **"affects" lists** (which plants each problem is shown for), the **check-again intervals** (BearyNatural estimates) and that every **chemical last resort** is registered for home-garden use on those crops in Australia (APVMA).
+- Snail and slug pellets: "iron-based, not metaldehyde" is general knowledge and flagged as such.
+- Fertiliser profiles in `src/data/fertilisers.ts`: herb, acid-loving and fruit-tree profiles partly rely on general knowledge (flagged in their sources). The plant-to-profile mapping (e.g. potato as a root crop, sweet corn as general) needs a horticulturist's eye.

@@ -53,6 +53,12 @@ To protect your garden, and to use the same garden in both places, **back it up 
 - Google in the browser asks you to confirm about once an hour (one click); in the Android app the sign-in renews itself. While the Google project is in *Testing*, Google ends sign-ins after 7 days and only listed test users can connect.
 - OneDrive and iCloud Drive aren't offered: Microsoft no longer lets personal accounts register apps, and iCloud needs a paid Apple developer account.
 
+### Pests, problems and what to feed
+
+- **Pests & problems** (More › Pests & problems, or *Log one* on a planting): note a pest or problem you've spotted — which plant, what you saw (the app suggests the ones that plant commonly gets), how much, notes and photos. You get the remedies **in order: prevent it, remove or block it, bring in natural helpers, a home-made spray, an organic product — and a chemical only as a last resort**, named by active-ingredient type (never a brand) with "choose one registered for this crop and follow the label". This Week reminds you to **check again** a few days later; mark it done when it's under control.
+- The **pest & problem guide** covers 28 common Australian garden pests, diseases and growing problems (aphids, whitefly, mites, scale, mealybugs, thrips, caterpillars, fruit fly, snails and slugs, powdery and downy mildew, early blight, bean rust, damping-off, sooty mould, blossom-end rot and more), each with its sources — Sustainable Gardening Australia, the Pacific Pests, Pathogens & Weeds fact sheets (University of Queensland / ACIAR), Agriculture Victoria and University of Adelaide research.
+- **What to feed:** each plant page now says what kind of fertiliser to use (e.g. tomatoes: potassium once flowering; carrots: no blood and bone or pelletised manure; peas and beans: little or no nitrogen; natives: low phosphorus), with natural and organic options and what to avoid. *Feed* jobs on This Week say what to use too.
+
 ### More than one garden
 
 Keep separate gardens — for example home, a community garden plot or a relative's place — under **More › Gardens**. Each garden has its own location, weather, areas, plantings and notes; switch between them with the garden name at the top of This Week, My Garden and More. Your wish list, your own plants and your settings are shared. All gardens are in the same backup.
@@ -186,7 +192,7 @@ src/
   state/                Store (actions = domain + persistence), React hooks, automatic backup
   ui/                   Theme tokens, accessible components, shared forms, map
   widget/               Android home-screen widget
-tests/                  235 automated tests in 18 files
+tests/                  245 automated tests in 19 files
 data-sources/           Raw captures of source data (Gardening Australia monthly lists)
 scripts/                Data build scripts, the browser build finisher, the plant suggestion checker
 web/                    Browser app icons
@@ -235,7 +241,7 @@ The app expects to be served from `/sow-by-season/` (`experiments.baseUrl` in `a
 npm test
 ```
 
-There are **235 tests in 18 files, and all pass.** They cover Australian season boundaries, timezones and daylight saving, gardens that run across the new year, per-zone recommendations (Brisbane, Hobart, Darwin, Perth, inland Queensland), stale and unavailable weather, modelled soil temperature, frost, heat and heavy rain, household scaling, single-harvest vs repeat-harvest crops, succession limits at the end of the season, succession actions, Three Sisters sequencing, companion evidence levels, overcrowding, rotation, timelines, task generation and prioritisation, available gardening time, reminders, backup, restore, corrupt backups, schema migrations, atomic restore, per-record storage resilience, the weather client and cache, catalogue validation, one integrated scenario taken from the brief, and — added since 1.0 — postcode search, plantings in several areas, the garden map and outline merging, photos and photo backups, plant list updates and your own plants, update notices and plant sharing, several gardens, closed-app weather alerts, the widget, and syncing between devices (merging, deletions, Dropbox and Google Drive). The original test plan is in the [development report](DEVELOPMENT_REPORT.md#testing).
+There are **245 tests in 19 files, and all pass.** They cover Australian season boundaries, timezones and daylight saving, gardens that run across the new year, per-zone recommendations (Brisbane, Hobart, Darwin, Perth, inland Queensland), stale and unavailable weather, modelled soil temperature, frost, heat and heavy rain, household scaling, single-harvest vs repeat-harvest crops, succession limits at the end of the season, succession actions, Three Sisters sequencing, companion evidence levels, overcrowding, rotation, timelines, task generation and prioritisation, available gardening time, reminders, backup, restore, corrupt backups, schema migrations, atomic restore, per-record storage resilience, the weather client and cache, catalogue validation, one integrated scenario taken from the brief, and — added since 1.0 — postcode search, plantings in several areas, the garden map and outline merging, photos and photo backups, plant list updates and your own plants, update notices and plant sharing, several gardens, closed-app weather alerts, the widget, syncing between devices (merging, deletions, Dropbox and Google Drive), and the pest guide, pest log and fertiliser advice. The original test plan is in the [development report](DEVELOPMENT_REPORT.md#testing).
 
 ## Building for devices
 
@@ -316,7 +322,7 @@ A backup is a JSON file you save wherever your phone lets you: on the device, iC
 ```json
 {
   "format": "sow-by-season-backup",
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "createdAt": "2026-09-25T08:00:00.000Z",
   "app": { "name": "Sow by Season", "version": "1.9.0" },
   "catalogueVersion": "2026.09.2",
@@ -332,7 +338,7 @@ A backup is a JSON file you save wherever your phone lets you: on the device, iC
 }
 ```
 
-`attachments` is only there when you choose **Include photos**. Schema history: v2 one area per planting · v3 several areas · v4 photos, street address and bed outlines · v5 your own plants · v6 several gardens · v7 your own plants can leave lifecycle unknown · v8 deletions are remembered for sync (details in `src/domain/backup/migrations.ts`).
+`attachments` is only there when you choose **Include photos**. Schema history: v2 one area per planting · v3 several areas · v4 photos, street address and bed outlines · v5 your own plants · v6 several gardens · v7 your own plants can leave lifecycle unknown · v8 deletions are remembered for sync · v9 the pest log (details in `src/domain/backup/migrations.ts`).
 
 Restoring a backup goes through these steps:
 
@@ -340,7 +346,7 @@ Restoring a backup goes through these steps:
 2. Confirm it's a Sow by Season backup.
 3. Check the schema version. Backups from newer versions are refused with an "update the app" message.
 4. Verify the checksum.
-5. Migrate older formats step by step (v1 → … → v7).
+5. Migrate older formats step by step (v1 → … → v9).
 6. Validate every record. Unreadable records are listed and left out.
 7. Show a preview and a clear "this will replace…" warning.
 8. Replace the data atomically. Current data isn't touched until the new data is known to be good.

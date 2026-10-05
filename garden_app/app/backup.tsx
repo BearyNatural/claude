@@ -8,6 +8,7 @@ import { CATALOGUE_VERSION } from '../src/data/plants';
 import { backupFileName, createBackup, serialiseBackup } from '../src/domain/backup/format';
 import { parseBackup, type ImportPreview } from '../src/domain/backup/restore';
 import { formatDay } from '../src/domain/dates';
+import { photoFilesIn } from '../src/domain/types';
 import { canSaveToFolder, pickBackupFile, saveBackupToFolder, shareBackup } from '../src/services/backup/fileAccess';
 import { ENV } from '../src/services/env';
 import { PROVIDER_NAMES } from '../src/services/cloud/config';
@@ -24,7 +25,7 @@ export default function Backup() {
   const [status, setStatus] = useState<{ tone: 'good' | 'danger' | 'caution'; text: string } | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [busy, setBusy] = useState(false);
-  const photoCount = data.plantings.reduce((n, p) => n + (p.photos?.length ?? 0), 0);
+  const photoCount = photoFilesIn(data).length;
   // Starts from Garden Profile › General (photos included unless turned off there).
   const [withPhotos, setWithPhotos] = useState(data.settings.backupPhotos ?? true);
   const auto = useAutoBackupSettings(autoBackup);

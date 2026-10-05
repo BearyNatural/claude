@@ -66,6 +66,7 @@ export function scopeToGarden(data: GardenData, gardenId: string): GardenData {
     journal: mine(data.journal),
     successionPlans: mine(data.successionPlans),
     observations: mine(data.observations),
+    pestReports: mine(data.pestReports ?? []),
   };
 }
 

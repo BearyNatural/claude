@@ -9,6 +9,7 @@
  * Tone rules: no "overdue" pile-ups. Missed optional tasks simply fade out of
  * their window; important ones are phrased as "still worth doing".
  */
+import { checkAgainDate, type PlantProblem } from './pests';
 import { addDays, describeOffset, diffDays, formatDay, monthOf, weekdayOf } from './dates';
 import { areaNames, isInArea, primaryAreaId } from './plantingAreas';
 import type { PlantRecord } from './plantTypes';
@@ -21,6 +22,7 @@ import type {
   GardenTask,
   ISODate,
   JournalEntry,
+  PestReport,
   Planting,
   SuccessionPlan,
   TaskResponse,
@@ -40,6 +42,9 @@ export interface TaskContext {
   wishlist: WishListItem[];
   responses: TaskResponse[];
   getPlant: (id: string) => PlantRecord | undefined;
+  /** The pest log and the pest guide, for "check again" jobs. */
+  pestReports?: PestReport[];
+  problems?: readonly PlantProblem[];
 }
 
 /** Rough minutes per task — BearyNatural planning heuristics. */
@@ -241,7 +246,7 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
           priority: plant.feeding?.level === 'heavy' ? 'soon' : 'optional',
           title: `Feed ${name}${where}`,
           short: `feed ${name}`,
-          detail: plant.feeding?.notes,
+          detail: [plant.fertiliser?.use, plant.feeding?.notes].filter(Boolean).join(' ') || undefined,
           why: `${plant.commonName} is a ${plant.feeding?.level} feeder; a feed about every ${Math.round(fi / 7)} weeks during growth is typical.`,
           dueDate: due < today ? today : due,
           minutes: TASK_MINUTES.feed,
@@ -508,6 +513,34 @@ export function generateTasks(ctx: TaskContext): GardenTask[] {
       why: 'Catching problems early is the easiest way to keep them small.',
       dueDate: today,
       minutes: TASK_MINUTES.inspect,
+    });
+  }
+
+  // Check again on pests and problems that were logged (once per report; Done ends the follow-up).
+  for (const r of ctx.pestReports ?? []) {
+    const problem = ctx.problems?.find((x) => x.id === r.problemId);
+    const due = checkAgainDate(problem, r.seenOn);
+    if (diffDays(due, today) > 7 || diffDays(r.seenOn, today) > 60) continue;
+    const planting = r.plantingId ? ctx.plantings.find((x) => x.id === r.plantingId) : undefined;
+    const plant = ctx.getPlant(planting?.plantId ?? r.plantId ?? '');
+    const what = problem?.name.toLowerCase() ?? r.otherName ?? 'the problem';
+    const on = plant ? ` on the ${plant.commonName.toLowerCase()}` : '';
+    const repeat = problem ? Math.min(...problem.remedies.map((x) => x.repeatDays ?? Infinity)) : Infinity;
+    tasks.push({
+      id: `pest-check:${r.id}`,
+      kind: 'pest-check',
+      section: 'protect',
+      priority: r.amount === 'lots' ? 'important' : 'soon',
+      title: `Check for ${what}${on} again`,
+      short: `check ${what}`,
+      detail: Number.isFinite(repeat)
+        ? `If it's still there, repeat the treatment (about every ${repeat} days) or try the next step in the guide. Mark this done when it's under control.`
+        : 'If it\'s still there, try the next step in the guide. Mark this done when it\'s under control.',
+      why: `You logged ${what} (${formatDay(r.seenOn, today)}); a check after ${problem?.checkAgainDays ?? 7} days shows whether the treatment worked.`,
+      dueDate: due < today ? today : due,
+      minutes: TASK_MINUTES.inspect,
+      plantingId: planting?.id,
+      plantId: plant?.id,
     });
   }
 

@@ -2,6 +2,10 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Linking, View } from 'react-native';
 import { COMPANIONS } from '../../src/data/companions';
+import { fertiliserProfileFor } from '../../src/data/fertilisers';
+import { PLANT_PROBLEMS } from '../../src/data/pests';
+import { problemsFor } from '../../src/domain/pests';
+import { FertiliserCard } from '../../src/ui/components/pests';
 import { SOURCES } from '../../src/data/sources';
 import { THREE_SISTERS } from '../../src/data/systems';
 import { CLIMATE_ZONES, ZONE_IDS } from '../../src/domain/climate';
@@ -15,7 +19,7 @@ import { describeMonths, normaliseMonths } from '../../src/domain/windows';
 import { catalogue, getPlant } from '../../src/state/gardenStore';
 import { useGardenView } from '../../src/state/hooks';
 import { CategoryBadge, InfoTip, MonthStrip, ReasonList } from '../../src/ui/components/garden';
-import { Badge, Button, Card, Divider, EmptyState, Row, Screen, Section, T, type Tone } from '../../src/ui/components/primitives';
+import { Badge, Button, Card, Divider, EmptyState, ListRow, Row, Screen, Section, T, type Tone } from '../../src/ui/components/primitives';
 import { space } from '../../src/ui/theme/theme';
 
 const r = (x?: Range, unit = '') => (x ? (x[0] === x[1] ? `${x[0]}${unit}` : `${x[0]}–${x[1]}${unit}`) : 'Not recorded');
@@ -63,11 +67,13 @@ export default function PlantDetail() {
   const plant = getPlant(String(id));
   const { recCtx, zone, today, profile, store, data } = useGardenView();
   const [allZones, setAllZones] = useState(false);
+  const [allProblems, setAllProblems] = useState(false);
   const rec = useMemo(() => (plant ? recommendPlant(plant, recCtx) : null), [plant, recCtx]);
   if (!plant || !rec) return <EmptyState title="Plant not found" body="It may have been removed from the catalogue." />;
 
   const qty = estimateQuantity(plant, { householdSize: profile?.householdSize ?? 1, level: productionLevelFromGoals(profile?.goals ?? []), timeBudget: profile?.timeBudget ?? '1to2' });
   const companions = companionsFor(plant, catalogue.all, COMPANIONS);
+  const problems = problemsFor(plant, PLANT_PROBLEMS);
   const wished = data.wishlist.some((w) => w.plantId === plant.id);
   const hidden = data.settings.hiddenPlantIds.includes(plant.id);
   const zw = zone ? plant.windows[zone] : undefined;
@@ -163,9 +169,24 @@ export default function PlantDetail() {
           <Fact label="Pots" value={plant.container.suitable === true ? `Yes${plant.container.minVolumeL ? ` (≥ ${plant.container.minVolumeL} L)` : ''}` : plant.container.suitable === false ? 'Not well suited' : 'Not recorded'} />
           {plant.container.notes ? <T variant="tiny" muted>{plant.container.notes}</T> : null}
           {plant.site.soilNotes ? <T variant="small">{plant.site.soilNotes}</T> : null}
-          {plant.feeding ? <T variant="small">{`Feeding: ${plant.feeding.level}${plant.feeding.notes ? ` — ${plant.feeding.notes}` : ''}`}</T> : null}
+          {plant.feeding ? <T variant="small">{`Feeding: ${plant.feeding.level}${plant.feeding.intervalDays ? `, about every ${Math.round(plant.feeding.intervalDays / 7)} weeks while growing` : ''}${plant.feeding.notes ? ` — ${plant.feeding.notes}` : ''}`}</T> : null}
         </Card>
       </Section>
+
+      <Section title="What to feed it">
+        <FertiliserCard profile={fertiliserProfileFor(plant)} />
+      </Section>
+
+      {problems.length ? (
+        <Section title="Pests & problems to watch for" subtitle="Tap one for signs and natural remedies">
+          <Card>
+            {(allProblems ? problems : problems.slice(0, 8)).map((pr) => (
+              <ListRow key={pr.id} icon={pr.kind === 'disease' || pr.kind === 'disorder' ? 'medkit-outline' : 'bug-outline'} title={pr.name} onPress={() => router.push(`/problem/${pr.id}`)} />
+            ))}
+            {problems.length > 8 ? <Button compact variant="ghost" label={allProblems ? 'Show fewer' : `Show all ${problems.length}`} onPress={() => setAllProblems((x) => !x)} /> : null}
+          </Card>
+        </Section>
+      ) : null}
 
       {plant.amendments?.length ? (
         <Section title="Soil preparation">

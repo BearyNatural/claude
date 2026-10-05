@@ -3,6 +3,7 @@
  * runs the domain engine over current state. Screens use these instead of
  * re-implementing rules.
  */
+import { PLANT_PROBLEMS } from '../data/pests';
 import React, { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { effectiveFrostRisk, effectiveZone } from '../domain/climate';
@@ -104,6 +105,8 @@ export function useGardenView() {
         wishlist: data.wishlist,
         responses: data.taskResponses,
         getPlant,
+        pestReports: data.pestReports,
+        problems: PLANT_PROBLEMS,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [today, zone, assessment, data, catalogueRev],

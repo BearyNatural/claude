@@ -37,6 +37,7 @@ const KIND_WEIGHT: Record<TaskKind, number> = {
   thin: 4,
   stake: 4,
   'rain-check': 4,
+  'pest-check': 3,
   feed: 5,
   hill: 5,
   prune: 5,

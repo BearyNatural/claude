@@ -20,6 +20,7 @@ export default function More() {
           <ListRow icon="leaf-outline" title="Gardens" subtitle={gardens.length > 1 ? `${gardens.length} gardens · showing ${garden?.name}` : 'Add another garden, e.g. a community plot'} onPress={() => router.push('/gardens')} />
           <ListRow icon="notifications-outline" title="Reminders & gardening days" subtitle={profile?.reminders.enabled ? 'On' : 'Off'} onPress={() => router.push('/reminders')} />
           <ListRow icon="calendar-outline" title="Seasonal calendar" onPress={() => router.push('/calendar')} />
+          <ListRow icon="bug-outline" title="Pests & problems" subtitle={data.pestReports.length ? `${data.pestReports.length} logged · remedies guide` : 'Log pests and get natural remedies'} onPress={() => router.push('/pests')} />
           <ListRow icon="heart-outline" title="Wish list" subtitle={`${data.wishlist.length} plants`} onPress={() => router.push('/wishlist')} />
           <ListRow icon="create-outline" title="Garden journal" onPress={() => router.push('/journal')} />
         </Card>
