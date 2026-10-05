@@ -115,7 +115,9 @@ jobs:
       - name: "Security · known vulnerabilities (npm audit, production deps)"
         id: audit
         continue-on-error: true
-        run: npm audit --omit=dev --audit-level=high
+        # High/critical fail, except advisories the project lists in osv-scanner.toml
+        # with a reason and an expiry date (the same list OSV-Scanner uses).
+        run: node "$GITHUB_WORKSPACE/repo-tools/audit-with-exceptions.mjs"
 
       - name: "Security · known vulnerabilities (OSV-Scanner)"
         id: osv

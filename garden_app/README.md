@@ -78,6 +78,8 @@ If a plant isn't in the list, add it with **"Add a plant that isn't listed"**. W
 1. On your phone, open **https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html**. The latest version starts downloading. (Or open the repository's **Releases** page — GitHub → BearyNatural/claude → Releases — and tap the **`SowBySeason-….apk`** file in the newest **Sow by Season** release.)
 2. Open the downloaded file from the notification or your Files/Downloads app.
 3. If asked, allow your browser or Files app to **install unknown apps**, then tap **Install**.
+   - **Samsung phones:** if the install is blocked, turn off **Settings › Security and privacy › Auto Blocker**, install, then turn Auto Blocker back on. Samsung blocks all apps from outside the Play Store while it's on.
+   - If **Google Play Protect** warns that it doesn't recognise the app (it isn't on the Play Store), choose **Install anyway**.
 4. To update later, install the newest release over the top. Your garden data is kept, as long as the signing secrets described below are set up.
 
 New releases are built automatically by GitHub Actions whenever app code in `garden_app/` changes on `main`, or when you choose **Actions → garden_app · Android build & release → Run workflow**. Releases are tagged `garden_app-v<version>-build<n>`. Changes to documentation alone don't start a build.

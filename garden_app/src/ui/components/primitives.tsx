@@ -4,10 +4,11 @@
  * system font size, and status uses icon + words, not colour alone.
  */
 import { Ionicons } from '@expo/vector-icons';
-import React, { type ReactNode } from 'react';
+import React, { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -94,9 +95,49 @@ export function Screen({ children, scroll = true, padded = true, safeTop = false
     </View>
   );
   if (!scroll) return <View style={{ flex: 1, backgroundColor: p.bg }}>{content}</View>;
+  return <KeyboardAwareScroll background={p.bg}>{content}</KeyboardAwareScroll>;
+}
+
+/**
+ * Android draws the app behind the keyboard (it doesn't shrink the screen), so
+ * a box near the bottom would be hidden with no room to scroll it up. This adds
+ * space for the keyboard and scrolls the box being typed in above it.
+ */
+function KeyboardAwareScroll({ children, background }: { children: ReactNode; background: string }) {
+  const ref = useRef<ScrollView>(null);
+  const offset = useRef(0);
+  const [keyboard, setKeyboard] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboard(e.endCoordinates.height);
+      const top = e.endCoordinates.screenY;
+      const input = TextInput.State.currentlyFocusedInput?.();
+      // Wait a frame for the extra space to be laid out, then bring the box into view.
+      setTimeout(() => {
+        input?.measureInWindow?.((_x, y, _w, h) => {
+          const hidden = y + h + space.lg - top;
+          if (hidden > 0) ref.current?.scrollTo({ y: offset.current + hidden, animated: true });
+        });
+      }, 50);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboard(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: p.bg }} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="automatic">
-      {content}
+    <ScrollView
+      ref={ref}
+      style={{ flex: 1, backgroundColor: background }}
+      contentContainerStyle={keyboard ? { paddingBottom: keyboard } : undefined}
+      keyboardShouldPersistTaps="handled"
+      contentInsetAdjustmentBehavior="automatic"
+      onScroll={(e) => (offset.current = e.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={32}
+    >
+      {children}
     </ScrollView>
   );
 }

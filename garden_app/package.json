@@ -1,6 +1,6 @@
 {
   "name": "sow-by-season",
-  "version": "1.10.1",
+  "version": "1.10.2",
   "private": true,
   "description": "Sow by Season by BearyNatural — an Australian garden-planning assistant.",
   "main": "index.ts",
@@ -15,7 +15,7 @@
     "data:ga-windows": "node scripts/build-ga-windows.mjs",
     "export:web": "expo export --platform web",
     "doctor": "npx expo-doctor",
-    "audit:prod": "npm audit --omit=dev --audit-level=high"
+    "audit:prod": "node ../repo-tools/audit-with-exceptions.mjs"
   },
   "dependencies": {
     "@expo/dom-webview": "~57.0.1",

@@ -2,6 +2,13 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `garden_app-v<version>-build<n>`). The newest Android version can always be downloaded from https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html.
 
+## 1.10.2 — 5 October 2026
+- **Typing near the bottom of a screen on Android**: the keyboard no longer hides the box you're typing in (for example sun hours on a garden area). Screens make room for the keyboard and scroll the box into view.
+- Install help for **Samsung phones** (Auto Blocker) and Google Play Protect, on the download page and in the README.
+
+## 1.10.1 — 4 October 2026
+- Weekly dependency update.
+
 ## 1.10.0 — 1 October 2026
 - **Sync between your phone and your browser** through your own **Dropbox** or **Google Drive** (Backup & restore › Sync between your devices). Works in every browser. Changes are merged record by record — additions from both sides are kept, the latest edit wins, and deletions carry across. Photos aren't synced.
 - Deletions are now remembered (for 180 days) so sync doesn't bring deleted things back. Backup schema v8.

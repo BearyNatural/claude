@@ -9,3 +9,21 @@ id = "GHSA-vcc3-ghjq-m6fr"
 # expo-router moves off query-string@7 (still ^7.1.3 as of expo-router 57.0.23).
 ignoreUntil = 2026-12-31T00:00:00Z
 reason = "Transitive via expo-router/query-string@7; fixed version is ESM-only and incompatible. Awaiting upstream."
+
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+# braces@3.0.3 (stack exhaustion on deeply nested glob patterns), via
+# micromatch in Metro's file map — the bundler that runs on the build machine
+# with the project's own file patterns. Not in the app on phones or in the
+# browser. No fixed braces release exists yet (3.0.3 is the latest).
+ignoreUntil = 2026-11-30T00:00:00Z
+reason = "Build-time only (Metro bundler file patterns we control); no patched braces release exists yet."
+
+[[IgnoredVulns]]
+id = "GHSA-86w9-cpqp-85rv"
+# node-forge@1.4.0 (RSA PKCS#1 v1.5 signature verification too lenient), via
+# @expo/code-signing-certificates in the Expo CLI — used for expo-updates code
+# signing, which this app doesn't use; not in the app itself. No fixed
+# node-forge release exists yet (1.4.0 is the latest).
+ignoreUntil = 2026-11-30T00:00:00Z
+reason = "Expo CLI code-signing helper, unused by this app and not shipped; no patched node-forge release exists yet."
