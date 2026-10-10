@@ -102,36 +102,74 @@ export function useApi<K extends ApiMethod>(method: K, input: ApiInput<K> | unde
  * Shared, cached result for input-less list calls used by many components at once
  * (categories, accounts). Loaded once and refreshed when the main process reports a change.
  */
-const cache = new Map<string, { value: unknown; promise: Promise<unknown> | null; subs: Set<() => void> }>();
+interface SharedEntry {
+  value: unknown;
+  promise: Promise<unknown> | null;
+  /** A change arrived while a load was in flight, so load again when it finishes. */
+  dirty: boolean;
+  subs: Set<() => void>;
+  areas: string[];
+  load: () => void;
+}
+const cache = new Map<string, SharedEntry>();
+let sharedWired = false;
+
+function wireShared() {
+  if (sharedWired) return;
+  sharedWired = true;
+  onDataChanged((changed) => {
+    for (const e of cache.values()) {
+      if (!changed.some((a) => e.areas.includes(a) || a === 'all')) continue;
+      // Reload now if something shows it; otherwise forget it so the next screen loads it fresh.
+      if (e.subs.size) e.load();
+      else if (e.promise) e.dirty = true;
+      else e.value = undefined;
+    }
+  });
+}
 
 export function useShared<K extends ApiMethod>(method: K, areas: string[]): ApiOutput<K> | undefined {
   const [, force] = useState(0);
-  let entry = cache.get(method);
-  if (!entry) {
-    entry = { value: undefined, promise: null, subs: new Set() };
+  let e = cache.get(method);
+  if (!e) {
+    const entry: SharedEntry = {
+      value: undefined,
+      promise: null,
+      dirty: false,
+      subs: new Set(),
+      areas,
+      load: () => {
+        if (entry.promise) {
+          entry.dirty = true;
+          return;
+        }
+        entry.promise = (api as (m: string, i?: unknown) => Promise<unknown>)(method, method === 'categories.list' ? {} : undefined)
+          .then((v) => { entry.value = v; entry.subs.forEach((s) => s()); })
+          .catch(() => undefined)
+          .finally(() => {
+            entry.promise = null;
+            if (entry.dirty) {
+              entry.dirty = false;
+              entry.load();
+            }
+          });
+      },
+    };
     cache.set(method, entry);
+    e = entry;
   }
-  const e = entry;
+  wireShared();
+  const current = e;
   useEffect(() => {
     const sub = () => force((n) => n + 1);
-    e.subs.add(sub);
-    const load = () => {
-      e.promise ??= (api as (m: string, i?: unknown) => Promise<unknown>)(method, method === 'categories.list' ? {} : undefined)
-        .then((v) => { e.value = v; e.subs.forEach((s) => s()); })
-        .catch(() => undefined)
-        .finally(() => { e.promise = null; });
-    };
-    if (e.value === undefined) load();
-    const off = onDataChanged((changed) => {
-      if (changed.some((a) => areas.includes(a) || a === 'all')) load();
-    });
+    current.subs.add(sub);
+    if (current.value === undefined) current.load();
     return () => {
-      e.subs.delete(sub);
-      off();
+      current.subs.delete(sub);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [method]);
-  return e.value as ApiOutput<K> | undefined;
+  return current.value as ApiOutput<K> | undefined;
 }
 
 /** Forget cached lists (after unlocking a different database or entering demo mode). */

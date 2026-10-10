@@ -81,3 +81,33 @@ describe('PDF statement import', () => {
     expect(findStatementPeriod('15 December – 14 January 2027')).toEqual({ start: '2026-12-15', end: '2027-01-14' });
   });
 });
+
+describe('super fund statements', () => {
+  it('reads contribution columns, balance rows, signs and undated period totals', async () => {
+    const { superStatementLayout } = await import('../helpers/pdf');
+    const st = await parse([superStatementLayout()]);
+    expect(st.periodStart).toBe('2025-07-01');
+    expect(st.periodEnd).toBe('2026-06-30');
+    // Opening and closing balance rows are balances, not transactions.
+    expect(st.openingBalanceCents).toBe(10000000);
+    expect(st.closingBalanceCents).toBe(11288178);
+    expect(st.transactions.some((t) => /balance/i.test(t.description))).toBe(false);
+    expect(st.transactions.map((t) => [t.date, t.amountCents, t.sourceColumn ?? null])).toEqual([
+      ['2025-07-08', 100000, 'Employer SG'],
+      ['2025-08-08', 100000, 'Employer SG'],
+      ['2025-09-08', 95050, 'Employer SG'],
+      ['2025-10-15', 200000, 'Member after-tax'],
+      ['2026-06-30', 850000, null], // returns are money in, not out
+      ['2026-06-30', -5200, null],
+      ['2026-06-30', -9640, null],
+      ['2026-06-30', 780, null],
+      ['2026-06-30', 1446, null],
+      ['2026-06-30', -44258, null],
+    ]);
+    // Footnote markers and notes under the table are not added to descriptions.
+    expect(st.transactions[4].description).toBe('Investment returns');
+    expect(st.transactions.slice(5).every((t) => t.issues.some((i) => /No date on this row/.test(i)))).toBe(true);
+    const r = reconcile({ openingCents: st.openingBalanceCents, closingCents: st.closingBalanceCents, transactions: st.transactions });
+    expect(r.status).toBe('reconciled');
+  });
+});

@@ -24,6 +24,8 @@ export interface ParsedTransaction {
   accountRef?: string | null;
   /** Category supplied by the file (QIF "L" field), used only as a hint. */
   categoryHint?: string | null;
+  /** The column the amount was printed in when a statement splits amounts by type (e.g. "Employer SG"). */
+  sourceColumn?: string | null;
   confidence: Confidence;
   /** Plain-language notes on anything uncertain about this row. */
   issues: string[];

@@ -189,6 +189,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [kinds, setKinds] = useState<string[]>(['salary']);
   const [gst, setGst] = useState(false);
   const [help, setHelp] = useState(false);
+  const [autoLearn, setAutoLearn] = useState(false);
   const [accounts, setAccounts] = useState<{ name: string; type: AccountType; institution: string; balanceCents: number | null; balanceDate: string | null }[]>([]);
   const [draft, setDraft] = useState({ name: '', type: 'transaction' as AccountType, institution: '', balanceCents: null as number | null, balanceDate: todayLocal() as string | null });
   const [notify, setNotify] = useState(false);
@@ -203,7 +204,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         await api('accounts.save', { name: a.name, type: a.type, institution: a.institution || null, openingBalance: a.balanceCents !== null && a.balanceDate ? { date: a.balanceDate, balanceCents: a.type === 'credit-card' || a.type === 'mortgage' ? -Math.abs(a.balanceCents) : a.balanceCents, source: 'manual' } : null });
       }
       setAccounts([]);
-      const s = await api('settings.update', { onboardingComplete: true, analysisPeriods: periods.length ? periods : ['month'], fortnightAnchor: anchor, incomeKinds: kinds, gstRegistered: gst, hasStudyLoan: help, notifications: { ...(await api('settings.get')).notifications, enabled: notify } });
+      const s = await api('settings.update', { onboardingComplete: true, analysisPeriods: periods.length ? periods : ['month'], fortnightAnchor: anchor, incomeKinds: kinds, gstRegistered: gst, hasStudyLoan: help, autoLearnRules: autoLearn, notifications: { ...(await api('settings.get')).notifications, enabled: notify } });
       setSettings(s);
       onDone();
       if (goTo) navigate(goTo);
@@ -255,7 +256,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             <Callout>Imports go through a review screen first. Anything uncertain — possible duplicates, possible transfers, unclear categories — waits in the Review inbox so it never quietly changes your figures.</Callout>
           </>
         )}
-        {step === 6 && (<><h1>Review and categorise</h1><p>Geranium suggests categories using transparent rules you can see and change. When you correct the same merchant a couple of times, it offers to create a rule — it never creates one without asking unless you turn on automatic learning.</p></>)}
+        {step === 6 && (
+          <>
+            <h1>Review and categorise</h1>
+            <p>Geranium suggests categories using clear rules you can see and change, such as <em>“contains WOOLWORTHS → Groceries”</em>.</p>
+            <p><strong>Automatic learning is not AI.</strong> It is data analytics and rules-based learning: Geranium counts the corrections you make for each shop or payee. When you’ve changed the same one to the same category a couple of times, it turns that into a rule. Every rule is listed under <em>Categories &amp; rules</em>, where you can edit or switch it off, and each transaction shows which rule categorised it.</p>
+            <Checkbox label="Turn on automatic learning" hint="Create rules from your corrections without asking first. Off: Geranium asks before creating each rule. You can change this later in Categories & rules › Suggestions." checked={autoLearn} onChange={setAutoLearn} />
+          </>
+        )}
         {step === 7 && (
           <>
             <h1>Reminders (optional)</h1>

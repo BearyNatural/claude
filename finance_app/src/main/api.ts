@@ -146,7 +146,7 @@ export function buildRegistry({ state, platform }: Deps) {
     'accounts.addBalance': m(z.object({ accountId: id, date: iso, balanceCents: cents, source: valueSource, note: nullableStr }), (i) => core.addBalance(ctx(), i.accountId, i.date, i.balanceCents, i.source, i.note ?? null)),
     'accounts.deleteBalance': m(z.object({ id }), (i) => core.deleteBalance(ctx(), i.id)),
     'categories.list': m(z.object({ includeArchived: z.boolean().optional() }).optional(), (i) => core.listCategories(ctx(), i?.includeArchived)),
-    'categories.save': m(z.object({ id: z.string().optional(), name: z.string().min(1).max(80), parentId: z.string().nullable(), kind: z.enum(['expense', 'income', 'transfer', 'savings', 'investment']), nature: z.enum(['fixed', 'variable', 'discretionary']).nullable() }), (c) => core.saveCategory(ctx(), c)),
+    'categories.save': m(z.object({ id: z.string().optional(), name: z.string().min(1).max(80), parentId: z.string().nullable(), kind: z.enum(['expense', 'income', 'transfer', 'savings', 'investment', 'super']), nature: z.enum(['fixed', 'variable', 'discretionary']).nullable() }), (c) => core.saveCategory(ctx(), c)),
     'categories.remove': m(z.object({ id }), (i) => core.removeCategory(ctx(), i.id)),
     'categories.restore': m(z.object({ id }), (i) => core.restoreCategory(ctx(), i.id)),
 

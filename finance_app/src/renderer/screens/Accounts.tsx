@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, useApi, useAction } from '../lib/api';
 import { useApp } from '../lib/app';
-import { Badge, Card, DataTable, DateField, DateText, Dialog, Drawer, ErrorText, Explain, Freshness, Loading, Money, MoneyField, NumberField, Page, SelectField, TextField, useConfirm } from '../components/ui';
+import { Badge, Card, Checkbox, DataTable, DateField, DateText, Dialog, Drawer, ErrorText, Explain, Freshness, Loading, Money, MoneyField, NumberField, Page, SelectField, TextField, useConfirm } from '../components/ui';
 import { AccountSelect, todayLocal } from '../components/pickers';
 import { ACCOUNT_TYPE_LABEL, AccountType, VALUE_SOURCE_LABEL, isLiability } from '@domain/accounts';
 import type { AccountDTO } from '../../shared/types';
@@ -11,6 +11,7 @@ function AccountForm({ initial, onSaved, onCancel }: { initial?: AccountDTO; onS
   const [type, setType] = useState<AccountType>(initial?.type ?? 'transaction');
   const [institution, setInstitution] = useState(initial?.institution ?? '');
   const [number, setNumber] = useState('');
+  const [removeNumber, setRemoveNumber] = useState(false);
   const [status, setStatus] = useState<AccountDTO['status']>(initial?.status ?? 'active');
   const [rate, setRate] = useState<number | null>(initial?.interestRate ?? null);
   const [limit, setLimit] = useState<number | null>(initial?.creditLimitCents ?? null);
@@ -20,7 +21,7 @@ function AccountForm({ initial, onSaved, onCancel }: { initial?: AccountDTO; onS
   const [balanceDate, setBalanceDate] = useState<string | null>(todayLocal());
   const save = useAction(async () => {
     await api('accounts.save', {
-      id: initial?.id, name, type, institution: institution || null, number: number || undefined, status, interestRate: rate, creditLimitCents: limit, linkedAccountId: linked, notes: notes || null,
+      id: initial?.id, name, type, institution: institution || null, number: removeNumber ? null : number || undefined, status, interestRate: rate, creditLimitCents: limit, linkedAccountId: linked, notes: notes || null,
       openingBalance: !initial && balance !== null && balanceDate ? { date: balanceDate, balanceCents: isLiability(type) ? -Math.abs(balance) : balance, source: ['property', 'vehicle', 'other-asset'].includes(type) ? 'estimated' : 'manual' } : null,
     });
     onSaved();
@@ -31,7 +32,10 @@ function AccountForm({ initial, onSaved, onCancel }: { initial?: AccountDTO; onS
         <TextField label="Name" value={name} onChange={setName} required autoFocus />
         <SelectField label="Type" value={type} onChange={setType} options={Object.entries(ACCOUNT_TYPE_LABEL).map(([value, label]) => ({ value: value as AccountType, label }))} />
         <TextField label="Institution" value={institution} onChange={setInstitution} />
-        <TextField label={initial?.numberMasked ? `Account number (stored as ${initial.numberMasked})` : 'Account number (optional)'} value={number} onChange={setNumber} hint="Only the last 4 digits are kept, to recognise statements." />
+        <div className="stack-sm">
+          <TextField label={initial?.numberMasked ? `Account number (stored as ${initial.numberMasked})` : 'Account number (optional)'} value={removeNumber ? '' : number} onChange={setNumber} hint={initial?.numberMasked ? 'Leave blank to keep it, type a new one to replace it. Only the last 4 digits are kept.' : 'Only the last 4 digits are kept, to recognise statements.'} />
+          {initial?.numberMasked && <Checkbox label="Remove the stored account number" checked={removeNumber} onChange={setRemoveNumber} />}
+        </div>
         {initial && <SelectField label="Status" value={status} onChange={setStatus} options={[{ value: 'active', label: 'Active' }, { value: 'closed', label: 'Closed' }, { value: 'archived', label: 'Archived (hidden)' }]} />}
         {['savings', 'high-interest-savings', 'offset', 'term-deposit', 'mortgage', 'personal-loan', 'car-loan', 'credit-card'].includes(type) && <NumberField label="Interest rate" suffix="% p.a." value={rate} onChange={setRate} />}
         {type === 'credit-card' && <MoneyField label="Credit limit" cents={limit} onChange={setLimit} />}

@@ -2,7 +2,11 @@
  * Default category tree. Keys are stable identifiers ("housing.mortgage") so rules,
  * budgets and reports keep working if the user renames a category.
  */
-export type CategoryKind = 'expense' | 'income' | 'transfer' | 'savings' | 'investment';
+/**
+ * `super`: money inside a superannuation fund (employer contributions, returns, fees, tax in the
+ * fund). It is kept apart from household income and spending, and from the personal tax estimate.
+ */
+export type CategoryKind = 'expense' | 'income' | 'transfer' | 'savings' | 'investment' | 'super';
 /** Used for cost-of-living analysis: fixed bills vs day-to-day vs optional spending. */
 export type CategoryNature = 'fixed' | 'variable' | 'discretionary';
 
@@ -141,6 +145,19 @@ export const DEFAULT_CATEGORIES: CategorySeed[] = [
     { key: 'income.government', name: 'Government payments', kind: 'income' },
     { key: 'income.refunds', name: 'Refunds', kind: 'income' },
     { key: 'income.other', name: 'Other income', kind: 'income' },
+  ] },
+  { key: 'super', name: 'Superannuation', kind: 'super', children: [
+    { key: 'super.employer-sg', name: 'Employer contributions (Super Guarantee)', kind: 'super' },
+    { key: 'super.employer-additional', name: 'Employer additional & salary sacrifice', kind: 'super' },
+    { key: 'super.personal-before-tax', name: 'Personal contributions (before tax)', kind: 'super' },
+    { key: 'super.personal-after-tax', name: 'Personal contributions (after tax)', kind: 'super' },
+    { key: 'super.government', name: 'Government contributions (co-contribution, LISTO)', kind: 'super' },
+    { key: 'super.returns', name: 'Investment returns', kind: 'super' },
+    { key: 'super.fees', name: 'Fees', kind: 'super' },
+    { key: 'super.insurance', name: 'Insurance premiums', kind: 'super' },
+    { key: 'super.tax', name: 'Tax in the fund (contributions tax, tax benefits)', kind: 'super' },
+    { key: 'super.rollovers', name: 'Rollovers & transfers between funds', kind: 'super' },
+    { key: 'super.withdrawals', name: 'Withdrawals & benefit payments', kind: 'super' },
   ] },
   { key: 'transfers', name: 'Transfers', kind: 'transfer', children: [
     { key: 'transfers.internal', name: 'Between my accounts', kind: 'transfer' },

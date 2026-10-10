@@ -156,6 +156,8 @@ type ColumnRole = 'date' | 'description' | 'debit' | 'credit' | 'amount' | 'bala
 
 interface HeaderColumns {
   roles: { role: ColumnRole; x0: number; x1: number }[];
+  /** Every heading cell, including breakdown columns such as "Employer SG" on a super statement. */
+  columns: { label: string; role: ColumnRole | null; x0: number; x1: number }[];
 }
 
 const HEADER_WORDS: [ColumnRole, RegExp][] = [
@@ -163,24 +165,42 @@ const HEADER_WORDS: [ColumnRole, RegExp][] = [
   ['description', /^(transaction\s+)?(description|details|particulars|narrative)$|^transaction$/i],
   ['debit', /^(debit(s)?|withdrawal(s)?|money\s+out|paid\s+out|debits?\s*\(\$\)|withdrawals?\s*\(\$\))$/i],
   ['credit', /^(credit(s)?|deposit(s)?|money\s+in|paid\s+in|credits?\s*\(\$\)|deposits?\s*\(\$\))$/i],
-  ['amount', /^amount(\s*\(\$\))?$/i],
+  ['amount', /^(amount|total|net\s+amount|transaction\s+amount)(\s*\(\$\))?$/i],
   ['balance', /^balance(\s*\(\$\))?$/i],
 ];
 
 function detectHeader(line: Line): HeaderColumns | null {
   const roles: HeaderColumns['roles'] = [];
+  const columns: HeaderColumns['columns'] = [];
   for (const c of line.cells) {
+    let found: ColumnRole | null = null;
     for (const [role, re] of HEADER_WORDS) {
       if (re.test(c.text)) {
+        found = role;
         roles.push({ role, x0: c.x0, x1: c.x1 });
         break;
       }
     }
+    columns.push({ label: c.text, role: found, x0: c.x0, x1: c.x1 });
   }
   const has = (r: ColumnRole) => roles.some((x) => x.role === r);
-  if (has('date') && (has('debit') || has('credit') || has('amount') || has('balance'))) return { roles };
+  if (has('date') && (has('debit') || has('credit') || has('amount') || has('balance'))) return { roles, columns };
   return null;
 }
+
+/** Headings split over several lines ("Employer" / "SG ($)"): add the lower words to the column above. */
+function mergeHeaderLine(header: HeaderColumns, line: Line): void {
+  for (const c of line.cells) {
+    const col = header.columns.find((h) => c.x0 <= h.x1 + 4 && c.x1 >= h.x0 - 4);
+    if (col) {
+      col.label = `${col.label} ${c.text}`.trim();
+      col.x0 = Math.min(col.x0, c.x0);
+      col.x1 = Math.max(col.x1, c.x1);
+    }
+  }
+}
+
+const cleanLabel = (s: string) => s.replace(/\(\s*\$\s*\)/g, '').replace(/\s+/g, ' ').trim();
 
 const SHORT_DATE = /^(\d{1,2})(?:st|nd|rd|th)?[\s-]([A-Za-z]{3,9})\.?(?:[\s-](\d{2,4}))?$/;
 const NUMERIC_DATE = /^(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?$/;
@@ -246,7 +266,11 @@ function resolveYear(tok: DateToken, period: { start: ISODate; end: ISODate } | 
   return { date: isValidDate(d) ? d : null, inferred: true };
 }
 
-const SKIP_LINE = /^(page\s+\d+|continued|statement\s+(continued|period)|total(s)?\b|transaction\s+totals|closing\s+balance|opening\s+balance|balance\s+(brought|carried)\s+forward)/i;
+const SKIP_LINE = /^(page\s+\d+|continued|statement\s+(continued|period)|total(s)?\b|transaction\s+totals|(closing|opening)(\s+account)?\s+balance|balance\s+(brought|carried)\s+forward)/i;
+/** A row that states a balance rather than a transaction ("Opening account balance 100,000.00"). */
+const BALANCE_ROW = /^(opening|closing)(\s+account)?\s+balance\b|^balance\s+(brought|carried)\s+forward\b|^(previous|new)\s+balance\b/i;
+/** Footnote markers printed on their own line next to a row ("1", "*", "†"). */
+const FOOTNOTE_MARK = /^[\d*†‡§¹²³⁴]{1,2}$/;
 
 export interface PdfParseOptions {
   /** 'liability' for credit cards/loans where the printed balance is the amount owed. */
@@ -282,8 +306,8 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
   // Balances are stored in the app's convention: money owed on a card or loan is negative.
   const liability = opts.balanceMeaning === 'liability';
   const conv = (v: number | null) => (v === null ? null : liability ? -v : v);
-  st.openingBalanceCents = conv(findLabelledBalance(lines, /opening\s+balance|balance\s+brought\s+forward|previous\s+balance/i));
-  st.closingBalanceCents = conv(findLabelledBalance(lines, /closing\s+balance|balance\s+carried\s+forward|new\s+balance/i));
+  st.openingBalanceCents = conv(findLabelledBalance(lines, /opening(\s+account)?\s+balance|balance\s+brought\s+forward|previous\s+balance/i));
+  st.closingBalanceCents = conv(findLabelledBalance(lines, /closing(\s+account)?\s+balance|balance\s+carried\s+forward|new\s+balance/i));
   const fallbackYear = opts.fallbackYear ?? (period ? parts(period.end).y : new Date().getFullYear());
 
   let header: HeaderColumns | null = null;
@@ -291,6 +315,9 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
   let lastTx: ParsedTransaction | null = null;
   let lastDate: ISODate | null = null;
   let inTable = false;
+  let headerLinesLeft = 0;
+  // Statements that print money out with a minus sign ("-52.00") show money in without one.
+  const explicitSigns = lines.some((l) => l.cells.some((c) => isMoneyToken(c.text) && /^\s*[-(]|-\s*$/.test(c.text)));
 
   for (const line of lines) {
     const h = detectHeader(line);
@@ -298,7 +325,17 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
       header = h;
       inTable = true;
       lastTx = null;
+      headerLinesLeft = 2;
       continue;
+    }
+    if (FOOTNOTE_MARK.test(line.text.trim())) continue;
+    if (header && headerLinesLeft > 0) {
+      headerLinesLeft--;
+      if (!leadingDate(line) && !line.cells.some((c) => isMoneyToken(c.text)) && line.text.length < 80) {
+        mergeHeaderLine(header, line);
+        continue;
+      }
+      headerLinesLeft = 0;
     }
     if (SKIP_LINE.test(line.text) && !leadingDate(line)) {
       lastTx = null;
@@ -348,21 +385,44 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
     });
     const description = descParts.join(' ').replace(/\s+/g, ' ').trim();
 
+    if (BALANCE_ROW.test(description)) {
+      const p = parseMoney(moneyCells[moneyCells.length - 1].text);
+      if (p) {
+        const v = conv(p.indicator === 'DR' ? -Math.abs(p.cents) : p.cents)!;
+        if (/^(opening|previous)|brought/i.test(description)) st.openingBalanceCents ??= v;
+        else st.closingBalanceCents ??= v;
+        prevBalance = v;
+      }
+      if (/^(closing|new)|carried/i.test(description)) {
+        // The table ends here; anything below is notes, not rows.
+        inTable = false;
+        lastTx = null;
+      }
+      continue;
+    }
+
     // Assign money cells to roles.
     let debit: number | null = null;
     let credit: number | null = null;
     let signed: number | null = null;
     let balance: number | null = null;
+    let sourceColumn: string | null = null;
     const assign = (c: Cell): ColumnRole | null => {
       if (!header) return null;
-      const moneyRoles = header.roles.filter((r) => r.role !== 'date' && r.role !== 'description');
-      let best: { role: ColumnRole; dist: number } | null = null;
-      for (const r of moneyRoles) {
+      const candidates = header.columns.filter((r) => r.role !== 'date' && r.role !== 'description');
+      let best: { col: HeaderColumns['columns'][number]; dist: number } | null = null;
+      for (const r of candidates) {
         // Amounts are usually right-aligned under their heading.
         const dist = Math.min(Math.abs(c.x1 - r.x1), Math.abs((c.x0 + c.x1) / 2 - (r.x0 + r.x1) / 2));
-        if (!best || dist < best.dist) best = { role: r.role, dist };
+        if (!best || dist < best.dist) best = { col: r, dist };
       }
-      return best && best.dist < 60 ? best.role : null;
+      if (!best || best.dist >= 60) return null;
+      if (!best.col.role) {
+        // A breakdown column ("Employer SG"): it explains the amount but isn't the amount.
+        sourceColumn ??= cleanLabel(best.col.label);
+        return null;
+      }
+      return best.col.role;
     };
     const unassigned: number[] = [];
     for (const c of moneyCells) {
@@ -403,7 +463,7 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
     } else if (signed !== null) {
       amount = signed;
       const cellText = moneyCells.map((c) => c.text).join(' ');
-      signKnown = /-|\(|CR|DR/i.test(cellText);
+      signKnown = /-|\(|CR|DR/i.test(cellText) || (explicitSigns && balance === null);
     }
 
     // The running balance settles the sign when it can.
@@ -451,6 +511,7 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
       balanceCents: balance,
       externalId: null,
       reference: null,
+      sourceColumn,
       confidence: description ? confidence : 'low',
       issues: description ? issues : [...issues, 'No description could be read'],
       raw: `page ${line.page}: ${line.text}`,

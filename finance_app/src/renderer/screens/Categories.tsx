@@ -18,7 +18,7 @@ function CategoryForm({ initial, onClose }: { initial?: CategoryDTO; onClose: ()
       <div className="form-grid">
         <TextField label="Name" value={name} onChange={setName} autoFocus />
         <CategorySelect label="Inside (optional)" value={parentId} onChange={setParent} allowNone />
-        <SelectField label="Type" value={kind} onChange={setKind} options={[{ value: 'expense', label: 'Spending' }, { value: 'income', label: 'Income' }, { value: 'savings', label: 'Savings' }, { value: 'investment', label: 'Investments' }, { value: 'transfer', label: 'Transfer' }]} />
+        <SelectField label="Type" value={kind} onChange={setKind} options={[{ value: 'expense', label: 'Spending' }, { value: 'income', label: 'Income' }, { value: 'savings', label: 'Savings' }, { value: 'investment', label: 'Investments' }, { value: 'super', label: 'Superannuation (kept separate)' }, { value: 'transfer', label: 'Transfer' }]} />
         {kind === 'expense' && <SelectField label="Nature" value={nature ?? 'variable'} onChange={(v) => setNature(v as CategoryDTO['nature'])} options={[{ value: 'fixed', label: 'Fixed (bills, contracts)' }, { value: 'variable', label: 'Variable (everyday)' }, { value: 'discretionary', label: 'Discretionary (optional)' }]} hint="Used to group the cost of living." />}
       </div>
       <ErrorText error={save.error} />
@@ -128,7 +128,7 @@ function Suggestions() {
   const q = useApi('rules.suggestions', undefined, []);
   const [apply, setApply] = useState(true);
   return (
-    <Card title="Learning from your corrections" sub="When you change the same merchant to the same category more than once, Geranium offers a rule. It is only created if you agree.">
+    <Card title="Learning from your corrections" sub="Not AI: data analytics and rules-based learning. When you change the same shop or payee to the same category more than once, Geranium offers a rule — created only if you agree, unless automatic learning is on.">
       <div className="stack">
         {settings && (
           <div className="row">

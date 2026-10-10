@@ -58,6 +58,8 @@ PDF statements have no standard structure. Geranium:
 
 Every PDF row gets a confidence rating and reasons. By default all PDF rows go to the review inbox for confirmation (this can be changed under Settings › Import review).
 
+**Super fund statements** work the same way. Amounts split across columns such as *Employer SG*, *Employer additional*, *Member before-tax* and *Member after-tax* are read from the *Total* column, and the column an amount sits in decides its Superannuation category. "Opening/Closing account balance" rows are used as the statement's balances. Period totals printed without a date (fees, tax benefits, contributions tax) are dated with the row above and flagged for a quick check. Import super statements into an account of type *Superannuation* so they stay separate from household money and personal tax.
+
 **Known PDF limitations:** layouts very different from a date-led table (for example summaries with amounts in sentences, or several transactions per line) may produce few or no rows — Geranium says so rather than guessing; scanned statements are not read; foreign-currency details (original amount, conversion fees on separate lines) are not recognised as such and need checking in review; statements where the printed balance column is missing cannot be verified row by row (reconciliation then relies on opening/closing totals only).
 
 ## Checks on every import

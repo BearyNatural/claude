@@ -276,7 +276,7 @@ export function previewImport(ctx: Ctx, sessionId: string, statementIndex: numbe
   const transferNew = new Set(pairs.flatMap((p) => [p.outId, p.inId]).filter((x) => x.startsWith('new:')));
 
   const rows: ImportPreviewRow[] = txs.map((t, i) => {
-    const cat = categoriser.suggest({ description: t.description, amountCents: t.amountCents, accountId });
+    const cat = categoriser.suggest({ description: t.description, amountCents: t.amountCents, accountId, sourceColumn: t.sourceColumn });
     const d = dups[i];
     const stageReasons: string[] = [];
     if (settings.staging.lowConfidence && t.confidence !== 'high') stageReasons.push(...(t.issues.length ? t.issues : ['The file reader was not fully sure about this row']));
@@ -406,7 +406,7 @@ export function commitImport(ctx: Ctx, input: CommitInput): CommitResult {
       // A category chosen on the review screen resolves the "no confident category" reason.
       const finalReasons = userCat && categoryId ? reasons.filter((r) => !/category/i.test(r)) : reasons;
       const status = finalReasons.length ? 'staged' : 'posted';
-      const cat = categoriser.suggest({ description: t.description, amountCents: t.amountCents, accountId: input.accountId });
+      const cat = categoriser.suggest({ description: t.description, amountCents: t.amountCents, accountId: input.accountId, sourceColumn: t.sourceColumn });
       const id = ctx.id();
       ctx.db.run(`INSERT INTO transactions(id, account_id, date, processing_date, amount_cents, original_description, clean_description, payee, category_id,
           category_source, rule_id, category_explanation, income_type, import_id, source_row, external_id, reference, balance_cents, original_data, status,

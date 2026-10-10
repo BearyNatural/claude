@@ -41,6 +41,8 @@ export interface RuleSubject {
   payee?: string | null;
   amountCents: Cents;
   accountId?: string | null;
+  /** The statement column an amount was printed in (e.g. "Employer SG" on a super statement). */
+  sourceColumn?: string | null;
 }
 
 export interface RuleMatch {
@@ -245,7 +247,9 @@ const DEFAULTS: D[] = [
   ...['CREDIT INTEREST', 'INTEREST PAID', 'BONUS INTEREST', 'INTEREST CREDIT', 'INTEREST EARNED'].map((p): D => [p, 'income.interest', { direction: 'in', incomeType: 'interest', priority: 4 }]),
   ['INTEREST', 'income.interest', { direction: 'in', incomeType: 'interest', matchType: 'word' }],
   ...['DIVIDEND', 'DIV PAYMENT', 'DRP', 'DISTRIBUTION'].map((p): D => [p, 'income.dividends', { direction: 'in', incomeType: p === 'DISTRIBUTION' ? 'managed-fund-distribution' : 'dividends', matchType: p === 'DRP' ? 'word' : 'contains', priority: 3 }]),
-  ...['CENTRELINK', 'SERVICES AUSTRALIA', 'DEPT VETERANS', 'CHILD CARE SUBSIDY'].map((p): D => [p, 'income.government', { direction: 'in', incomeType: 'government', priority: 3 }]),
+  // "Services Australia" only at the start of a description: company names such as
+  // "Example Web Services Australia Pty Ltd" contain the same words.
+  ...['CENTRELINK', 'SERVICES AUSTRALIA', 'DEPT VETERANS', 'CHILD CARE SUBSIDY'].map((p): D => [p, 'income.government', { direction: 'in', incomeType: 'government', priority: 3, matchType: p === 'SERVICES AUSTRALIA' ? 'starts-with' : 'contains' }]),
   ...['MEDICARE BENEFIT', 'MEDICARE REBATE', 'MEDICARE'].map((p): D => [p, 'income.refunds', { direction: 'in', incomeType: 'refund', priority: 3 }]),
   ...['AUSTRALIAN TAXATION OFFICE', 'ATO', 'TAX REFUND'].map((p): D => [p, 'income.refunds', { direction: 'in', incomeType: 'refund', priority: 3 }]),
   ['REFUND', 'income.refunds', { direction: 'in', incomeType: 'refund', priority: 1 }],

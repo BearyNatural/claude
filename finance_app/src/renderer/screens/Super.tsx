@@ -41,10 +41,11 @@ export function Super() {
               </div>
             )}
             <ul className="small muted" style={{ marginTop: 10 }}>{s.notes.map((n) => <li key={n}>{n}</li>)}</ul>
-            <div className="grid grid-3" style={{ marginTop: 10 }}>
+            <div className="grid grid-4" style={{ marginTop: 10 }}>
               <Stat label="Fees" value={<Money cents={s.feesCents} />} />
               <Stat label="Insurance premiums" value={<Money cents={s.insuranceCents} />} />
               <Stat label="Investment earnings" value={<Money cents={s.earningsCents} signed />} />
+              <Stat label="Tax in the fund" value={<Money cents={s.fundTaxCents} />} note="Contributions tax and similar, less tax benefits on fees. Paid by the fund — not part of your personal tax." />
             </div>
           </Card>
           <Card title="Balance history" sub="Balances from statements, with their dates">

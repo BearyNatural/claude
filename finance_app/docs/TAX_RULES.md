@@ -57,6 +57,9 @@ Each step shows its amount, how it was worked out, its rule status and the sourc
 
 ## Super
 
+Super is kept separate from the personal estimate. Transactions in superannuation accounts — employer contributions (Super Guarantee), returns, fees and tax deducted inside the fund — are never counted as assessable income, deductions or tax paid: contributions tax is paid by the fund, not withheld from you, and fund earnings are taxed inside the fund. (Salary sacrifice still matters to the estimate as reportable super, which comes from payslips.)
+
+
 Contributions (employer, salary sacrifice, personal deductible, after-tax), fees, insurance premiums and earnings from super statements are recorded by financial year and compared with the general concessional and non-concessional caps for that year. Carry-forward of unused concessional cap and the bring-forward rule are mentioned but **not** calculated, because they depend on details Geranium does not hold (total super balance history, prior contributions).
 
 ## Known omissions

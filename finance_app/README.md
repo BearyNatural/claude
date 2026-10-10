@@ -70,7 +70,7 @@ cd finance_app
 npm ci
 npm run dev          # build (development) and start the desktop app
 npm run dev:web      # the browser version at http://localhost:5173
-npm test             # 188 unit and integration tests
+npm test             # 195 unit and integration tests
 npm run typecheck
 npm run package      # installers for the current OS → release/
 npm run build:web    # the browser version → dist/web

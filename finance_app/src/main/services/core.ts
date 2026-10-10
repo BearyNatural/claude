@@ -141,6 +141,8 @@ export function seedDefaults(ctx: Ctx): void {
         [r.id, null, r.field, r.matchType, r.pattern, r.direction ?? 'any', r.categoryId ?? null, r.incomeType ?? null, 'default', r.priority, ctx.now()],
       );
     }
+    // Built-in rules corrected after release (only where the user hasn't changed them).
+    ctx.db.run("UPDATE rules SET match_type = 'starts-with' WHERE source = 'default' AND pattern = 'SERVICES AUSTRALIA' AND match_type = 'contains'");
     ctx.db.run("INSERT OR IGNORE INTO meta(key, value) VALUES('created_at', ?)", [ctx.now()]);
   });
 }
@@ -295,17 +297,21 @@ export function saveAccount(ctx: Ctx, a: AccountInput): string {
   const name = a.name.trim();
   if (!name) throw new UserError('An account needs a name.');
   const now = ctx.now();
+  // `number` / `bsb`: undefined keeps what is stored, null or '' removes it, a value replaces it.
   const masked = a.number !== undefined ? maskAccountNumber(a.number) : undefined;
   let id = a.id;
   ctx.db.tx(() => {
     if (id) {
       const cur = ctx.db.get('SELECT * FROM accounts WHERE id = ?', [id]);
       if (!cur) throw new UserError('That account no longer exists.');
+      const numberMasked = masked === undefined ? str(cur.number_masked) : masked;
+      const bsb = a.bsb === undefined ? str(cur.bsb) : a.bsb || null;
       ctx.db.run(
-        `UPDATE accounts SET name=?, type=?, institution=?, number_masked=COALESCE(?, number_masked), bsb=?, status=?, interest_rate=?,
+        `UPDATE accounts SET name=?, type=?, institution=?, number_masked=?, bsb=?, status=?, interest_rate=?,
           credit_limit_cents=?, linked_account_id=?, notes=?, updated_at=? WHERE id=?`,
-        [name, a.type, a.institution ?? null, masked ?? null, a.bsb ?? null, a.status ?? 'active', a.interestRate ?? null, a.creditLimitCents ?? null, a.linkedAccountId ?? null, a.notes ?? null, now, id],
+        [name, a.type, a.institution ?? null, numberMasked, bsb, a.status ?? 'active', a.interestRate ?? null, a.creditLimitCents ?? null, a.linkedAccountId ?? null, a.notes ?? null, now, id],
       );
+      if (str(cur.number_masked) !== numberMasked) recordChange(ctx, 'account', id, 'number', cur.number_masked, numberMasked, numberMasked ? 'User changed the account number' : 'User removed the account number');
       if (cur.status !== (a.status ?? 'active')) recordChange(ctx, 'account', id, 'status', cur.status, a.status ?? 'active', 'User changed account status');
     } else {
       id = ctx.id();
@@ -352,8 +358,12 @@ export function deleteAccount(ctx: Ctx, id: string): { deleted: boolean } {
 /* ------------------------------ analysis loaders ------------------------------ */
 
 /** Posted transactions in the shape the analysis engine uses. */
+/** SQL condition: not in a superannuation account (super is tracked separately from household money and personal tax). */
+export const NOT_IN_SUPER = "account_id NOT IN (SELECT id FROM accounts WHERE type = 'superannuation')";
+
 export function analysisTransactions(ctx: Ctx, from?: ISODate, to?: ISODate): AnalysisTx[] {
-  const where = ["t.status = 'posted'"];
+  // Money inside super funds is not household income or spending.
+  const where = ["t.status = 'posted'", `t.${NOT_IN_SUPER}`];
   const params: string[] = [];
   if (from) { where.push('t.date >= ?'); params.push(from); }
   if (to) { where.push('t.date <= ?'); params.push(to); }

@@ -17,7 +17,7 @@ export function useAccounts() {
   return { accounts: data ?? [], loading: data === undefined };
 }
 
-const KIND_GROUP: Record<CategoryDTO['kind'], string> = { expense: 'Spending', income: 'Income', transfer: 'Transfers', savings: 'Savings', investment: 'Investments' };
+const KIND_GROUP: Record<CategoryDTO['kind'], string> = { expense: 'Spending', income: 'Income', transfer: 'Transfers', savings: 'Savings', investment: 'Investments', super: 'Superannuation' };
 
 export function CategorySelect({ label = 'Category', value, onChange, allowNone = true, noneLabel = 'Uncategorised', kinds, hint, hideLabel }: { label?: string; value: string | null; onChange: (v: string | null) => void; allowNone?: boolean; noneLabel?: string; kinds?: CategoryDTO['kind'][]; hint?: string; hideLabel?: boolean }) {
   const { cats } = useCategories();

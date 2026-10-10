@@ -109,7 +109,7 @@ Does not work (yet): automatic price feeds (deliberately — no network); corpor
 
 ## Tests
 
-**188 automated tests in 14 files — all passing** (vitest 3.2.7, Node 22, 1 October 2026):
+**195 automated tests in 15 files — all passing** (vitest 3.2.7, Node 22, 1 October 2026):
 
 | File | Tests | Covers |
 |---|---:|---|
@@ -124,6 +124,7 @@ Does not work (yet): automatic price feeds (deliberately — no network); corpor
 | `tests/main/importService.test.ts` | 9 | end-to-end imports: categorising and staging, saved profiles and duplicate skipping, PDF reconciliation, corrections before import with history, mapping questions, undo, learning only with consent, splits, transfer linking |
 | `tests/main/xlsxLibreOffice.test.ts` | 1 | the generated XLSX recalculated in LibreOffice (runs when `soffice` is installed; it ran here) |
 | `tests/main/selfTest.test.ts` | 2 | the packaged-app self-test and its sample PDF |
+| `tests/main/superannuation.test.ts` | 6 | super statement categories (statement columns, then wording), super kept out of household income, spending and the tax estimate, the Super screen totals, no learning across super and bank accounts, account-number removal, the corrected Centrelink rule |
 | `tests/web/shims.test.ts` | 8 | the browser build's crypto (byte-identical AES-GCM, tags and scrypt keys compared with Node; tamper, wrong key and short-tag rejection), file system and paths |
 | `tests/web/browserStorage.test.ts` | 1 | the real storage code on the browser shims: set-up (password required), encrypted save, lock, wrong password, unlock, backup and reopen |
 | `tests/main/demoIntegration.test.ts` | 19 | the whole demo household through every service: reconciliation, inbox, missing-data warnings, dashboard, spending, cost of living, recurring, net worth, budgets, goals, loans, forecasts and scenarios, tax, BAS, investments, super, workbook, CSV and all 17 reports, reminders, encrypted backup and restore (wrong password vs damaged file), search |

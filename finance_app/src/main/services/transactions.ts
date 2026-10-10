@@ -1,4 +1,4 @@
-import { Ctx, UserError, bool, categoryMap, json, listCategories, num, recordChange, str, getSettings } from './core';
+import { Ctx, NOT_IN_SUPER, UserError, bool, categoryMap, json, listCategories, num, recordChange, str, getSettings } from './core';
 import { Row } from '../db/database';
 import { ISODate, addDays, isValidDate } from '../../domain/dates';
 import { Cents } from '../../domain/money';
@@ -6,6 +6,7 @@ import { cleanDescription, guessPayee, merchantKey } from '../../domain/categori
 import { Rule, RuleSubject, validateRegex, describeRule } from '../../domain/categorise/rules';
 import { CategoryCorrection, HistoryEntry, RuleSuggestion, suggestCategory, suggestRules } from '../../domain/categorise/learning';
 import { IncomeType, INCOME_CATEGORY_FOR_TYPE } from '../../domain/categorise/categories';
+import { superCategoryFor } from '../../domain/categorise/superannuation';
 import { findTransferPairs, TransferSuggestion } from '../../domain/transfers';
 import { matchesSearch, parseSearch, SearchableTx } from '../../domain/search';
 import { HistoryDTO, TransactionDTO, TaxClass, SplitDTO } from '../../shared/types';
@@ -193,7 +194,8 @@ export function loadRules(ctx: Ctx): Rule[] {
 }
 
 function userHistory(ctx: Ctx): HistoryEntry[] {
-  return ctx.db.all("SELECT clean_description, category_id FROM transactions WHERE category_source = 'user' AND category_id IS NOT NULL").map((r) => ({ description: String(r.clean_description), categoryId: String(r.category_id) }));
+  return ctx.db.all("SELECT clean_description, category_id, account_id FROM transactions WHERE category_source = 'user' AND category_id IS NOT NULL")
+    .map((r) => ({ description: String(r.clean_description), categoryId: String(r.category_id), accountId: String(r.account_id) }));
 }
 
 export interface Categoriser {
@@ -205,9 +207,25 @@ export function makeCategoriser(ctx: Ctx): Categoriser {
   const rules = loadRules(ctx);
   const byId = new Map(rules.map((r) => [r.id, r]));
   const history = userHistory(ctx);
+  const cats = categoryMap(ctx);
+  const superAccounts = new Set(ctx.db.all("SELECT id FROM accounts WHERE type = 'superannuation'").map((r) => String(r.id)));
+  // Super and household choices never inform each other: an employer's name means salary in a
+  // bank account but an employer contribution in a super account.
+  const isSuperCat = (id: string | null) => !!id && cats.get(id)?.kind === 'super';
+  const householdRules = rules.filter((r) => !isSuperCat(r.categoryId ?? null));
+  const householdHistory = (history as (HistoryEntry & { accountId?: string })[]).filter((h) => !superAccounts.has(h.accountId ?? '') && !isSuperCat(h.categoryId));
+  const superHistory = (history as (HistoryEntry & { accountId?: string })[]).filter((h) => superAccounts.has(h.accountId ?? '') && isSuperCat(h.categoryId));
   return {
     suggest(subject) {
-      const s = suggestCategory(subject, rules, history);
+      if (subject.accountId && superAccounts.has(subject.accountId)) {
+        // Inside a super fund: super categories only, from the statement's columns and wording.
+        const sup = superCategoryFor(subject.description, subject.amountCents, subject.sourceColumn);
+        if (sup) return { categoryId: sup.categoryId, incomeType: null, ruleId: null, source: 'rule', confidence: sup.confidence, explanation: sup.explanation, alternatives: [], rule: null };
+        const s = suggestCategory(subject, rules.filter((r) => isSuperCat(r.categoryId ?? null)), superHistory);
+        if (s.categoryId && isSuperCat(s.categoryId)) return { ...s, rule: s.ruleId ? byId.get(s.ruleId) ?? null : null };
+        return { categoryId: null, incomeType: null, ruleId: null, source: 'none', confidence: 'low', explanation: 'No superannuation category fits this description — please choose one.', alternatives: [], rule: null };
+      }
+      const s = suggestCategory(subject, householdRules, householdHistory);
       return { ...s, rule: s.ruleId ? byId.get(s.ruleId) ?? null : null };
     },
   };
@@ -491,6 +509,7 @@ function corrections(ctx: Ctx): CategoryCorrection[] {
   return ctx.db.all(`SELECT MAX(h.created_at) AS at, t.clean_description, t.category_id FROM change_history h JOIN transactions t ON t.id = h.entity_id
     WHERE h.entity = 'transaction' AND h.field = 'categoryId' AND t.category_source = 'user' AND t.category_id IS NOT NULL
       AND (h.reason LIKE 'Changed by you%' OR h.reason LIKE 'Chosen%')
+      AND t.${NOT_IN_SUPER} AND t.category_id NOT IN (SELECT id FROM categories WHERE kind = 'super')
     GROUP BY t.id`).map((r) => ({
     description: String(r.clean_description), fromCategoryId: null, toCategoryId: String(r.category_id), at: String(r.at),
   }));

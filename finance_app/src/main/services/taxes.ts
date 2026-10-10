@@ -1,4 +1,5 @@
-import { Ctx, UserError, bool, getSettings, num, str, listAccounts, recordChange } from './core';
+import { SUPER_CATEGORY_ENTRY_KIND } from '../../domain/categorise/superannuation';
+import { Ctx, NOT_IN_SUPER, UserError, bool, getSettings, num, str, listAccounts, recordChange } from './core';
 import { ISODate, financialYearOf, fyRange, fyDisplay, formatDate, addDays, diffDays, isValidDate } from '../../domain/dates';
 import { Cents, formatMoney, parseMoney, roundCents } from '../../domain/money';
 import { Payslip, matchPayslipDeposit, payslipIssues, payslipTotals } from '../../domain/tax/payslips';
@@ -35,7 +36,7 @@ export function savePayslip(ctx: Ctx, p: Payslip): { id: string; issues: string[
   const id = p.id || ctx.id();
   let linked = p.linkedTransactionId ?? null;
   if (!linked) {
-    const deposits = ctx.db.all("SELECT id, date, amount_cents, original_description FROM transactions WHERE amount_cents = ? AND date BETWEEN ? AND ? AND payslip_id IS NULL", [p.netCents, addDays(p.payDate, -4), addDays(p.payDate, 4)])
+    const deposits = ctx.db.all(`SELECT id, date, amount_cents, original_description FROM transactions WHERE amount_cents = ? AND date BETWEEN ? AND ? AND payslip_id IS NULL AND ${NOT_IN_SUPER}`, [p.netCents, addDays(p.payDate, -4), addDays(p.payDate, 4)])
       .map((t) => ({ id: String(t.id), date: String(t.date), amountCents: Number(t.amount_cents), description: String(t.original_description) }));
     linked = matchPayslipDeposit(p, deposits)?.id ?? null;
   }
@@ -119,12 +120,12 @@ export function buildTaxInput(ctx: Ctx, fy: string): { input: TaxInput; lines: T
   input.paygWithheldCents = slips.paygCents;
   input.reportableSuperCents = slips.salarySacrificeCents;
   lines.push({ label: 'Payslips', amountCents: slips.taxableCents, basis: slips.explanation });
-  const salaryDeposits = ctx.db.scalar<number>("SELECT COALESCE(SUM(amount_cents),0) FROM transactions WHERE status='posted' AND income_type IN ('salary','wages') AND date BETWEEN ? AND ?", [start, end]) ?? 0;
-  const unlinked = ctx.db.scalar<number>("SELECT COUNT(*) FROM transactions WHERE status='posted' AND income_type IN ('salary','wages') AND payslip_id IS NULL AND date BETWEEN ? AND ?", [start, end]) ?? 0;
+  const salaryDeposits = ctx.db.scalar<number>(`SELECT COALESCE(SUM(amount_cents),0) FROM transactions WHERE status='posted' AND income_type IN ('salary','wages') AND date BETWEEN ? AND ? AND ${NOT_IN_SUPER}`, [start, end]) ?? 0;
+  const unlinked = ctx.db.scalar<number>(`SELECT COUNT(*) FROM transactions WHERE status='posted' AND income_type IN ('salary','wages') AND payslip_id IS NULL AND date BETWEEN ? AND ? AND ${NOT_IN_SUPER}`, [start, end]) ?? 0;
   if (salaryDeposits > 0 && slips.count === 0) warnings.push(`Salary deposits of ${formatMoney(salaryDeposits)} were found, but no payslips are entered for ${fyDisplay(fy)}. Deposits are net pay, so employment income and tax withheld are not included until payslips (or an income statement summary) are entered.`);
   else if (unlinked > 0) warnings.push(`${unlinked} salary deposit(s) in ${fyDisplay(fy)} are not linked to a payslip. Check that every pay is entered.`);
 
-  const txRows = ctx.db.all("SELECT * FROM transactions WHERE status = 'posted' AND is_transfer = 0 AND date BETWEEN ? AND ?", [start, end]);
+  const txRows = ctx.db.all(`SELECT * FROM transactions WHERE status = 'posted' AND is_transfer = 0 AND date BETWEEN ? AND ? AND ${NOT_IN_SUPER}`, [start, end]);
   // Business / contractor income: GST-exclusive when registered; never assumed to be profit.
   let bizIncome = 0, bizCount = 0, bizExp = 0, bizExpCount = 0, interest = 0, interestCount = 0, other = 0, deductions = 0, deductionCount = 0, instal = 0, gov = 0;
   for (const r of txRows) {
@@ -230,7 +231,7 @@ export function basPreparation(ctx: Ctx, fy: string, quarter: number) {
   const s = getSettings(ctx);
   const q = basQuarters(fy)[quarter];
   if (!q) throw new UserError('Choose a quarter.');
-  const rows = ctx.db.all(`SELECT * FROM transactions WHERE status = 'posted' AND is_transfer = 0 AND date BETWEEN ? AND ?
+  const rows = ctx.db.all(`SELECT * FROM transactions WHERE status = 'posted' AND is_transfer = 0 AND date BETWEEN ? AND ? AND ${NOT_IN_SUPER}
     AND (business_use IN ('business','mixed') OR income_type IN ('contractor','sole-trader','business'))`, [q.start, q.end]);
   const classified = rows.filter((r) => r.gst_class);
   const txs: GstTx[] = classified.map((r) => ({
@@ -239,7 +240,7 @@ export function basPreparation(ctx: Ctx, fy: string, quarter: number) {
   }));
   const summary = basSummary(txs, q, s.gstRegistered, rows.length - classified.length);
   const yearStart = addDays(ctx.today(), -365);
-  const sales = ctx.db.scalar<number>("SELECT COALESCE(SUM(amount_cents),0) FROM transactions WHERE status='posted' AND amount_cents > 0 AND income_type IN ('contractor','sole-trader','business') AND date >= ?", [yearStart]) ?? 0;
+  const sales = ctx.db.scalar<number>(`SELECT COALESCE(SUM(amount_cents),0) FROM transactions WHERE status='posted' AND amount_cents > 0 AND income_type IN ('contractor','sole-trader','business') AND date >= ? AND ${NOT_IN_SUPER}`, [yearStart]) ?? 0;
   const threshold = rulesFor(fy)?.rules.gst.value.registrationThreshold ?? 75000;
   return {
     quarter: q,
@@ -414,9 +415,31 @@ export function deleteSuperEntry(ctx: Ctx, id: string): void {
   ctx.changed('super');
 }
 
+/**
+ * Super entries from imported super statements: transactions in superannuation accounts (by their
+ * Superannuation category) and the accounts' dated balances. Amounts paid out of the fund (fees,
+ * insurance, tax, withdrawals) are stored as positive "paid" figures, so a tax benefit on fees
+ * reduces the tax total.
+ */
+function superEntriesFromAccounts(ctx: Ctx): SuperEntry[] {
+  const out: SuperEntry[] = [];
+  const rows = ctx.db.all(`SELECT t.id, t.account_id, t.date, t.amount_cents, t.category_id FROM transactions t JOIN accounts a ON a.id = t.account_id
+    WHERE a.type = 'superannuation' AND t.status = 'posted' AND t.category_id IS NOT NULL`);
+  for (const r of rows) {
+    const kind = SUPER_CATEGORY_ENTRY_KIND[String(r.category_id)];
+    if (!kind) continue;
+    const amount = Number(r.amount_cents);
+    const paidOut = kind === 'fees' || kind === 'insurance' || kind === 'contributions-tax' || kind === 'withdrawal';
+    out.push({ id: `tx:${r.id}`, accountId: String(r.account_id), date: String(r.date), kind, amountCents: paidOut ? -amount : amount });
+  }
+  const balances = ctx.db.all(`SELECT b.id, b.account_id, b.date, b.balance_cents FROM balance_snapshots b JOIN accounts a ON a.id = b.account_id WHERE a.type = 'superannuation'`);
+  for (const b of balances) out.push({ id: `bal:${b.id}`, accountId: String(b.account_id), date: String(b.date), kind: 'balance', amountCents: Number(b.balance_cents) });
+  return out;
+}
+
 export function superOverview(ctx: Ctx, fy?: string) {
   const year = fy ?? financialYearOf(ctx.today());
-  const entries = listSuperEntries(ctx);
+  const entries = [...listSuperEntries(ctx), ...superEntriesFromAccounts(ctx)];
   return {
     fy: year,
     accounts: listAccounts(ctx).filter((a) => a.type === 'superannuation'),

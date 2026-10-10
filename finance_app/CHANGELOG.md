@@ -2,6 +2,15 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `finance_app-v<version>-build<n>`, marked as pre-releases while Geranium is at 0.x).
 
+## 0.4.0 — 10 October 2026
+
+- **Superannuation kept separate.** New *Superannuation* categories: employer contributions (Super Guarantee), employer additional & salary sacrifice, personal contributions before and after tax, government contributions, investment returns, fees, insurance, tax in the fund, rollovers and withdrawals. Transactions in super accounts are no longer counted as household income or spending, in recurring payments or forecasts, or in the personal tax estimate (tax paid inside a fund is not PAYG, and fund earnings aren't personal income).
+- **Super fund statements import properly.** "Opening/Closing account balance" rows are read as balances, not transactions; amounts in the Total column keep their signs (investment returns are money in); fee and tax lines printed without dates are imported; and contributions are categorised from the statement's own columns (Employer SG, Employer additional, Member before-tax, Member after-tax). Imported super transactions feed the Super screen (contribution caps, fees, returns, tax in the fund, balance history).
+- Corrections in super accounts no longer teach rules that would affect bank accounts (an employer's name means salary in a bank account but a contribution in a super fund).
+- The built-in Centrelink rule no longer matches company names containing "Services Australia" (e.g. "Example Web Services Australia Pty Ltd").
+- **Accounts:** a stored account number can be removed; editing an account no longer clears its BSB; a newly added account now appears straight away in the import screen's account list.
+- **Automatic learning** explained in set-up as data analytics and rules-based learning (not AI), with the switch right there.
+
 ## 0.3.0 — 1 October 2026
 
 - **Recovery key for a forgotten password.** At set-up (or any time in Settings › Privacy & security), Geranium makes a one-off recovery key. Keep it by saving a file, printing it, or **Email it to myself** (opens a draft in your own email app — Geranium sends nothing). If you forget your password, choose "Forgotten your password?" on the lock screen, enter the key and pick a new password. It also helps when moving to a new computer.

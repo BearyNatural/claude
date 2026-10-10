@@ -42,6 +42,8 @@ export interface SuperYearSummary {
   feesCents: Cents;
   insuranceCents: Cents;
   earningsCents: Cents;
+  /** Tax deducted inside the fund (contributions tax etc.), less tax benefits on fees. Not personal tax. */
+  fundTaxCents: Cents;
   concessionalCapCents: Cents | null;
   nonConcessionalCapCents: Cents | null;
   capStatus: string | null;
@@ -71,6 +73,7 @@ export function superYearSummary(entries: SuperEntry[], fy: string): SuperYearSu
     feesCents: sum('fees'),
     insuranceCents: sum('insurance'),
     earningsCents: inYear.filter((e) => e.kind === 'earnings').reduce((a, e) => a + e.amountCents, 0),
+    fundTaxCents: inYear.filter((e) => e.kind === 'contributions-tax').reduce((a, e) => a + e.amountCents, 0),
     concessionalCapCents: caps ? caps.value.concessionalCap * 100 : null,
     nonConcessionalCapCents: caps ? caps.value.nonConcessionalCap * 100 : null,
     capStatus: caps ? `${fyDisplay(fy)} caps: ${caps.status}` : null,
@@ -79,10 +82,12 @@ export function superYearSummary(entries: SuperEntry[], fy: string): SuperYearSu
 }
 
 export function superBalanceHistory(entries: SuperEntry[], accountId?: string): { date: ISODate; balanceCents: Cents }[] {
-  return entries
-    .filter((e) => e.kind === 'balance' && (!accountId || e.accountId === accountId))
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((e) => ({ date: e.date, balanceCents: e.amountCents }));
+  // One point per account per date (a statement balance can arrive both typed in and imported).
+  const byKey = new Map<string, SuperEntry>();
+  for (const e of entries) if (e.kind === 'balance' && (!accountId || e.accountId === accountId)) byKey.set(`${e.accountId}|${e.date}`, e);
+  const perDate = new Map<ISODate, Cents>();
+  for (const e of byKey.values()) perDate.set(e.date, (perDate.get(e.date) ?? 0) + e.amountCents);
+  return [...perDate.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([date, balanceCents]) => ({ date, balanceCents }));
 }
 
 export interface SuperProjectionInput {
