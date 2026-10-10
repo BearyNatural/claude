@@ -272,3 +272,92 @@ export function payslipColumns(): PdfText[] {
     { text: '$1,000.00', x: 60, y: 726 }, { text: '$120.00', x: 200, y: 726 }, { text: '$120.00', x: 320, y: 726 }, { text: '$880.00', x: 450, y: 726 },
   ];
 }
+
+/**
+ * A fictional payslip like some large employers issue: no employer name (only an ABN), an earnings
+ * table, a separate super contributions table with "Nett | Tax | Gross" columns, and a
+ * "Year To Date | This Period" summary side by side.
+ */
+export function payslipSideBySideYtd(): PdfText[] {
+  const r = (text: string, x: number, y: number): PdfText => ({ text, x, y, right: true });
+  return [
+    { text: 'PAY ADVICE', x: 497, y: 770 },
+    { text: 'Payment Period', x: 253, y: 752 }, r('01 Jul 2026 to 31 Jul 2026', 549, 752),
+    { text: 'Payment Date', x: 253, y: 740 }, r('30 Jul 2026', 549, 740),
+    { text: 'ABN: 12 345 678 901', x: 46, y: 722 },
+    { text: 'PERSON, Example (000111)', x: 46, y: 705 }, { text: 'Annual Basic Salary', x: 253, y: 705 }, r('60,000.00', 549, 705),
+    { text: 'SUMMARY OF EARNINGS', x: 47, y: 635 },
+    r('Units', 386, 607), r('Rate', 476, 607), r('Amount', 550, 607),
+    { text: 'Total Hours', x: 299, y: 578 }, r('0.00', 389, 578), { text: 'Total Earnings', x: 426, y: 578 }, r('0.00', 553, 578),
+    { text: 'Additional Earnings', x: 42, y: 558 },
+    { text: 'Salary', x: 56, y: 543 }, r('80.00', 389, 543), r('30.0000', 479, 543), r('2400.00', 553, 543),
+    { text: 'Signing Bonus', x: 56, y: 529 }, r('1.00', 389, 529), r('100.0000', 479, 529), r('100.00', 553, 529),
+    r('Total Additional Earnings', 479, 515), r('2500.00', 553, 515),
+    { text: 'Deductions', x: 42, y: 495 },
+    { text: 'Tax', x: 56, y: 481 }, r('-450.00', 553, 481),
+    r('Net Pay', 479, 461), r('2050.00', 553, 461),
+    { text: 'Company Superannuation Contributions', x: 42, y: 339 }, r('Nett', 389, 339), r('Tax', 479, 339), r('Gross', 553, 339),
+    { text: 'ExampleFund', x: 56, y: 325 }, r('287.50', 389, 325), r('0.00', 479, 325), r('287.50', 553, 325),
+    { text: 'Year To Date', x: 45, y: 293 }, { text: 'This Period', x: 348, y: 293 },
+    { text: 'Total Gross', x: 45, y: 281 }, r('9500.00', 324, 281), { text: 'Total Gross', x: 348, y: 281 }, r('2500.00', 550, 281),
+    { text: 'Tax', x: 45, y: 256 }, r('-1900.00', 324, 256), { text: 'Deductions', x: 348, y: 256 }, r('450.00', 550, 256),
+    { text: 'ExampleFund (Employer)', x: 45, y: 243 }, r('1092.50', 324, 243), { text: 'Net Pay', x: 348, y: 243 }, r('2050.00', 550, 243),
+  ];
+}
+
+/**
+ * A fictional payslip with dates under column headings, allowances and super in a second table
+ * with tax-indicator codes, a "SUMMARY OF EARNINGS" row of columns, a separate "YEAR TO DATE
+ * DETAILS" table in the same columns further down, and the employer's name at the bottom.
+ */
+export function payslipColumnSummary(): PdfText[] {
+  const r = (text: string, x: number, y: number): PdfText => ({ text, x, y, right: true, size: 7 });
+  const t = (text: string, x: number, y: number): PdfText => ({ text, x, y, size: 7 });
+  return [
+    t('Pay Period', 27, 715), t('Pay Date', 120, 715), t('Emp No.', 175, 715), t('Status', 454, 715),
+    t('Month', 27, 707), t('End', 80, 707),
+    t('31/10/2026', 27, 699), t('28/10/2026', 104, 699), t('E000123', 176, 699), t('Full Time', 454, 699),
+    t('ELEMENTS', 119, 674), t('ALLOWANCES / DEDUCTIONS', 348, 674),
+    t('Description', 28, 666), t('Rate', 98, 666), t('Hours', 154, 666), t('Value', 230, 666), t('Description', 256, 666), t('Tax Ind', 433, 666), t('Value', 503, 666),
+    t('Salary', 27, 659), r('40.0000', 132, 659), r('50.0000', 185, 659), r('2000.00', 248, 659), t('Wellness Allowance', 257, 659), t('B', 440, 659), r('25.00', 516, 659),
+    t('*ExampleSuper', 257, 643), t('E', 440, 643), r('240.00', 516, 643),
+    t('SUMMARY OF EARNINGS', 239, 548),
+    t('Gross', 78, 540), t('Taxable Income', 147, 540), t('Pre Tax Allows/Deds', 221, 540), t('Post Tax Allows/Deds', 304, 540), t('Tax', 424, 540), t('NET INCOME', 486, 540),
+    r('2025.00', 108, 531), r('2025.00', 190, 531), r('25.00', 276, 531), r('.00', 363, 531), r('300.00', 444, 531), r('1725.00', 526, 531),
+    t('* Employer Superannuation Contribution relates to period commencing 01/10/2026 up to 31/10/2026', 36, 523),
+    t('EMPLOYER MESSAGE', 244, 380),
+    t('YEAR TO DATE DETAILS', 240, 347),
+    t('YTD Gross', 94, 339), t('YTD Taxable Income', 170, 339), t('YTD Tax', 405, 339), t('YTD Net', 501, 339),
+    r('8100.00', 128, 331), r('8100.00', 228, 331), r('1200.00', 430, 331), r('6900.00', 531, 331),
+    t('LEAVE THIS PERIOD', 245, 313),
+    t('Example Consulting Pty Ltd', 27, 75), t('(ABN) 12345678901', 444, 75),
+  ];
+}
+
+/**
+ * A fictional payslip with a "Totals" column beside the summary, employer super as "EmpER SGC",
+ * dates like "08-JUN-2026", a "Banked:" date and a "Year to Date Totals" section.
+ */
+export function payslipTotalsColumn(): PdfText[] {
+  const r = (text: string, x: number, y: number): PdfText => ({ text, x, y, right: true });
+  return [
+    { text: 'Pay Advice', x: 36, y: 726 },
+    { text: 'Example Insurance Holdings Pty Ltd ABN 12345678901', x: 36, y: 706 },
+    { text: 'Name: Person, Example', x: 81, y: 685 },
+    { text: 'Pay Period: 08-JUN-2026 to 21-JUN-2026', x: 61, y: 585 }, { text: 'Banked: 25-JUN-2026', x: 375, y: 585 },
+    { text: 'Summary', x: 36, y: 555 }, r('Hours', 174, 555), r('Amount', 252, 555), { text: 'Totals', x: 306, y: 555 }, r('Amount', 492, 555),
+    { text: 'Work', x: 48, y: 546 }, r('60:00', 174, 546), r('3000.00', 252, 546), { text: 'Gross', x: 318, y: 546 }, r('3000.00', 492, 546),
+    { text: 'Allowances', x: 48, y: 536 }, r('0.00', 252, 536), { text: 'Tax', x: 318, y: 536 }, r('600.00', 492, 536),
+    { text: 'Overtime', x: 48, y: 526 }, r('0.00', 252, 526), { text: 'Net', x: 318, y: 526 }, r('2400.00', 492, 526),
+    { text: 'Non Employee', x: 318, y: 486 }, r('360.00', 492, 486),
+    { text: 'This Pay', x: 36, y: 445 }, r('Amount', 492, 445),
+    { text: 'Std Hours', x: 48, y: 426 }, r('3000.00', 492, 426),
+    { text: 'Tax', x: 48, y: 396 }, r('600.00', 492, 396),
+    { text: 'Net Pay', x: 48, y: 386 }, { text: 'BANK/xxxx1234/EXAMPLE PERSON', x: 126, y: 386 }, r('2400.00', 492, 386),
+    { text: 'EmpER SGC', x: 48, y: 376 }, { text: 'Example Super Fund Ref: 0000000', x: 126, y: 376 }, r('360.00', 492, 376),
+    { text: 'Year to Date Totals', x: 36, y: 305 },
+    { text: 'Taxable Payments', x: 48, y: 286 }, r('15000.00', 192, 286), { text: 'Union', x: 348, y: 286 }, r('0.00', 492, 286),
+    { text: 'Tax', x: 48, y: 256 }, r('3000.00', 243, 256), { text: 'EmpER Super', x: 260, y: 256 }, r('1800.00', 342, 256), { text: 'Net Pay', x: 348, y: 256 }, r('12000.00', 492, 256),
+    { text: 'Messages', x: 36, y: 235 },
+  ];
+}

@@ -1,7 +1,7 @@
-import { Ctx, UserError } from './core';
+import { Ctx, UserError, getSecretValue, setSecretValue } from './core';
 import { extractPdfText } from '../import/pdfExtract';
 import { isEssStatement, parseEssStatement, EssStatement } from '../../domain/import/essStatement';
-import { parsePayslip, PayslipRead } from '../../domain/import/payslip';
+import { formatAbn, parsePayslip, PayslipRead } from '../../domain/import/payslip';
 import { ISODate } from '../../domain/dates';
 import { DocumentStore, addDocument, linkDocument } from './documents';
 import { TaxEntryKind } from './taxes';
@@ -12,7 +12,7 @@ import { TaxEntryKind } from './taxes';
  * (briefly, for one file at a time) so a copy can be kept with the saved records if asked.
  */
 
-const held = new Map<string, { fileName: string; bytes: Uint8Array; at: number }>();
+const held = new Map<string, { fileName: string; bytes: Uint8Array; at: number; abn?: string | null }>();
 const HOLD_MS = 30 * 60 * 1000;
 
 function hold(ctx: Ctx, fileName: string, bytes: Uint8Array): string {
@@ -96,13 +96,29 @@ export function saveEssStatement(ctx: Ctx, store: DocumentStore | null, e: EssIn
 
 /* ------------------------------ payslips ------------------------------ */
 
+/** Employer names typed in for payslips that only print the employer's ABN, by ABN. */
+const EMPLOYERS_KEY = 'payslipEmployersByAbn';
+
 export async function readPayslip(ctx: Ctx, fileName: string, bytes: Uint8Array): Promise<PayslipRead & { token: string; fileName: string }> {
   const pages = await pdfPages(bytes);
-  return { ...parsePayslip(pages), token: hold(ctx, fileName, bytes), fileName };
+  const r = parsePayslip(pages);
+  const remembered = r.employerAbn ? getSecretValue<Record<string, string>>(ctx, EMPLOYERS_KEY)?.[r.employerAbn] : undefined;
+  if (!r.employer && remembered) {
+    r.employer = remembered;
+    r.warnings = r.warnings.filter((w) => !w.startsWith("The employer's name"));
+    r.warnings.unshift(`The employer's name isn't printed on this payslip; “${remembered}” was filled in from an earlier payslip with ABN ${formatAbn(r.employerAbn!)}.`);
+  }
+  const token = hold(ctx, fileName, bytes);
+  held.get(token)!.abn = r.employerAbn;
+  return { ...r, token, fileName };
 }
 
-/** Keep the payslip file that was read, linked to the saved payslip. */
-export function keepPayslipFile(ctx: Ctx, store: DocumentStore, token: string, payslipId: string): void {
-  const doc = keep(ctx, store, token, 'payslip', 'Payslip read at entry');
-  if (doc) linkDocument(ctx, doc, 'payslip', payslipId);
+/** After a payslip that was read from a file is saved: remember its employer by ABN and keep the file if asked. */
+export function payslipSaved(ctx: Ctx, store: DocumentStore | null, token: string, payslipId: string, employer: string, keepFile: boolean): void {
+  const f = held.get(token);
+  if (f?.abn && employer.trim()) setSecretValue(ctx, EMPLOYERS_KEY, { ...(getSecretValue<Record<string, string>>(ctx, EMPLOYERS_KEY) ?? {}), [f.abn]: employer.trim() });
+  if (keepFile && store) {
+    const doc = keep(ctx, store, token, 'payslip', 'Payslip read at entry');
+    if (doc) linkDocument(ctx, doc, 'payslip', payslipId);
+  }
 }

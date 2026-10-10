@@ -42,6 +42,9 @@ linux:
   # The window's class (WM_CLASS / Wayland app_id) comes from desktopName in package.json
   # ("geranium"); the desktop entry is named and matched to it so panels show the icon.
   syncDesktopName: true
+  # Standard icon sizes: desktop icon themes have no 1024×1024 folder, so a single large PNG
+  # leaves panels and menus without an icon.
+  icon: build/icons
   target:
     - AppImage
     - deb

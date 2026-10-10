@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { testCtx } from '../helpers/ctx';
-import { makePdf, essStatement, payslipWithYtd, payslipColumns } from '../helpers/pdf';
+import { makePdf, essStatement, payslipWithYtd, payslipColumns, payslipSideBySideYtd, payslipColumnSummary, payslipTotalsColumn } from '../helpers/pdf';
 import { extractPdfText } from '@main/import/pdfExtract';
 import { parseEssStatement, isEssStatement } from '@domain/import/essStatement';
 import { parsePayslip } from '@domain/import/payslip';
 import { emptyTaxInput, estimateTax } from '@domain/tax/australia/estimator';
-import { readEssStatement, saveEssStatement, readPayslip } from '@main/services/taxDocuments';
+import { readEssStatement, saveEssStatement, readPayslip, payslipSaved } from '@main/services/taxDocuments';
 import { listTaxEntries, taxEstimate } from '@main/services/taxes';
 
 describe('employee share scheme statements', () => {
@@ -73,5 +73,42 @@ describe('payslip PDFs', () => {
     const r = parsePayslip(pages);
     expect(r.grossCents).toBeNull();
     expect(r.warnings[0]).toMatch(/gross pay, tax withheld, net pay/);
+  });
+
+  it('reads a "Year To Date | This Period" summary and a separate super contributions table', async () => {
+    const { pages } = await extractPdfText(await makePdf([payslipSideBySideYtd()]));
+    const r = parsePayslip(pages);
+    expect(r).toMatchObject({
+      employer: null, employerAbn: '12345678901', payDate: '2026-07-30', periodStart: '2026-07-01', periodEnd: '2026-07-31',
+      grossCents: 250000, paygCents: 45000, employerSuperCents: 28750, netCents: 205000, deductionsCents: 0,
+    });
+    expect(r.warnings[0]).toMatch(/not printed on this payslip \(ABN 12 345 678 901\)/);
+  });
+
+  it('reads dates under column headings, allowances beside the earnings and a summary row above a YTD table', async () => {
+    const { pages } = await extractPdfText(await makePdf([payslipColumnSummary()]));
+    expect(parsePayslip(pages)).toMatchObject({
+      employer: 'Example Consulting Pty Ltd', payDate: '2026-10-28', periodStart: '2026-10-01', periodEnd: '2026-10-31',
+      grossCents: 202500, allowancesCents: 2500, paygCents: 30000, employerSuperCents: 24000, netCents: 172500, deductionsCents: 0,
+    });
+  });
+
+  it('reads a Totals column, "EmpER SGC" and dates like 08-JUN-2026', async () => {
+    const { pages } = await extractPdfText(await makePdf([payslipTotalsColumn()]));
+    expect(parsePayslip(pages)).toMatchObject({
+      employer: 'Example Insurance Holdings Pty Ltd', payDate: '2026-06-25', periodStart: '2026-06-08', periodEnd: '2026-06-21',
+      grossCents: 300000, allowancesCents: 0, paygCents: 60000, employerSuperCents: 36000, netCents: 240000, deductionsCents: 0,
+    });
+  });
+
+  it('remembers an employer name for payslips that only print the ABN', async () => {
+    const ctx = await testCtx();
+    const bytes = await makePdf([payslipSideBySideYtd()]);
+    const first = await readPayslip(ctx, 'july.pdf', bytes);
+    expect(first.employer).toBeNull();
+    payslipSaved(ctx, null, first.token, 'slip-1', 'Example Web Company Pty Ltd', false);
+    const next = await readPayslip(ctx, 'august.pdf', bytes);
+    expect(next.employer).toBe('Example Web Company Pty Ltd');
+    expect(next.warnings[0]).toMatch(/filled in from an earlier payslip/);
   });
 });

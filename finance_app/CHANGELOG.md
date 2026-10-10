@@ -2,6 +2,18 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `finance_app-v<version>-build<n>`, marked as pre-releases while Geranium is at 0.x).
 
+## 0.5.1 — 11 October 2026
+
+- **Linux: the panel and menu icon now really shows.** The package only installed a 1024×1024 icon, a size desktop icon themes don't look in, so Cinnamon and others found no icon at all. It now installs the standard sizes (16 to 512 pixels).
+- **Payslip import is much more accurate:**
+  - Year-to-date figures are recognised in more layouts: a "Year To Date | This Period" summary side by side, a separate year-to-date table further down the page, and a "Year to Date Totals" section. Only this pay's figures are read, and a year-to-date table no longer hides the summary above it.
+  - Labels are read wherever they sit on a line, not only at the start.
+  - A super contributions table ("Nett | Tax | Gross") is read as employer super, not as gross pay and tax.
+  - Employer super is recognised in more wordings, such as "EmpER SGC" or a fund name next to its amount.
+  - Pay dates and periods are read from column headings, "Banked:" dates and dates like "08-JUN-2026".
+  - Section headings like "Employer message" or "Company Superannuation Contributions" are no longer taken for the employer's name.
+- When a payslip doesn't print the employer's name (only the ABN), the name you type is remembered for that ABN and filled in on that employer's next payslip.
+
 ## 0.5.0 — 10 October 2026
 
 - **Statements with several accounts.** A PDF statement that covers several accounts (as some banks send them) is split into one statement per account. Each is matched to your account with the same account number; the import screen lists them with their matches, lets you change a match or add a missing account (name, type and account number filled in from the statement), and imports them all at once or one at a time — each reconciled on its own.

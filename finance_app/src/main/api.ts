@@ -291,7 +291,7 @@ export function buildRegistry({ state, platform }: Deps) {
     'payslips.list': m(z.object({ fy: fy.optional() }).optional(), (i) => tax.listPayslips(ctx(), i?.fy)),
     'payslips.save': m(z.object({ id: z.string(), employer: z.string().min(1).max(100), payDate: iso, periodStart: iso.nullable().optional(), periodEnd: iso.nullable().optional(), grossCents: cents.positive(), allowancesCents: cents.nonnegative(), salarySacrificeCents: cents.nonnegative(), taxableCents: cents.nullable().optional(), paygCents: cents.nonnegative(), employerSuperCents: cents.nonnegative(), deductionsCents: cents.nonnegative(), netCents: cents.nonnegative(), linkedTransactionId: z.string().nullable().optional(), sourceToken: z.string().max(100).nullable().optional(), keepFile: z.boolean().optional() }), ({ sourceToken, keepFile, ...p }) => {
       const r = tax.savePayslip(ctx(), p as never);
-      if (keepFile && sourceToken && !state.demo) taxDocs.keepPayslipFile(ctx(), store(), sourceToken, r.id);
+      if (sourceToken) taxDocs.payslipSaved(ctx(), state.demo ? null : store(), sourceToken, r.id, p.employer, !!keepFile);
       return r;
     }),
     'payslips.readFile': m(none, async () => {
