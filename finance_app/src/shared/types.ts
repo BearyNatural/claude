@@ -137,6 +137,8 @@ export interface AppSettings {
   autoLearnRules: boolean;
   learningThreshold: number;
   theme: 'system' | 'light' | 'dark';
+  /** The picture behind the content. */
+  background: 'geraniums' | 'field' | 'plain';
   highContrast: boolean;
   textScale: number;
   privacyModeDefault: boolean;
@@ -195,6 +197,8 @@ export interface ImportSession {
     confidence: Confidence;
     suggestedAccountId: string | null;
     transactionCount: number;
+    /** The account this statement was already imported into, for files that hold several accounts. */
+    importedInto: string | null;
   }[];
   alreadyImported: { importId: string; importedAt: string } | null;
 }

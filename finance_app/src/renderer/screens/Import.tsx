@@ -10,12 +10,14 @@ import type { ApiOutput } from '../../main/api';
 import type { ImportPreviewRow, ImportSession, ReconciliationDTO } from '../../shared/types';
 
 /** Add an account without leaving the import (the first import usually needs one). */
-function QuickAccount({ onCreated }: { onCreated: (id: string) => void }) {
+function QuickAccount({ onCreated, hint }: { onCreated: (id: string) => void; hint?: ImportSession['statements'][number]['accountHint'] }) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [type, setType] = useState<AccountType>('transaction');
+  const [name, setName] = useState(hint?.name ?? '');
+  const [type, setType] = useState<AccountType>(hint?.type && hint.type in ACCOUNT_TYPE_LABEL ? hint.type as AccountType : 'transaction');
+  const number = hint?.number ?? null;
   const save = useAction(async () => {
-    const id = await api('accounts.save', { name: name.trim(), type });
+    // The statement's account number is saved too, so the next statement matches this account by itself.
+    const id = await api('accounts.save', { name: name.trim(), type, number, bsb: hint?.bsb ?? null });
     clearShared();
     onCreated(String(id));
     setOpen(false);
@@ -24,7 +26,7 @@ function QuickAccount({ onCreated }: { onCreated: (id: string) => void }) {
   if (!open) return <div><button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>New account…</button></div>;
   return (
     <div className="stack-sm">
-      <TextField label="Account name" value={name} onChange={setName} hint="For example “Everyday” or “Credit card”" autoFocus />
+      <TextField label="Account name" value={name} onChange={setName} hint={number ? `Account number ending ${number.slice(-4)} will be saved with it.` : 'For example “Everyday” or “Credit card”'} autoFocus />
       <SelectField label="Type" value={type} onChange={(v) => setType(v as AccountType)} options={Object.entries(ACCOUNT_TYPE_LABEL).map(([value, label]) => ({ value, label }))} />
       <ErrorText error={save.error} />
       <div className="row"><button type="button" className="btn btn-sm btn-primary" disabled={!name.trim() || save.pending} onClick={() => save.run()}>Add account</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => setOpen(false)}>Cancel</button></div>
@@ -108,10 +110,17 @@ function ReconciliationPanel({ rec }: { rec: ReconciliationDTO }) {
 
 type Preview = ApiOutput<'imports.preview'>;
 
-function Review({ session, onDone, onCancel }: { session: ImportSession; onDone: (r: ApiOutput<'imports.commit'>) => void; onCancel: () => void }) {
-  const [stmt, setStmt] = useState(0);
+type CommitResult = ApiOutput<'imports.commit'>;
+
+const maskNumber = (n: string | null | undefined) => (n ? `••${n.slice(-4)}` : null);
+const statementLabel = (s: ImportSession['statements'][number]) => [s.accountHint?.name, maskNumber(s.accountHint?.number)].filter(Boolean).join(' ') || `Statement ${s.index + 1}`;
+
+function Review({ session, index, initialAccountId, onDone, onCancel, onBack }: {
+  session: ImportSession; index: number; initialAccountId?: string | null; onDone: (r: CommitResult) => void; onCancel: () => void; onBack?: () => void;
+}) {
+  const stmt = index;
   const st = session.statements[stmt];
-  const [accountId, setAccountId] = useState<string | null>(st?.suggestedAccountId ?? null);
+  const [accountId, setAccountId] = useState<string | null>(initialAccountId ?? st?.suggestedAccountId ?? null);
   const [opening, setOpening] = useState<number | null>(st?.openingBalanceDerived ? null : st?.openingBalanceCents ?? null);
   const [closing, setClosing] = useState<number | null>(st?.closingBalanceCents ?? null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -135,8 +144,8 @@ function Review({ session, onDone, onCancel }: { session: ImportSession; onDone:
   if (!st) return <Callout kind="warn">No statements were found in this file.</Callout>;
   return (
     <div className="stack-lg">
-      {session.statements.length > 1 && <SelectField label="Statement in this file" value={String(stmt)} onChange={(v) => { setStmt(Number(v)); setPreview(null); }} options={session.statements.map((s) => ({ value: String(s.index), label: `${s.accountHint?.name ?? s.accountHint?.number ?? 'Statement'} · ${s.transactionCount} transactions` }))} />}
-      <Card title="Import review" sub={`${session.fileName} · ${session.format.toUpperCase()}${st.periodStart ? ` · ${formatDate(st.periodStart)} – ${formatDate(st.periodEnd)}` : ''} · ${st.transactionCount} transactions detected`}>
+      {onBack && <div><button className="btn btn-sm" onClick={onBack}>← All accounts in this statement</button></div>}
+      <Card title={session.statements.length > 1 ? `Import review: ${statementLabel(st)}` : 'Import review'} sub={`${session.fileName} · ${session.format.toUpperCase()}${st.periodStart ? ` · ${formatDate(st.periodStart)} – ${formatDate(st.periodEnd)}` : ''} · ${st.transactionCount} transactions detected`}>
         <div className="stack">
           {st.ocrRequired && <Callout kind="danger">This PDF is a scanned image. Its text could not be read, so nothing will be imported from it. Please use a CSV or OFX export of the same statement.</Callout>}
           {st.warnings.map((w) => <Callout key={w} kind="warn">{w}</Callout>)}
@@ -144,7 +153,7 @@ function Review({ session, onDone, onCancel }: { session: ImportSession; onDone:
           <div className="form-grid">
             <div className="stack-sm">
               <AccountSelect label="Import into account" value={accountId} onChange={setAccountId} />
-              <QuickAccount onCreated={setAccountId} />
+              <QuickAccount onCreated={setAccountId} hint={st.accountHint} />
             </div>
             <MoneyField label="Opening balance (from statement)" cents={opening} onChange={setOpening} allowNegative hint={st.openingBalanceDerived ? 'This file does not include one — type it from your statement to check the import.' : undefined} />
             <MoneyField label="Closing balance (from statement)" cents={closing} onChange={setClosing} allowNegative />
@@ -188,7 +197,7 @@ function Review({ session, onDone, onCancel }: { session: ImportSession; onDone:
               )}
               <ErrorText error={commit.error} />
               <div className="row-between">
-                <button className="btn" onClick={onCancel}>Cancel import</button>
+                <button className="btn" onClick={onBack ?? onCancel}>{onBack ? 'Back' : 'Cancel import'}</button>
                 <button className="btn btn-primary" disabled={!accountId || commit.pending || included.length === 0} onClick={() => commit.run()}>Import {included.length} transaction{included.length === 1 ? '' : 's'}</button>
               </div>
             </div>
@@ -199,6 +208,59 @@ function Review({ session, onDone, onCancel }: { session: ImportSession; onDone:
         <RowEditor row={editing} current={edits[editing.index]} onClose={() => setEditing(null)} onSave={(e) => { setEdits({ ...edits, [editing.index]: { ...edits[editing.index], ...e } }); setEditing(null); }} />
       )}
     </div>
+  );
+}
+
+/** A statement that lists several accounts: match each to an account, then import them together or one by one. */
+function AccountsInFile({ session, onReview, onImported, onCancel }: {
+  session: ImportSession; onReview: (index: number, accountId: string | null) => void; onImported: (results: { label: string; r: CommitResult }[]) => void; onCancel: () => void;
+}) {
+  const { accounts } = useAccounts();
+  const [choice, setChoice] = useState<Record<number, string | null>>(() => Object.fromEntries(session.statements.map((s) => [s.index, s.suggestedAccountId])));
+  const [keepFile, setKeepFile] = useState(true);
+  const waiting = session.statements.filter((s) => !s.importedInto && s.transactionCount > 0);
+  const ready = waiting.filter((s) => choice[s.index]);
+  const chosen = ready.map((s) => choice[s.index]);
+  const doubled = chosen.some((a, i) => chosen.indexOf(a) !== i);
+  const nameOf = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? 'an account';
+  const importAll = useAction(async () => {
+    const r = await api('imports.commitAll', { sessionId: session.sessionId, keepSourceFile: keepFile, items: ready.map((s) => ({ statementIndex: s.index, accountId: choice[s.index]! })) });
+    onImported(r.results.map((x) => ({ label: `${statementLabel(session.statements[x.statementIndex])} → ${nameOf(x.accountId)}`, r: x })));
+  });
+  return (
+    <Card title="Accounts in this statement" sub={`${session.fileName} · ${session.statements.length} accounts`}>
+      <div className="stack">
+        <p>This statement covers several accounts. Each one is matched to your account with the same account number. Check the matches, then import them all at once or review them one at a time.</p>
+        {session.alreadyImported && <Callout kind="warn">This exact file was imported on {formatDate(session.alreadyImported.importedAt.slice(0, 10))}. Rows already imported will be recognised as duplicates.</Callout>}
+        <DataTable rows={session.statements} rowKey={(s) => String(s.index)} columns={[
+          { key: 'a', header: 'On the statement', render: (s) => <span><strong>{s.accountHint?.name ?? `Statement ${s.index + 1}`}</strong><div className="small muted">{[maskNumber(s.accountHint?.number), s.periodStart ? `${formatDate(s.periodStart)} – ${formatDate(s.periodEnd)}` : null].filter(Boolean).join(' · ')}</div></span> },
+          { key: 'n', header: 'Transactions', num: true, render: (s) => s.transactionCount },
+          { key: 'to', header: 'Import into', render: (s) => s.importedInto ? <Badge kind="ok"><Icon name="check" size={12} />Imported into {nameOf(s.importedInto)}</Badge>
+            : s.transactionCount === 0 ? <span className="small muted">Nothing to import</span>
+            : (
+              <div className="stack-sm" style={{ minWidth: 220 }}>
+                <AccountSelect label="" value={choice[s.index] ?? null} onChange={(v) => setChoice({ ...choice, [s.index]: v })} placeholder="Choose an account" />
+                {!choice[s.index] && <QuickAccount hint={s.accountHint} onCreated={(id) => setChoice({ ...choice, [s.index]: id })} />}
+                {choice[s.index] && s.accountHint?.number && !accounts.find((a) => a.id === choice[s.index])?.numberMasked?.endsWith(s.accountHint.number.slice(-4)) && (
+                  <span className="small muted">Tip: add the account number ending {s.accountHint.number.slice(-4)} to this account (Accounts › Edit) so it is matched automatically next time.</span>
+                )}
+              </div>
+            ) },
+          { key: 'r', header: '', render: (s) => !s.importedInto && s.transactionCount > 0 && <button className="btn btn-sm" disabled={!choice[s.index]} onClick={() => onReview(s.index, choice[s.index] ?? null)}>Review</button> },
+        ]} />
+        {waiting.length > ready.length && <Callout>Accounts without a match are left out. Choose an account for them, add a new one, or leave them for later.</Callout>}
+        {doubled && <Callout kind="warn">Two statements are going into the same account. Check that is what you meant.</Callout>}
+        <Checkbox label="Keep a copy of the original file (encrypted, linked to these imports)" checked={keepFile} onChange={setKeepFile} />
+        <ErrorText error={importAll.error} />
+        <div className="row-between">
+          <button className="btn" onClick={onCancel}>Cancel import</button>
+          <button className="btn btn-primary" disabled={ready.length === 0 || importAll.pending} onClick={() => importAll.run()}>
+            {importAll.pending ? 'Importing…' : `Import ${ready.length} account${ready.length === 1 ? '' : 's'}`}
+          </button>
+        </div>
+        <p className="small muted">Each account is checked exactly as on the review screen: rows already imported are skipped, balances are reconciled, and anything uncertain waits in the Review inbox.</p>
+      </div>
+    </Card>
   );
 }
 
@@ -258,20 +320,51 @@ export function ImportScreen() {
   const { accounts } = useAccounts();
   const [session, setSession] = useState<ImportSession | null>(null);
   const [remap, setRemap] = useState(false);
-  const [result, setResult] = useState<ApiOutput<'imports.commit'> | null>(null);
+  const [results, setResults] = useState<{ label: string; r: CommitResult }[] | null>(null);
+  /** For a file with several accounts: which one is open for review (null = the list of accounts). */
+  const [reviewing, setReviewing] = useState<{ index: number; accountId: string | null } | null>(null);
+  const [done, setDone] = useState<{ label: string; r: CommitResult }[]>([]);
   const choose = useAction(async () => {
     const s = await api('imports.chooseFile');
-    if (s) { setSession(s); setRemap(false); setResult(null); }
+    if (s) { setSession(s); setRemap(false); setResults(null); setReviewing(null); setDone([]); }
   });
   const needsMapping = useMemo(() => !!session && (session.needsMapping || remap), [session, remap]);
-  const cancel = async () => { if (session) await api('imports.discard', { sessionId: session.sessionId }); setSession(null); };
+  const cancel = async () => {
+    if (session) await api('imports.discard', { sessionId: session.sessionId });
+    setSession(null);
+    setReviewing(null);
+    if (done.length) setResults(done);
+  };
+  const multi = !!session && session.statements.length > 1;
+  /** After importing some accounts of a multi-account file: back to the list, or finished when none are left. */
+  const imported = async (items: { label: string; r: CommitResult }[]) => {
+    const all = [...done, ...items];
+    const left = items[items.length - 1]?.r.remaining ?? 0;
+    setReviewing(null);
+    if (!session || left === 0) { setResults(all); setDone([]); setSession(null); return; }
+    setDone(all);
+    try { setSession(await api('imports.session', { sessionId: session.sessionId })); } catch { setResults(all); setDone([]); setSession(null); }
+    toast(`${items.length === 1 ? items[0].label : `${items.length} accounts`} imported. ${left} account${left === 1 ? '' : 's'} still to go.`, 'success');
+  };
+  const totals = results && {
+    added: results.reduce((a, x) => a + x.r.added, 0),
+    staged: results.reduce((a, x) => a + x.r.staged, 0),
+    skipped: results.reduce((a, x) => a + x.r.skippedDuplicates, 0),
+    rejected: results.reduce((a, x) => a + x.r.rejectedRows, 0),
+    difference: results.some((x) => x.r.reconciliation.status === 'difference'),
+  };
   return (
     <Page title="Import" intro="Bring in statements and exports you downloaded yourself. Geranium never connects to your bank." actions={session ? <button className="btn" onClick={cancel}>Start again</button> : undefined}>
-      {result && (
-        <Callout kind={result.reconciliation.status === 'difference' ? 'warn' : 'ok'} title="Import finished">
-          {result.added} transaction{result.added === 1 ? '' : 's'} added{result.staged ? `, ${result.staged} waiting in the Review inbox` : ''}{result.skippedDuplicates ? `, ${result.skippedDuplicates} duplicates skipped` : ''}{result.rejectedRows ? `, ${result.rejectedRows} unreadable rows not imported` : ''}. {result.reconciliation.message}
+      {results && totals && (
+        <Callout kind={totals.difference ? 'warn' : 'ok'} title="Import finished">
+          {totals.added} transaction{totals.added === 1 ? '' : 's'} added{totals.staged ? `, ${totals.staged} waiting in the Review inbox` : ''}{totals.skipped ? `, ${totals.skipped} duplicates skipped` : ''}{totals.rejected ? `, ${totals.rejected} unreadable rows not imported` : ''}.{results.length === 1 && ` ${results[0].r.reconciliation.message}`}
+          {results.length > 1 && (
+            <ul className="small" style={{ margin: '8px 0 0' }}>
+              {results.map((x) => <li key={x.r.importId}>{x.label}: {x.r.added + x.r.staged} transaction{x.r.added + x.r.staged === 1 ? '' : 's'} · {x.r.reconciliation.status === 'reconciled' ? 'reconciled with the statement' : x.r.reconciliation.message}</li>)}
+            </ul>
+          )}
           <div className="row" style={{ marginTop: 8 }}>
-            {result.staged > 0 && <button className="btn btn-sm" onClick={() => navigate('inbox')}>Open Review inbox</button>}
+            {totals.staged > 0 && <button className="btn btn-sm" onClick={() => navigate('inbox')}>Open Review inbox</button>}
             <button className="btn btn-sm" onClick={() => navigate('transactions')}>View transactions</button>
             <button className="btn btn-sm" onClick={() => choose.run()}>Import another file</button>
           </div>
@@ -302,7 +395,12 @@ export function ImportScreen() {
       {session && !needsMapping && (
         <>
           {session.mapping !== null && <div><button className="btn btn-sm" onClick={() => setRemap(true)}>Change which columns are used</button></div>}
-          <Review key={session.sessionId + session.statements.length} session={session} onCancel={cancel} onDone={(r) => { setResult(r); setSession(null); }} />
+          {multi && !reviewing && <AccountsInFile key={session.sessionId + done.length} session={session} onCancel={cancel} onImported={imported} onReview={(index, accountId) => setReviewing({ index, accountId })} />}
+          {multi && reviewing && (
+            <Review key={`${session.sessionId}:${reviewing.index}`} session={session} index={reviewing.index} initialAccountId={reviewing.accountId} onCancel={cancel} onBack={() => setReviewing(null)}
+              onDone={(r) => void imported([{ label: `${statementLabel(session.statements[reviewing.index])}`, r }])} />
+          )}
+          {!multi && <Review key={session.sessionId + session.statements.length} session={session} index={0} onCancel={cancel} onDone={(r) => { setResults([{ label: '', r }]); setSession(null); }} />}
         </>
       )}
     </Page>

@@ -43,10 +43,21 @@ interface Line {
 
 /* ------------------------------ layout ------------------------------ */
 
+/** Some statements print shaded rows twice in the same place; keep one copy of each. */
+function withoutOverprint(items: PdfTextItem[]): PdfTextItem[] {
+  const seen = new Set<string>();
+  return items.filter((i) => {
+    const key = `${i.str}|${Math.round(i.x * 2)}|${Math.round(i.y * 2)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function buildLines(pages: PdfTextPage[]): Line[] {
   const lines: Line[] = [];
   for (const page of pages) {
-    const items = page.items.filter((i) => i.str.trim() !== '').sort((a, b) => b.y - a.y || a.x - b.x);
+    const items = withoutOverprint(page.items.filter((i) => i.str.trim() !== '')).sort((a, b) => b.y - a.y || a.x - b.x);
     const groups: PdfTextItem[][] = [];
     for (const it of items) {
       const g = groups.find((grp) => Math.abs(grp[0].y - it.y) <= Math.max(2, (grp[0].height || 8) * 0.35));
@@ -60,7 +71,9 @@ export function buildLines(pages: PdfTextPage[]): Line[] {
         const prev = cells[cells.length - 1];
         const charW = it.str.length ? it.width / it.str.length : 4;
         const gap = prev ? it.x - prev.x1 : Infinity;
-        if (prev && gap < Math.max(charW * 1.6, 3.5)) {
+        // Text printed on top of other text (mailing codes in the margin) is kept as its own cell.
+        const overlaps = gap < -2 && -gap > it.width * 0.5;
+        if (prev && !overlaps && gap < Math.max(charW * 1.6, 3.5)) {
           prev.text += (gap > charW * 0.25 ? ' ' : '') + it.str;
           prev.x1 = it.x + it.width;
         } else {
@@ -184,8 +197,32 @@ function detectHeader(line: Line): HeaderColumns | null {
     columns.push({ label: c.text, role: found, x0: c.x0, x1: c.x1 });
   }
   const has = (r: ColumnRole) => roles.some((x) => x.role === r);
-  if (has('date') && (has('debit') || has('credit') || has('amount') || has('balance'))) return { roles, columns };
+  if (has('date') && (has('debit') || has('credit') || has('amount') || has('balance'))) {
+    const date = roles.find((r) => r.role === 'date')!;
+    // Anything printed left of the Date heading is margin text, not a column.
+    return { roles, columns: columns.filter((c) => c.role || c.x0 >= date.x0 - 4) };
+  }
   return null;
+}
+
+/** Where the amount columns begin: money printed left of this is part of the description ("INT SAVED 123.45"). */
+function amountZoneStart(header: HeaderColumns): number {
+  const date = header.roles.find((r) => r.role === 'date');
+  const desc = header.roles.find((r) => r.role === 'description');
+  const descEnd = (desc ?? date)?.x1 ?? -Infinity;
+  const xs = header.columns
+    .filter((c) => (c.role && c.role !== 'date' && c.role !== 'description') || (!c.role && c.x0 > descEnd))
+    .map((c) => c.x0);
+  return xs.length ? Math.min(...xs) : -Infinity;
+}
+
+/** Drop margin text (mailing codes, scanner marks) printed left of the Date column. */
+function trimMargin(line: Line, header: HeaderColumns | null): Line {
+  const date = header?.roles.find((r) => r.role === 'date');
+  if (!date) return line;
+  const cells = line.cells.filter((c) => c.x0 >= date.x0 - 4 || parseRowDate(c.text) !== null);
+  if (cells.length === line.cells.length) return line;
+  return { ...line, cells, text: cells.map((c) => c.text).join('  ') };
 }
 
 /** Headings split over several lines ("Employer" / "SG ($)"): add the lower words to the column above. */
@@ -279,22 +316,124 @@ export interface PdfParseOptions {
   fallbackYear?: number;
 }
 
-export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = {}): ParsedStatement {
-  const st = emptyStatement('pdf');
+function scannedStatement(pages: PdfTextPage[]): ParsedStatement | null {
   const totalItems = pages.reduce((a, p) => a + p.items.filter((i) => i.str.trim()).length, 0);
-  if (pages.length > 0 && totalItems < pages.length * 5) {
-    st.ocrRequired = true;
-    st.confidence = 'low';
-    st.warnings.push(
-      'This PDF appears to be a scanned image with no text layer. Reading it would need OCR (text recognition), which this version does not include. ' +
-      'Please import a CSV or OFX export of the same statement, or enter the transactions manually.',
-    );
-    return st;
-  }
+  if (pages.length === 0 || totalItems >= pages.length * 5) return null;
+  const st = emptyStatement('pdf');
+  st.ocrRequired = true;
+  st.confidence = 'low';
+  st.warnings.push(
+    'This PDF appears to be a scanned image with no text layer. Reading it would need OCR (text recognition), which this version does not include. ' +
+    'Please import a CSV or OFX export of the same statement, or enter the transactions manually.',
+  );
+  return st;
+}
 
+/** Reads the whole PDF as one statement. */
+export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = {}): ParsedStatement {
+  return scannedStatement(pages) ?? parseLines(buildLines(pages), opts).statement;
+}
+
+/* ------------------------------ several accounts in one PDF ------------------------------ */
+
+const ACCOUNT_NAME_LINE = /^Account\s+name\s*:\s*(.+?)\s*$/i;
+const PRODUCT_NAME_LINE = /^Product\s+name\s*:\s*(.+?)\s*$/i;
+const ACCOUNT_NUMBER_LINE = /^Account(?:\s+(?:number|no\.?|#))?\s*:?\s*(\d[\d -]{4,18}\d)\b/i;
+
+/**
+ * Some banks put every account in one statement: a section per
+ * account, each starting "Account name: …" / "Account: 12345678". Split the lines at each new
+ * account number. Statements for one account come back as a single section.
+ */
+export function splitAccountSections(lines: Line[]): Line[][] {
+  const starts: number[] = [];
+  let current: string | null = null;
+  lines.forEach((l, i) => {
+    const m = l.text.match(ACCOUNT_NUMBER_LINE);
+    if (!m) return;
+    const num = m[1].replace(/\D/g, '');
+    if (num === current) return;
+    current = num;
+    let start = i;
+    const floor = Math.max(0, i - 6, starts.length ? starts[starts.length - 1] + 1 : 0);
+    for (let j = i - 1; j >= floor; j--) {
+      if (ACCOUNT_NAME_LINE.test(lines[j].text)) {
+        start = j;
+        break;
+      }
+    }
+    starts.push(start);
+  });
+  if (starts.length < 2) return [lines];
+  return starts.map((s, k) => lines.slice(s, k + 1 < starts.length ? starts[k + 1] : lines.length));
+}
+
+/**
+ * Reads a PDF that may hold several accounts: one statement per account section, each with its own
+ * account number, period and balances, so every section can go to the matching account.
+ */
+export function parsePdfStatements(pages: PdfTextPage[], opts: PdfParseOptions = {}): ParsedStatement[] {
+  const scanned = scannedStatement(pages);
+  if (scanned) return [scanned];
   const lines = buildLines(pages);
+  const sections = splitAccountSections(lines);
+  if (sections.length < 2) return [parseLines(lines, opts).statement];
   const allText = lines.map((l) => l.text).join('\n');
-  const period = findStatementPeriod(allText);
+  const doc = { period: findStatementPeriod(allText), bsb: findAccountNumber(allText).bsb };
+  const out: ParsedStatement[] = [];
+  let header: HeaderColumns | null = null;
+  for (const section of sections) {
+    // A section without its own headings uses the layout of the one before it.
+    const r = parseLines(section, opts, doc, header);
+    header = r.header ?? header;
+    out.push(r.statement);
+  }
+  return out;
+}
+
+/** Guess the kind of account from a product name printed on the statement. */
+export function accountTypeFromName(name: string): string | null {
+  if (/offset|mortgage\s*freedom/i.test(name)) return 'offset';
+  if (/home\s*loan|mortgage|var(iable)?\s+(OO|INV)|\bP&I\b|interest\s+only/i.test(name)) return 'mortgage';
+  if (/credit\s*card|mastercard|visa|low\s+rate\s+card/i.test(name)) return 'credit-card';
+  if (/personal\s+loan/i.test(name)) return 'personal-loan';
+  if (/car\s+loan|vehicle\s+loan/i.test(name)) return 'car-loan';
+  if (/term\s+deposit/i.test(name)) return 'term-deposit';
+  if (/saver|savings|bonus|goal/i.test(name)) return 'savings';
+  if (/everyday|access|transaction|cheque|basic|joint/i.test(name)) return 'transaction';
+  return null;
+}
+
+/* ------------------------------ reading one statement ------------------------------ */
+
+/** Narrow date columns can wrap the date itself ("20" on one line, "May" under it): join those lines. */
+function joinSplitDates(lines: Line[]): Line[] {
+  const out: Line[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const a = lines[i];
+    const b = lines[i + 1];
+    const day = a.cells[0]?.text.match(/^(\d{1,2})$/);
+    const mon = b?.cells[0]?.text.match(/^([A-Za-z]{3,9})\.?$/);
+    if (day && mon && b.page === a.page && a.y - b.y < 16 && Math.abs(a.cells[0].x0 - b.cells[0].x0) < 6 && monthFromName(mon[1])) {
+      const cells = [{ text: `${day[1]} ${mon[1]}`, x0: a.cells[0].x0, x1: Math.max(a.cells[0].x1, b.cells[0].x1) }, ...a.cells.slice(1), ...b.cells.slice(1)];
+      out.push({ page: a.page, y: a.y, cells, text: cells.map((c) => c.text).join('  ') });
+      i++;
+      continue;
+    }
+    out.push(a);
+  }
+  return out;
+}
+
+interface DocInfo {
+  period: { start: ISODate; end: ISODate } | null;
+  bsb: string | null;
+}
+
+function parseLines(lines: Line[], opts: PdfParseOptions, doc?: DocInfo, inheritedHeader: HeaderColumns | null = null): { statement: ParsedStatement; header: HeaderColumns | null } {
+  const st = emptyStatement('pdf');
+  const allText = lines.map((l) => l.text).join('\n');
+  const period = findStatementPeriod(allText) ?? doc?.period ?? null;
   if (period) {
     st.periodStart = period.start;
     st.periodEnd = period.end;
@@ -302,7 +441,14 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
     st.warnings.push('No statement period was found. Dates without a year were given the most likely year — please check them.');
   }
   const acct = findAccountNumber(allText);
-  st.account = { number: acct.number, bsb: acct.bsb, name: findAccountName(lines) };
+  const labelled = lines.map((l) => l.cells[0]?.text.match(ACCOUNT_NAME_LINE)?.[1]).find(Boolean) ?? null;
+  const product = lines.map((l) => l.cells[0]?.text.match(PRODUCT_NAME_LINE)?.[1]).find(Boolean) ?? null;
+  st.account = {
+    number: lines.map((l) => l.text.match(ACCOUNT_NUMBER_LINE)?.[1].replace(/\D/g, '')).find(Boolean) ?? acct.number,
+    bsb: acct.bsb ?? doc?.bsb ?? null,
+    name: labelled ?? findAccountName(lines),
+    type: accountTypeFromName([labelled, product].filter(Boolean).join(' ')),
+  };
   // Balances are stored in the app's convention: money owed on a card or loan is negative.
   const liability = opts.balanceMeaning === 'liability';
   const conv = (v: number | null) => (v === null ? null : liability ? -v : v);
@@ -310,24 +456,35 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
   st.closingBalanceCents = conv(findLabelledBalance(lines, /closing(\s+account)?\s+balance|balance\s+carried\s+forward|new\s+balance/i));
   const fallbackYear = opts.fallbackYear ?? (period ? parts(period.end).y : new Date().getFullYear());
 
-  let header: HeaderColumns | null = null;
+  let header: HeaderColumns | null = inheritedHeader;
+  let ownHeader: HeaderColumns | null = null;
+  let zone = header ? amountZoneStart(header) : -Infinity;
   let prevBalance: number | null = st.openingBalanceCents ?? null;
   let lastTx: ParsedTransaction | null = null;
   let lastDate: ISODate | null = null;
   let inTable = false;
   let headerLinesLeft = 0;
+  /** A dated row whose amount is on the next line ("20 Apr TRANSFER TO …" / "SMITH 300.00 274.50"). */
+  let pending: { date: ISODate; inferred: boolean; text: string; raw: string } | null = null;
   // Statements that print money out with a minus sign ("-52.00") show money in without one.
   const explicitSigns = lines.some((l) => l.cells.some((c) => isMoneyToken(c.text) && /^\s*[-(]|-\s*$/.test(c.text)));
+  // A money-looking number inside the description area is part of the description.
+  const isAmount = (c: Cell) => isMoneyToken(c.text) && !(header && c.x1 < zone - 10);
 
-  for (const line of lines) {
-    const h = detectHeader(line);
+  for (const rawLine of joinSplitDates(lines)) {
+    const h = detectHeader(rawLine);
     if (h) {
       header = h;
+      ownHeader = h;
+      zone = amountZoneStart(h);
       inTable = true;
       lastTx = null;
+      pending = null;
       headerLinesLeft = 2;
       continue;
     }
+    const line = trimMargin(rawLine, header);
+    if (line.cells.length === 0) continue;
     if (FOOTNOTE_MARK.test(line.text.trim())) continue;
     if (header && headerLinesLeft > 0) {
       headerLinesLeft--;
@@ -339,28 +496,68 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
     }
     if (SKIP_LINE.test(line.text) && !leadingDate(line)) {
       lastTx = null;
+      pending = null;
       continue;
     }
     const ld = leadingDate(line);
     // Amount cells: money tokens after the date/description.
-    const moneyCells = line.cells.filter((c, i) => i > 0 || !ld ? isMoneyToken(c.text) : false);
+    const moneyCells = line.cells.filter((c, i) => (i > 0 || !ld ? isAmount(c) : false));
+    const lineText = () => {
+      const t: string[] = [];
+      if (ld?.rest) t.push(ld.rest);
+      line.cells.forEach((c, i) => {
+        if (i === 0 && ld) return;
+        if (isAmount(c)) return;
+        if (parseRowDate(c.text) && t.length === 0 && i === 1) return; // processing date column
+        t.push(c.text);
+      });
+      return t.join(' ').replace(/\s+/g, ' ').trim();
+    };
     if (!ld && moneyCells.length === 0) {
       // Continuation of the previous description (wrapped text).
-      if (lastTx && inTable && line.text.length < 120 && !/^(page|statement|account|bsb)\b/i.test(line.text)) {
-        lastTx.description = `${lastTx.description} ${line.text.replace(/\s{2,}/g, ' ')}`.trim();
+      if (inTable && line.text.length < 120 && !/^(page|statement|account|bsb)\b/i.test(line.text)) {
+        if (pending) pending.text = `${pending.text} ${lineText()}`.trim();
+        else if (lastTx) lastTx.description = `${lastTx.description} ${lineText()}`.trim();
       }
       continue;
     }
     if (!ld && !inTable) continue;
-    if (moneyCells.length === 0) continue;
+    if (ld && moneyCells.length === 0) {
+      if (!inTable) continue;
+      const r = resolveYear(ld.token, period, fallbackYear);
+      const text = lineText();
+      if (!r.date || BALANCE_ROW.test(text)) {
+        pending = null;
+        continue;
+      }
+      if (/^REF\s*:/i.test(text) && lastTx && lastTx.date === r.date) {
+        // A reference printed on its own dated line belongs to the transaction above it.
+        lastTx.description = `${lastTx.description} ${text}`.trim();
+        pending = null;
+        continue;
+      }
+      // Either a wrapped row (the amount is on the next line) or a note with no money ("RATE CHANGED").
+      pending = { date: r.date, inferred: r.inferred, text, raw: line.text };
+      continue;
+    }
 
     const issues: string[] = [];
     let confidence: Confidence = 'high';
     let date: ISODate | null = null;
+    let prefix = '';
+    let raw = line.text;
     if (ld) {
       const r = resolveYear(ld.token, period, fallbackYear);
       date = r.date;
       if (r.inferred && !period) {
+        confidence = 'medium';
+        issues.push('The year was not printed on this row and was inferred');
+      }
+    } else if (pending) {
+      date = pending.date;
+      prefix = pending.text;
+      raw = `${pending.raw} / ${line.text}`;
+      if (pending.inferred && !period) {
         confidence = 'medium';
         issues.push('The year was not printed on this row and was inferred');
       }
@@ -369,21 +566,14 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
       confidence = 'medium';
       issues.push('No date on this row; the date from the line above was used');
     }
+    pending = null;
     if (!date) {
       st.rejectedRows.push({ sourceRow: line.page, reason: 'Date could not be read', raw: line.text });
       continue;
     }
 
     // Description: text cells that are not the date or money.
-    const descParts: string[] = [];
-    if (ld?.rest) descParts.push(ld.rest);
-    line.cells.forEach((c, i) => {
-      if (i === 0 && ld) return;
-      if (isMoneyToken(c.text)) return;
-      if (parseRowDate(c.text) && descParts.length === 0 && i === 1) return; // processing date column
-      descParts.push(c.text);
-    });
-    const description = descParts.join(' ').replace(/\s+/g, ' ').trim();
+    const description = [prefix, lineText()].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
     if (BALANCE_ROW.test(description)) {
       const p = parseMoney(moneyCells[moneyCells.length - 1].text);
@@ -400,7 +590,6 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
       }
       continue;
     }
-
     // Assign money cells to roles.
     let debit: number | null = null;
     let credit: number | null = null;
@@ -514,7 +703,7 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
       sourceColumn,
       confidence: description ? confidence : 'low',
       issues: description ? issues : [...issues, 'No description could be read'],
-      raw: `page ${line.page}: ${line.text}`,
+      raw: `page ${line.page}: ${raw}`,
     };
     st.transactions.push(tx);
     lastTx = tx;
@@ -522,15 +711,18 @@ export function parsePdfStatement(pages: PdfTextPage[], opts: PdfParseOptions = 
   }
 
   if (!header) st.warnings.push('No column headings (Debit / Credit / Balance) were recognised. Please check money in and out carefully.');
-  if (st.transactions.length === 0) st.warnings.push('No transactions could be read from this PDF.');
+  if (st.transactions.length === 0) {
+    st.warnings.push(doc ? 'There are no transactions for this account in this statement.' : 'No transactions could be read from this PDF.');
+  }
   if (st.openingBalanceCents == null || st.closingBalanceCents == null) {
     st.warnings.push('Opening and closing balances were not both found, so the statement cannot be reconciled automatically.');
   }
   finaliseStatement(st);
   // PDF extraction is never "high" overall: the user always reviews it.
   st.confidence = lowestConfidence([st.confidence, 'medium']);
-  return st;
+  return { statement: st, header: ownHeader };
 }
+
 
 /** Quick check used to decide if a text column in a PDF-derived table holds dates. */
 export function looksLikeDates(values: string[]): boolean {

@@ -2,6 +2,16 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `finance_app-v<version>-build<n>`, marked as pre-releases while Geranium is at 0.x).
 
+## 0.5.0 — 10 October 2026
+
+- **Statements with several accounts.** A PDF statement that covers several accounts (as some banks send them) is split into one statement per account. Each is matched to your account with the same account number; the import screen lists them with their matches, lets you change a match or add a missing account (name, type and account number filled in from the statement), and imports them all at once or one at a time — each reconciled on its own.
+- **More bank layouts read correctly:** shaded rows printed twice, amounts that wrap onto the line below, "REF:" lines, dates split over two lines, mailing codes in the margin, and notes such as "INT SAVED BY BALANCE OFFSET" or "RATE CHANGED" are no longer misread.
+- **Import a payslip (PDF)** on Income & payslips: gross pay, tax withheld, net pay, super, salary sacrifice, allowances, pay date, period and employer fill in the payslip form for you to check (year-to-date columns are ignored). A copy of the payslip can be kept.
+- **Employee share schemes.** Import the ATO-format employee share scheme statement on Tax › Deductions & other records (labels D, E, F and C). The discounts go into the tax estimate, with the up-to-$1,000 reduction for label D when income is $180,000 or less, and TFN amounts withheld count as tax already paid. The TFN on the statement is not read.
+- **A background picture:** geraniums in a soft field behind the content (cards stay solid so figures are always clear), drawn for light and dark themes. Choose *Geraniums in a field*, *A quiet field* or *Plain* in Settings › Appearance; it is hidden in high contrast and when printing.
+- **Linux: the icon now shows in the panel/taskbar and app switcher.** The window now carries the Geranium icon, and its window class matches the installed desktop entry.
+- The content area now scrolls on its own: the top bar and sidebar stay in place, and each screen opens at the top.
+
 ## 0.4.0 — 10 October 2026
 
 - **Superannuation kept separate.** New *Superannuation* categories: employer contributions (Super Guarantee), employer additional & salary sacrifice, personal contributions before and after tax, government contributions, investment returns, fees, insurance, tax in the fund, rollovers and withdrawals. Transactions in super accounts are no longer counted as household income or spending, in recurring payments or forecasts, or in the personal tax estimate (tax paid inside a fund is not PAYG, and fund earnings aren't personal income).

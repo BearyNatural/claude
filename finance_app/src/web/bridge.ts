@@ -15,6 +15,8 @@ const FILE_METHODS: Record<string, string> = {
   'investments.chooseTradesCsv': '.csv,.txt',
   'documents.attach': '.pdf,.png,.jpg,.jpeg,.heic,.webp,.csv,.txt,.xlsx,.xls,.docx,.doc,.ofx,.qfx,.qif',
   'backup.choose': '.geranium-backup,.pbbackup',
+  'payslips.readFile': '.pdf',
+  'tax.readEssStatement': '.pdf',
 };
 
 /** Requests that open another window (Google sign-in in a pop-up, a spreadsheet in a new tab). */

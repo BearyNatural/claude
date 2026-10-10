@@ -32,7 +32,19 @@ export interface TaxInput {
   paygInstalmentsCents: Cents;
   hasStudyLoan: boolean;
   medicareExempt?: boolean;
+  /** Employee share scheme statement label D: taxed-upfront discount, eligible for the $1,000 reduction. */
+  essTaxedUpfrontReductionCents?: Cents;
+  /** Label E: taxed-upfront discount, not eligible for the reduction. */
+  essTaxedUpfrontCents?: Cents;
+  /** Label F: discount from deferral schemes (taxed in the year of the deferred taxing point). */
+  essDeferralCents?: Cents;
+  /** Label C: TFN amounts withheld from discounts — a credit, like tax withheld. */
+  essTfnWithheldCents?: Cents;
 }
+
+/** The employee share scheme reduction: up to $1,000 off taxed-upfront discounts (label D) when income is $180,000 or less. */
+export const ESS_REDUCTION_CENTS = 100000;
+export const ESS_REDUCTION_INCOME_LIMIT = 180000;
 
 export interface TaxLine {
   key: string;
@@ -58,6 +70,8 @@ export interface TaxEstimate {
   totalLiabilityCents: Cents;
   paygWithheldCents: Cents;
   paygInstalmentsCents: Cents;
+  /** TFN amounts withheld from employee share scheme discounts (label C). */
+  essTfnWithheldCents: Cents;
   /** Positive: estimated tax still to pay. Negative: estimated overpayment (possible refund). */
   balanceCents: Cents;
   marginalRatePercent: number;
@@ -131,7 +145,7 @@ export function estimateTax(input: TaxInput): TaxEstimate {
     return {
       fy: input.fy, supported: false, income: [], assessableIncomeCents: 0, deductionsCents: 0, taxableIncomeCents: 0, grossTaxCents: 0, litoCents: 0,
       netIncomeTaxCents: 0, medicareLevyCents: 0, studyLoanRepaymentCents: 0, frankingOffsetCents: 0, totalLiabilityCents: 0,
-      paygWithheldCents: input.paygWithheldCents, paygInstalmentsCents: input.paygInstalmentsCents, balanceCents: 0, marginalRatePercent: 0,
+      paygWithheldCents: input.paygWithheldCents, paygInstalmentsCents: input.paygInstalmentsCents, essTfnWithheldCents: input.essTfnWithheldCents ?? 0, balanceCents: 0, marginalRatePercent: 0,
       steps: [], warnings: [`Tax rules for ${fyDisplay(input.fy)} are not included in this version.`], notes: [], sources: [], disclaimer: TAX_DISCLAIMER,
       summary: `No estimate is available for ${fyDisplay(input.fy)}.`,
     };
@@ -165,6 +179,22 @@ export function estimateTax(input: TaxInput): TaxEstimate {
     add('cgt', 'Net capital gain', input.netCapitalGainCents, 'From disposals with complete cost-base records, after capital losses and the 50% discount where eligible.');
   }
 
+  const essD = input.essTaxedUpfrontReductionCents ?? 0;
+  const essGross = essD + (input.essTaxedUpfrontCents ?? 0) + (input.essDeferralCents ?? 0);
+  if (essGross) {
+    // The reduction test uses income before the reduction (plus reportable super).
+    const before = income.reduce((a, l) => a + l.amountCents, 0) + essGross - Math.max(0, input.deductionsCents);
+    const testDollars = Math.floor(before / 100) + Math.floor(input.reportableSuperCents / 100);
+    const reduction = essD > 0 && testDollars <= ESS_REDUCTION_INCOME_LIMIT ? Math.min(ESS_REDUCTION_CENTS, essD) : 0;
+    const parts = [
+      essD ? `${formatMoney(essD)} taxed upfront and eligible for the reduction (D)` : '',
+      input.essTaxedUpfrontCents ? `${formatMoney(input.essTaxedUpfrontCents)} taxed upfront, not eligible (E)` : '',
+      input.essDeferralCents ? `${formatMoney(input.essDeferralCents)} from deferral schemes (F)` : '',
+    ].filter(Boolean);
+    add('ess', 'Employee share scheme discounts', essGross - reduction,
+      `From employee share scheme statements: ${parts.join(', ')}.${reduction ? ` Less the reduction of ${formatMoney(reduction)} (income is $${ESS_REDUCTION_INCOME_LIMIT.toLocaleString('en-AU')} or less).` : essD ? ` No reduction: income is over $${ESS_REDUCTION_INCOME_LIMIT.toLocaleString('en-AU')}.` : ''}`);
+  }
+
   const assessable = income.reduce((a, l) => a + l.amountCents, 0);
   const deductions = Math.max(0, input.deductionsCents);
   const taxableCents = Math.max(0, assessable - deductions);
@@ -178,7 +208,8 @@ export function estimateTax(input: TaxInput): TaxEstimate {
   const help = input.hasStudyLoan ? studyLoanRepayment(repaymentIncome, rules.studyLoan.value) : 0;
   const franking = input.frankingCreditsCents;
   const liability = netIncomeTax + medicare + help - franking;
-  const balance = liability - input.paygWithheldCents - input.paygInstalmentsCents;
+  const essTfn = input.essTfnWithheldCents ?? 0;
+  const balance = liability - input.paygWithheldCents - input.paygInstalmentsCents - essTfn;
   const mr = marginalRate(taxableDollars, rules.residentRates.value) + (!input.medicareExempt && taxableDollars > rules.medicare.value.singleUpper ? rules.medicare.value.rate : 0);
 
   const steps: TaxLine[] = [
@@ -194,6 +225,7 @@ export function estimateTax(input: TaxInput): TaxEstimate {
   steps.push({ key: 'liability', label: 'Estimated total tax', amountCents: liability, explanation: 'Income tax less offsets, plus Medicare levy and any study-loan repayment.' });
   steps.push({ key: 'payg', label: 'Less PAYG withheld', amountCents: -input.paygWithheldCents, explanation: 'Tax already withheld by employers and payers (from payslips and payment summaries you entered).' });
   if (input.paygInstalmentsCents) steps.push({ key: 'instalments', label: 'Less PAYG instalments paid', amountCents: -input.paygInstalmentsCents, explanation: 'PAYG instalments you recorded as paid for this year.' });
+  if (essTfn) steps.push({ key: 'ess-tfn', label: 'Less TFN amounts withheld from share scheme discounts', amountCents: -essTfn, explanation: 'Label C on your employee share scheme statement.' });
 
   if (input.employmentGrossCents === 0 && input.paygWithheldCents === 0) {
     notes.push('No payslip or gross salary information is recorded for this year. Salary deposits in your bank account are net amounts and cannot be used as taxable income.');
@@ -224,6 +256,7 @@ export function estimateTax(input: TaxInput): TaxEstimate {
     totalLiabilityCents: liability,
     paygWithheldCents: input.paygWithheldCents,
     paygInstalmentsCents: input.paygInstalmentsCents,
+    essTfnWithheldCents: essTfn,
     balanceCents: balance,
     marginalRatePercent: Math.round(mr * 1000) / 10,
     steps,

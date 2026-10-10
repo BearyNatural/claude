@@ -67,7 +67,11 @@ export function deletePayslip(ctx: Ctx, id: string): void {
 
 /* ------------------------------ tax entries ------------------------------ */
 
-export type TaxEntryKind = 'deduction' | 'payg-instalment' | 'other-income' | 'payg-withheld-other' | 'reportable-super';
+export type TaxEntryKind = 'deduction' | 'payg-instalment' | 'other-income' | 'payg-withheld-other' | 'reportable-super'
+  | 'ess-taxed-upfront-reduction' | 'ess-taxed-upfront' | 'ess-deferral' | 'ess-tfn-withheld';
+
+export const TAX_ENTRY_KINDS = ['deduction', 'payg-instalment', 'other-income', 'payg-withheld-other', 'reportable-super',
+  'ess-taxed-upfront-reduction', 'ess-taxed-upfront', 'ess-deferral', 'ess-tfn-withheld'] as const;
 
 export function listTaxEntries(ctx: Ctx, fy: string) {
   return ctx.db.all('SELECT * FROM tax_entries WHERE fy = ? ORDER BY date, created_at', [fy]).map((r) => ({
@@ -167,6 +171,12 @@ export function buildTaxInput(ctx: Ctx, fy: string): { input: TaxInput; lines: T
   input.paygInstalmentsCents = instal + sum('payg-instalment');
   input.paygWithheldCents += sum('payg-withheld-other');
   input.reportableSuperCents += sum('reportable-super');
+  input.essTaxedUpfrontReductionCents = sum('ess-taxed-upfront-reduction');
+  input.essTaxedUpfrontCents = sum('ess-taxed-upfront');
+  input.essDeferralCents = sum('ess-deferral');
+  input.essTfnWithheldCents = sum('ess-tfn-withheld');
+  const essCount = entries.filter((e) => e.kind.startsWith('ess-')).length;
+  if (essCount) lines.push({ label: 'Employee share schemes', amountCents: input.essTaxedUpfrontReductionCents + input.essTaxedUpfrontCents + input.essDeferralCents, basis: `${essCount} amount(s) from employee share scheme statements (labels D, E, F and C).` });
   if (deductionCount || sum('deduction')) lines.push({ label: 'Deductions', amountCents: input.deductionsCents, basis: `${deductionCount} transaction(s) marked tax deductible plus ${entries.filter((e) => e.kind === 'deduction').length} deduction(s) you entered.` });
   if (input.paygInstalmentsCents) lines.push({ label: 'PAYG instalments', amountCents: input.paygInstalmentsCents, basis: 'Payments categorised as PAYG instalments plus instalments you entered.' });
 

@@ -9,7 +9,7 @@ import { DateFormat } from '../../domain/import/dateFormats';
 import { isOfx, parseOfx } from '../../domain/import/ofx';
 import { isQif, parseQif } from '../../domain/import/qif';
 import { readSpreadsheet, SheetTable } from '../../domain/import/spreadsheet';
-import { PdfTextPage, parsePdfStatement } from '../../domain/import/pdfStatement';
+import { PdfTextPage, parsePdfStatements } from '../../domain/import/pdfStatement';
 import { ImportFormat, ParsedStatement, lowestConfidence } from '../../domain/import/types';
 import { findDuplicates } from '../../domain/import/duplicates';
 import { reconcile } from '../../domain/import/reconcile';
@@ -36,6 +36,10 @@ interface Session {
   profileId: string | null;
   needsMapping: boolean;
   createdAt: number;
+  /** Statements in this file already imported (a file can hold several accounts). */
+  committed: Map<number, string>;
+  /** The original file, once kept, so a file with several accounts is stored only once. */
+  documentId: string | null;
 }
 
 const sessions = new Map<string, Session>();
@@ -59,7 +63,8 @@ export function discardImport(id: string): void {
 /** Keep the original statement file (encrypted) as a source record linked to the import. */
 export function keepSourceFile(ctx: Ctx, store: DocumentStore, sessionId: string): string {
   const s = session(sessionId);
-  return addDocument(ctx, store, { fileName: s.fileName, bytes: s.bytes, kind: 'bank-statement', notes: 'Original file kept at import' });
+  s.documentId ??= addDocument(ctx, store, { fileName: s.fileName, bytes: s.bytes, kind: 'bank-statement', notes: 'Original file kept at import' });
+  return s.documentId;
 }
 
 export function detectFormat(fileName: string, bytes: Uint8Array): ImportFormat {
@@ -90,9 +95,11 @@ function suggestAccount(ctx: Ctx, st: ParsedStatement, profileAccount: string | 
   if (profileAccount && ctx.db.get("SELECT id FROM accounts WHERE id = ? AND status <> 'archived'", [profileAccount])) return profileAccount;
   const num = st.account?.number?.replace(/\D/g, '');
   if (num && num.length >= 4) {
-    const last4 = num.slice(-4);
-    const r = ctx.db.get("SELECT id FROM accounts WHERE number_masked LIKE ? AND status <> 'archived'", [`%${last4}`]);
-    if (r) return String(r.id);
+    // Only the last four digits are stored, so a match is used only when it is the only one.
+    let matches = ctx.db.all("SELECT id, bsb FROM accounts WHERE number_masked LIKE ? AND status <> 'archived'", [`%${num.slice(-4)}`]);
+    const bsb = st.account?.bsb?.replace(/\D/g, '');
+    if (matches.length > 1 && bsb) matches = matches.filter((r) => String(r.bsb ?? '').replace(/\D/g, '') === bsb);
+    if (matches.length === 1) return String(matches[0].id);
   }
   return null;
 }
@@ -127,6 +134,7 @@ function summarise(ctx: Ctx, s: Session): ImportSession {
       confidence: st.confidence,
       suggestedAccountId: suggestAccount(ctx, st, profile ? str(profile.account_id) : null),
       transactionCount: st.transactions.length,
+      importedInto: s.committed.get(index) ?? null,
     })),
     alreadyImported: prior ? { importId: String(prior.id), importedAt: String(prior.imported_at) } : null,
   };
@@ -158,7 +166,7 @@ export async function openImport(ctx: Ctx, fileName: string, bytes: Uint8Array):
   const format = detectFormat(fileName, bytes);
   const s: Session = {
     id: ctx.id(), fileName, bytes, sha256: sha256(bytes), format, sheets: [], selectedSheet: null, rows: null, mapping: null,
-    detection: null, statements: [], pdfPages: null, profileId: null, needsMapping: false, createdAt: Date.now(),
+    detection: null, statements: [], pdfPages: null, profileId: null, needsMapping: false, createdAt: Date.now(), committed: new Map(), documentId: null,
   };
   switch (format) {
     case 'ofx':
@@ -171,7 +179,8 @@ export async function openImport(ctx: Ctx, fileName: string, bytes: Uint8Array):
     case 'pdf': {
       const { pages } = await extractPdfText(bytes);
       s.pdfPages = pages;
-      s.statements = [parsePdfStatement(pages)];
+      // One statement per account when the PDF lists several accounts.
+      s.statements = parsePdfStatements(pages);
       break;
     }
     case 'xlsx':
@@ -190,6 +199,11 @@ export async function openImport(ctx: Ctx, fileName: string, bytes: Uint8Array):
   }
   sessions.set(s.id, s);
   return summarise(ctx, s);
+}
+
+/** The current state of an open import (used after importing one account from a multi-account file). */
+export function importSession(ctx: Ctx, sessionId: string): ImportSession {
+  return summarise(ctx, session(sessionId));
 }
 
 export function chooseSheet(ctx: Ctx, sessionId: string, sheet: string): ImportSession {
@@ -235,7 +249,9 @@ function statementFor(ctx: Ctx, s: Session, index: number, accountId: string): P
   if (!acc) throw new UserError('Choose which account this statement belongs to.');
   if (s.format === 'pdf' && s.pdfPages) {
     // Card and loan statements print the amount owed as the balance.
-    return parsePdfStatement(s.pdfPages, { balanceMeaning: isLiability(acc.type as AccountType) ? 'liability' : 'asset' });
+    const st = parsePdfStatements(s.pdfPages, { balanceMeaning: isLiability(acc.type as AccountType) ? 'liability' : 'asset' })[index];
+    if (!st) throw new UserError('That statement was not found in the file.');
+    return st;
   }
   const st = s.statements[index];
   if (!st) throw new UserError('That statement was not found in the file.');
@@ -344,10 +360,13 @@ export interface CommitResult {
   skippedDuplicates: number;
   rejectedRows: number;
   reconciliation: ReconciliationDTO;
+  /** Accounts in the same file still waiting to be imported (files that hold several accounts). */
+  remaining: number;
 }
 
 export function commitImport(ctx: Ctx, input: CommitInput): CommitResult {
   const s = session(input.sessionId);
+  if (s.committed.has(input.statementIndex)) throw new UserError('This statement has already been imported from this file.');
   const st = statementFor(ctx, s, input.statementIndex, input.accountId);
   const preview = previewImport(ctx, input.sessionId, input.statementIndex, input.accountId, { openingCents: input.openingCents ?? null, closingCents: input.closingCents ?? null });
   const decisions = new Map(input.rows.map((r) => [r.index, r]));
@@ -435,10 +454,44 @@ export function commitImport(ctx: Ctx, input: CommitInput): CommitResult {
     }
     ctx.db.run('UPDATE imports SET added_count = ?, staged_count = ?, duplicate_count = ? WHERE id = ?', [added, staged, skipped, importId]);
   });
-  sessions.delete(input.sessionId);
+  s.committed.set(input.statementIndex, input.accountId);
+  // A file with several accounts stays open until every account in it has been imported.
+  const remaining = s.statements.filter((x, i) => !s.committed.has(i) && x.transactions.length > 0).length;
+  if (remaining === 0) sessions.delete(input.sessionId);
   ctx.changed('transactions');
   ctx.changed('accounts');
-  return { importId, added, staged, skippedDuplicates: skipped, rejectedRows: st.rejectedRows.length, reconciliation: rec };
+  return { importId, added, staged, skippedDuplicates: skipped, rejectedRows: st.rejectedRows.length, reconciliation: rec, remaining };
+}
+
+export interface CommitAllResult {
+  results: (CommitResult & { statementIndex: number; accountId: string })[];
+}
+
+/**
+ * Import every account section of a multi-account statement into its matched account in one go.
+ * Each section is checked exactly as on the review screen (duplicates, reconciliation, rows that
+ * need a look still wait in the Review inbox).
+ */
+export function commitImportAll(ctx: Ctx, input: { sessionId: string; items: { statementIndex: number; accountId: string }[]; sourceDocumentId?: string | null }): CommitAllResult {
+  const s = session(input.sessionId);
+  const seen = new Set<number>();
+  for (const it of input.items) {
+    if (seen.has(it.statementIndex)) throw new UserError('Each statement in the file can only be imported once.');
+    seen.add(it.statementIndex);
+    if (!s.statements[it.statementIndex]) throw new UserError('That statement was not found in the file.');
+    if (s.committed.has(it.statementIndex)) throw new UserError('One of these statements has already been imported from this file.');
+    if (!ctx.db.get('SELECT id FROM accounts WHERE id = ?', [it.accountId])) throw new UserError('Choose an account for every statement you want to import.');
+  }
+  const results: CommitAllResult['results'] = [];
+  for (const it of input.items) {
+    const preview = previewImport(ctx, input.sessionId, it.statementIndex, it.accountId);
+    const r = commitImport(ctx, {
+      sessionId: input.sessionId, statementIndex: it.statementIndex, accountId: it.accountId, sourceDocumentId: input.sourceDocumentId ?? null,
+      rows: preview.rows.map((x) => ({ index: x.index, include: x.include })),
+    });
+    results.push({ ...r, statementIndex: it.statementIndex, accountId: it.accountId });
+  }
+  return { results };
 }
 
 /* ------------------------------ import history ------------------------------ */

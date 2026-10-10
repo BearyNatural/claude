@@ -25,3 +25,27 @@ id = "GHSA-82fw-gwwq-j7x9"
 # Re-check when CI moves to npm 11 or the npm bug is fixed, then upgrade vitest and remove this.
 ignoreUntil = 2026-12-31T00:00:00Z
 reason = "Dev-only test runner; vulnerable dev-server path not used. Upgrade blocked by an npm 10 crash; revisit by end of 2026."
+
+[[IgnoredVulns]]
+id = "GHSA-5gmw-xhrv-c9v3"
+# Dev-only: tinypool 1.1.1 comes with vitest 3.2.7 (fixed in tinypool 2.1.1, used from vitest 4).
+# A prototype-pollution "gadget": it only matters if something else in the same test process
+# already lets an attacker pollute Object.prototype. It runs only our own tests (`vitest run`)
+# and is not in the packaged app. Goes away with the vitest upgrade blocked above.
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "Dev-only test runner dependency; needs a separate prototype-pollution bug; removed with the vitest 4 upgrade."
+
+[[IgnoredVulns]]
+id = "GHSA-85c8-ppgw-ccpr"
+# Same as above (tinypool run() options; fixed in 2.1.2).
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "Dev-only test runner dependency; needs a separate prototype-pollution bug; removed with the vitest 4 upgrade."
+
+[[IgnoredVulns]]
+id = "GHSA-hp3w-g68c-fv3c"
+# Build-time only: sprintf-js 1.1.3 via electron-builder › @electron/get › global-agent › roarr
+# (logging). A denial of service that needs attacker-controlled format strings; electron-builder
+# only logs its own messages while downloading Electron. Not in the packaged app. No fixed
+# sprintf-js release yet; re-check when electron-builder drops global-agent or a fix is published.
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "Build-time logging dependency of electron-builder; format strings are not attacker-controlled; no fix released."

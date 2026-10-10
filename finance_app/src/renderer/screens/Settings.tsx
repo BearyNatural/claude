@@ -36,6 +36,7 @@ function Preferences({ s }: { s: AppSettings }) {
       <Card title="Appearance and accessibility">
         <div className="form-grid">
           <SelectField label="Theme" value={s.theme} onChange={(v) => update({ theme: v })} options={[{ value: 'system', label: 'Match my computer' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
+          <SelectField label="Background" value={s.background} onChange={(v) => update({ background: v })} options={[{ value: 'geraniums', label: 'Geraniums in a field' }, { value: 'field', label: 'A quiet field' }, { value: 'plain', label: 'Plain' }]} />
           <SelectField label="Text size" value={String(s.textScale)} onChange={(v) => update({ textScale: Number(v) })} options={[{ value: '0.9', label: 'Smaller' }, { value: '1', label: 'Standard' }, { value: '1.15', label: 'Larger' }, { value: '1.3', label: 'Largest' }]} />
         </div>
         <div className="stack" style={{ marginTop: 10 }}>

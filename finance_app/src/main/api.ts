@@ -8,6 +8,7 @@ import * as bud from './services/budgeting';
 import * as plan from './services/planning';
 import * as tax from './services/taxes';
 import * as docs from './services/documents';
+import * as taxDocs from './services/taxDocuments';
 import * as out from './services/output';
 import { networkLog } from './net';
 import { GoogleTokens, revoke, signIn, validAccessToken } from './google/oauth';
@@ -184,6 +185,7 @@ export function buildRegistry({ state, platform }: Deps) {
       if (!f) return null;
       return imp.openImport(ctx(), f.name, f.bytes);
     }),
+    'imports.session': m(z.object({ sessionId: id }), (i) => imp.importSession(ctx(), i.sessionId)),
     'imports.chooseSheet': m(z.object({ sessionId: id, sheet: z.string() }), (i) => imp.chooseSheet(ctx(), i.sessionId, i.sheet)),
     'imports.mappingKinds': m(z.object({ sessionId: id }), (i) => imp.currentMappingKinds(i.sessionId)),
     'imports.applyMapping': m(z.object({
@@ -200,6 +202,13 @@ export function buildRegistry({ state, platform }: Deps) {
       let docId: string | null = null;
       if (i.keepSourceFile && !state.demo) docId = imp.keepSourceFile(ctx(), store(), i.sessionId);
       return imp.commitImport(ctx(), { ...i, sourceDocumentId: docId });
+    }),
+    'imports.commitAll': m(z.object({
+      sessionId: id, keepSourceFile: z.boolean(), items: z.array(z.object({ statementIndex: z.number().int().min(0), accountId: id })).min(1).max(50),
+    }), (i) => {
+      let docId: string | null = null;
+      if (i.keepSourceFile && !state.demo) docId = imp.keepSourceFile(ctx(), store(), i.sessionId);
+      return imp.commitImportAll(ctx(), { sessionId: i.sessionId, items: i.items, sourceDocumentId: docId });
     }),
     'imports.discard': m(z.object({ sessionId: id }), (i) => imp.discardImport(i.sessionId)),
     'imports.list': m(none, () => imp.listImports(ctx())),
@@ -280,11 +289,29 @@ export function buildRegistry({ state, platform }: Deps) {
     'tax.currentFy': m(none, () => financialYearOf(ctx().today())),
     'tax.bas': m(z.object({ fy, quarter: z.number().int().min(0).max(3) }), (i) => tax.basPreparation(ctx(), i.fy, i.quarter)),
     'payslips.list': m(z.object({ fy: fy.optional() }).optional(), (i) => tax.listPayslips(ctx(), i?.fy)),
-    'payslips.save': m(z.object({ id: z.string(), employer: z.string().min(1).max(100), payDate: iso, periodStart: iso.nullable().optional(), periodEnd: iso.nullable().optional(), grossCents: cents.positive(), allowancesCents: cents.nonnegative(), salarySacrificeCents: cents.nonnegative(), taxableCents: cents.nullable().optional(), paygCents: cents.nonnegative(), employerSuperCents: cents.nonnegative(), deductionsCents: cents.nonnegative(), netCents: cents.nonnegative(), linkedTransactionId: z.string().nullable().optional() }), (p) => tax.savePayslip(ctx(), p as never)),
+    'payslips.save': m(z.object({ id: z.string(), employer: z.string().min(1).max(100), payDate: iso, periodStart: iso.nullable().optional(), periodEnd: iso.nullable().optional(), grossCents: cents.positive(), allowancesCents: cents.nonnegative(), salarySacrificeCents: cents.nonnegative(), taxableCents: cents.nullable().optional(), paygCents: cents.nonnegative(), employerSuperCents: cents.nonnegative(), deductionsCents: cents.nonnegative(), netCents: cents.nonnegative(), linkedTransactionId: z.string().nullable().optional(), sourceToken: z.string().max(100).nullable().optional(), keepFile: z.boolean().optional() }), ({ sourceToken, keepFile, ...p }) => {
+      const r = tax.savePayslip(ctx(), p as never);
+      if (keepFile && sourceToken && !state.demo) taxDocs.keepPayslipFile(ctx(), store(), sourceToken, r.id);
+      return r;
+    }),
+    'payslips.readFile': m(none, async () => {
+      const f = await platform.openFile({ title: 'Choose a payslip (PDF)', filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+      if (!f) return null;
+      return taxDocs.readPayslip(ctx(), f.name, f.bytes);
+    }),
     'payslips.delete': m(z.object({ id }), (i) => tax.deletePayslip(ctx(), i.id)),
     'taxEntries.list': m(z.object({ fy }), (i) => tax.listTaxEntries(ctx(), i.fy)),
-    'taxEntries.save': m(z.object({ id: z.string().optional(), fy, kind: z.enum(['deduction', 'payg-instalment', 'other-income', 'payg-withheld-other', 'reportable-super']), description: z.string().min(1).max(300), amountCents: cents.positive(), date: iso.nullable().optional() }), (e) => tax.saveTaxEntry(ctx(), e)),
+    'taxEntries.save': m(z.object({ id: z.string().optional(), fy, kind: z.enum(tax.TAX_ENTRY_KINDS), description: z.string().min(1).max(300), amountCents: cents.positive(), date: iso.nullable().optional() }), (e) => tax.saveTaxEntry(ctx(), e)),
     'taxEntries.delete': m(z.object({ id }), (i) => tax.deleteTaxEntry(ctx(), i.id)),
+    'tax.readEssStatement': m(none, async () => {
+      const f = await platform.openFile({ title: 'Choose an employee share scheme statement (PDF)', filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+      if (!f) return null;
+      return taxDocs.readEssStatement(ctx(), f.name, f.bytes);
+    }),
+    'tax.saveEssStatement': m(z.object({
+      fy, employer: z.string().max(200), taxedUpfrontReductionCents: cents.nonnegative(), taxedUpfrontCents: cents.nonnegative(), deferralCents: cents.nonnegative(), tfnWithheldCents: cents.nonnegative(),
+      date: iso.nullable().optional(), token: z.string().max(100).nullable().optional(), keepFile: z.boolean().optional(),
+    }), (i) => taxDocs.saveEssStatement(ctx(), state.demo ? null : store(), i)),
     'investments.overview': m(z.object({ fy: fy.optional() }).optional(), (i) => tax.investmentsOverview(ctx(), i?.fy)),
     'investments.saveSecurity': m(z.object({ id: z.string().optional(), code: z.string().min(1).max(20), name: z.string().max(200), kind: z.enum(['share', 'etf', 'managed-fund', 'other']) }), (s) => tax.saveSecurity(ctx(), s)),
     'investments.saveTrade': m(z.object({ id: z.string(), securityId: id, accountId: z.string().nullable().optional(), date: iso, type: z.enum(['buy', 'sell']), quantity: z.number().positive(), unitPriceCents: z.number().nonnegative(), brokerageCents: cents.nonnegative(), costUnknown: z.boolean().optional(), notes: nullableStr }), (t) => tax.saveTrade(ctx(), t as never)),

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, clearShared, IS_WEB, onDataChanged, useApi } from './lib/api';
 import { Route, useApp } from './lib/app';
 import { BrandMark, Icon } from './components/ui';
+import { Backdrop } from './components/backdrop';
 import { Setup, Unlock, Onboarding } from './screens/Setup';
 import { Dashboard } from './screens/Dashboard';
 import { Accounts } from './screens/Accounts';
@@ -84,6 +85,8 @@ function Shell() {
   const searchRef = useRef<HTMLInputElement>(null);
   const inboxQ = useApi('inbox.list', undefined, []);
   const inboxCount = inboxQ.data?.count ?? 0;
+  // Each screen opens at the top.
+  useEffect(() => { document.getElementById('main')?.scrollTo(0, 0); }, [route]);
 
   const lock = useCallback(async () => {
     const s = await api('app.lock');
@@ -126,6 +129,7 @@ function Shell() {
         ))}
       </nav>
       <div className="main">
+        <Backdrop kind={settings?.background ?? 'geraniums'} />
         {status?.demo && (
           <div className="demo-banner" role="status">
             <span><strong>Demo mode.</strong> Everything shown is fictional sample data held only in memory. Nothing you do here is saved.</span>

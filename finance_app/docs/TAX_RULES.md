@@ -29,13 +29,14 @@ Bracket thresholds for all years: $18,200 (tax-free threshold), $45,000, $135,00
    - **Dividends**: cash plus **franking credits** from dividend statements you enter. Dividend deposits without a statement are included as unfranked cash with a warning.
    - **Net capital gains** from recorded share/unit trades (see CGT below).
    - Other income you enter (e.g. rent, government payments).
+   - **Employee share scheme discounts** from ESS statements (imported or entered): label D (taxed upfront, eligible for the reduction), E (taxed upfront, not eligible) and F (deferral schemes, in the year of the deferred taxing point). Label D is reduced by up to **$1,000** when taxable income after adjustments is **$180,000 or less** — Geranium tests taxable income before the reduction (which already includes the ESS discounts) plus reportable super contributions; reportable fringe benefits and net investment losses are not recorded, so check the test yourself if you have them. The reduction never takes the discount below nil. Whether a scheme is eligible is shown by which label your employer used.
 2. **Deductions**: transactions you mark as deductible, deductions you enter, and business-use shares. Taxable income is rounded down to whole dollars.
 3. **Income tax** at resident rates for the year.
 4. **Low income tax offset** (LITO): $700 up to $37,500, reducing by 5c per dollar to $45,000 ($325), then by 1.5c per dollar to nil at $66,667.
 5. **Medicare levy** 2%, with the low-income reduction (nil below the lower threshold, 10% of the excess between the thresholds). Can be marked exempt.
 6. **Study and training loan** repayment (HELP, VSL, SSL, AASL, SFSS) on repayment income (taxable income plus reportable super contributions) when you tick that you have a study loan.
 7. **Franking credits** are subtracted as refundable offsets.
-8. **PAYG withheld** (payslips) and **PAYG instalments** are subtracted to show an estimated amount payable or refundable.
+8. **PAYG withheld** (payslips), **PAYG instalments** and **TFN amounts withheld from share scheme discounts** (label C) are subtracted to show an estimated amount payable or refundable.
 
 Each step shows its amount, how it was worked out, its rule status and the source. During a financial year that is still in progress the estimate says how many months are covered and that tax withheld from pay is calculated as if the pay continued all year, so a part-year figure often shows an overpayment.
 
@@ -81,6 +82,8 @@ All in `src/domain/tax/australia/sources.ts`, each with the date it was read:
 - ATO — Registering for GST — https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/registering-for-gst
 - ATO — Simpler BAS GST bookkeeping guide — https://www.ato.gov.au/businesses-and-organisations/preparing-lodging-and-paying/business-activity-statements-bas/goods-and-services-tax-gst/simpler-bas-gst-bookkeeping-guide
 - ATO — CGT discount — https://www.ato.gov.au/individuals-and-families/investments-and-assets/capital-gains-tax/cgt-discount
+- ATO — Individual tax return instructions 2026, question 12 Employee share schemes (labels D, E, F, C; the $1,000 reduction and $180,000 test), read 10 October 2026 — https://www.ato.gov.au/forms-and-instructions/individual-tax-return-2026-instructions/income-questions-1-12-individual-tax-return-2026/12-employee-share-schemes-2026
+- ATO — Income test for the upfront concession ($1,000 reduction) — https://www.ato.gov.au/businesses-and-organisations/corporate-tax-measures-and-assurance/employee-share-schemes/employees/ess-and-your-tax/income-test-for-the-upfront-concession-1000-dollar-reduction
 
 ## Updating the rules
 

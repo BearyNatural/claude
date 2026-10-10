@@ -4,7 +4,7 @@
 //   dist/renderer/          React UI (Vite)
 import { build as esbuild } from 'esbuild';
 import { build as viteBuild } from 'vite';
-import { rmSync } from 'node:fs';
+import { copyFileSync, rmSync } from 'node:fs';
 
 const dev = process.argv.includes('--dev');
 rmSync('dist/main', { recursive: true, force: true });
@@ -37,6 +37,8 @@ await esbuild({
   // Runtime dependencies stay in node_modules (they ship wasm/worker files).
   external: ['electron', 'sql.js', 'pdfjs-dist', 'xlsx'],
 });
+// The window icon (Linux task bars use it when they cannot match the window to its desktop entry).
+copyFileSync('build/window-icon.png', 'dist/main/window-icon.png');
 
 await esbuild({
   ...common,

@@ -39,6 +39,9 @@ publish: null
 
 linux:
   executableName: geranium
+  # The window's class (WM_CLASS / Wayland app_id) comes from desktopName in package.json
+  # ("geranium"); the desktop entry is named and matched to it so panels show the icon.
+  syncDesktopName: true
   target:
     - AppImage
     - deb

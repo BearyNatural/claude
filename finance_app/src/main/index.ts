@@ -137,6 +137,8 @@ function createWindow() {
     title: 'Geranium',
     backgroundColor: '#f6f3ec',
     show: false,
+    // Linux panels show this when they cannot match the window to the installed desktop entry.
+    ...(process.platform === 'linux' ? { icon: join(__dirname, 'window-icon.png') } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

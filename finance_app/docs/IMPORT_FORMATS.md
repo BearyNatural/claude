@@ -11,7 +11,9 @@ Geranium reads statement files you download from your bank, card provider, broke
 | **QFX** (Quicken OFX) | Works | Read as OFX; Intuit-specific tags ignored |
 | **QIF** | Works (bank, cash, credit card, other asset/liability) | Files with investment sections are refused with a pointer to the broker import; split lines are shown as hints only |
 | **XLSX / XLS** | Works | Each sheet offered separately; then the same mapping as CSV |
-| **PDF (text-based)** | Works, with review | Positions of text are used to rebuild the statement table; every row is rated for confidence |
+| **PDF (text-based)** | Works, with review | Positions of text are used to rebuild the statement table; every row is rated for confidence. Statements that list **several accounts** are split into one statement per account and matched by account number |
+| **Payslip PDF** | Works, with review (Income & payslips › Import payslip) | Gross, tax withheld, net, super, salary sacrifice and allowances for this pay (year-to-date columns ignored) fill in the payslip form for checking |
+| **Employee share scheme statement PDF** | Works, with review (Tax › Deductions & other records) | The ATO-format statement (NAT 75282): labels D, E, F and C, the income year and employer. The TFN on it is not read |
 | **PDF (scanned image)** | Not supported | Detected and explained; no data is invented (no OCR in this version) |
 | **Password-protected PDF** | Not supported | Detected; save an unprotected copy or use a CSV/OFX export |
 | **Broker trade CSV** | Works (Investments › Import broker CSV) | Buys/sells with quantity, price and brokerage; previewed before saving |
@@ -58,9 +60,21 @@ PDF statements have no standard structure. Geranium:
 
 Every PDF row gets a confidence rating and reasons. By default all PDF rows go to the review inbox for confirmation (this can be changed under Settings › Import review).
 
+**Statements with several accounts.** Some banks send one statement covering every account, with a section per account ("Account name: …", "Account: 12345678", its own period, headings and opening/closing balance rows). Geranium splits the file at each new account number and reads each section as its own statement. Each section is matched to the account with the same account number (only the last four digits are stored, so a match is used only when exactly one account ends in those digits; the BSB breaks ties). The import screen lists the accounts found with their matches; you can change a match, add a missing account (its name, type and number are filled in from the statement), import everything at once, or review each account on its own. Each section is checked exactly as a single statement would be.
+
+These statements also showed some layouts that are now read correctly everywhere: shaded rows printed twice in the same place (read once), rows whose amount wraps onto the next line (joined into one transaction), "REF:" lines on their own dated line (added to the transaction above), dates split over two lines ("20" / "May"), mailing codes printed in the margin over a row (ignored), and notes with a number in the description area such as "INT SAVED BY BALANCE OFFSET 123.45" or "RATE CHANGED" (not transactions).
+
 **Super fund statements** work the same way. Amounts split across columns such as *Employer SG*, *Employer additional*, *Member before-tax* and *Member after-tax* are read from the *Total* column, and the column an amount sits in decides its Superannuation category. "Opening/Closing account balance" rows are used as the statement's balances. Period totals printed without a date (fees, tax benefits, contributions tax) are dated with the row above and flagged for a quick check. Import super statements into an account of type *Superannuation* so they stay separate from household money and personal tax.
 
 **Known PDF limitations:** layouts very different from a date-led table (for example summaries with amounts in sentences, or several transactions per line) may produce few or no rows — Geranium says so rather than guessing; scanned statements are not read; foreign-currency details (original amount, conversion fees on separate lines) are not recognised as such and need checking in review; statements where the printed balance column is missing cannot be verified row by row (reconciliation then relies on opening/closing totals only).
+
+## Payslips and employee share scheme statements
+
+**Payslips** (Income & payslips › *Import payslip (PDF)*): payslips are laid out differently by every employer, so Geranium looks for the usual labels — *Gross pay*, *PAYG tax*, *Net pay*, *Superannuation*, *Salary sacrifice*, allowances, *Pay date*, *Pay period* and the employer — and takes the amount for this pay, ignoring any *YTD* / *Year to date* column. Summary rows laid out as columns ("Gross Pay | Tax | Net Pay" with the amounts underneath) are read too. After-tax deductions are worked out as gross − salary sacrifice − tax − net. The figures fill in the payslip form, which says what was found and what wasn't; nothing is saved until you check and save it. A copy of the payslip can be kept (encrypted) with it.
+
+**Employee share scheme statements** (Tax › Deductions & other records › *Import share scheme statement*): the year-end statement in the ATO format (NAT 75282). Geranium reads label D (taxed-upfront discount, eligible for the reduction), E (taxed-upfront, not eligible), F (discount from deferral schemes), C (TFN amounts withheld from discounts), the income year and the employer's name and ABN. The employee's TFN printed on the statement is deliberately not read or stored. The amounts are shown for checking and saved as tax records for the chosen year; saving the same employer's statement for the same year again replaces the earlier amounts. The statement does not say how many shares were received, so add the shares themselves on the Investments screen (their cost base is their market value when they were taxed).
+
+Scanned (image-only) PDFs can't be read for either; enter the figures by hand.
 
 ## Checks on every import
 

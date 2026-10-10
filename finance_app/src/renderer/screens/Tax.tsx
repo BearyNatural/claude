@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api, useApi, useAction } from '../lib/api';
+import type { ApiInput, ApiOutput } from '../../main/api';
 import { useApp } from '../lib/app';
 import { Badge, Callout, Card, Checkbox, DataTable, DateField, Dialog, ErrorText, Explain, Loading, Money, MoneyField, Page, SelectField, Stat, Tabs, TextField } from '../components/ui';
 import { todayLocal } from '../components/pickers';
@@ -26,7 +27,7 @@ function Estimate({ fy }: { fy: string }) {
           <Stat label={e.balanceCents >= 0 ? 'Estimated remaining tax' : 'Estimated overpayment'} value={<Money cents={Math.abs(e.balanceCents)} />} note="Not an ATO assessment" />
           <Stat label="Estimated taxable income" value={<Money cents={e.taxableIncomeCents} />} />
           <Stat label="Estimated total tax" value={<Money cents={e.totalLiabilityCents} />} note="Income tax + Medicare levy + study loan − offsets" />
-          <Stat label="Tax already paid" value={<Money cents={e.paygWithheldCents + e.paygInstalmentsCents} />} note="PAYG withheld and instalments" />
+          <Stat label="Tax already paid" value={<Money cents={e.paygWithheldCents + e.paygInstalmentsCents + e.essTfnWithheldCents} />} note="PAYG withheld and instalments" />
         </div>
         <p style={{ marginTop: 10 }}>{e.summary}</p>
       </Card>
@@ -58,14 +59,61 @@ function Estimate({ fy }: { fy: string }) {
   );
 }
 
-function Records({ fy }: { fy: string }) {
+type EntryKind = ApiInput<'taxEntries.save'>['kind'];
+const ENTRY_LABEL: Record<EntryKind, string> = {
+  deduction: 'Deduction', 'payg-instalment': 'PAYG instalment paid', 'other-income': 'Other taxable income', 'payg-withheld-other': 'Tax withheld (not on payslips)', 'reportable-super': 'Reportable super contributions',
+  'ess-taxed-upfront-reduction': 'Share scheme discount — taxed upfront, eligible for reduction (D)', 'ess-taxed-upfront': 'Share scheme discount — taxed upfront, not eligible (E)',
+  'ess-deferral': 'Share scheme discount — deferral scheme (F)', 'ess-tfn-withheld': 'TFN amounts withheld from share scheme discounts (C)',
+};
+
+type EssRead = NonNullable<ApiOutput<'tax.readEssStatement'>>;
+
+/** Check the amounts read from an employee share scheme statement, then save them as tax records. */
+function EssDialog({ read, years, onClose }: { read: EssRead; years: string[]; onClose: (savedFy?: string) => void }) {
+  const [v, setV] = useState({
+    fy: read.fy ?? years[0], employer: read.employerName ?? '', taxedUpfrontReductionCents: read.taxedUpfrontReductionCents, taxedUpfrontCents: read.taxedUpfrontCents,
+    deferralCents: read.deferralCents, tfnWithheldCents: read.tfnWithheldCents, keepFile: true,
+  });
+  const save = useAction(async () => { await api('tax.saveEssStatement', { ...v, token: read.token }); onClose(v.fy); });
+  const total = v.taxedUpfrontReductionCents + v.taxedUpfrontCents + v.deferralCents;
+  const fyOptions = [...new Set([...(read.fy ? [read.fy] : []), ...years])];
+  return (
+    <Dialog title="Employee share scheme statement" wide onClose={() => onClose()} footer={<><button className="btn" onClick={() => onClose()}>Cancel</button><button className="btn btn-primary" disabled={save.pending} onClick={() => save.run()}>Save to tax records</button></>}>
+      <div className="stack">
+        <p className="small muted">Read from {read.fileName}. Check each amount against the statement before saving. Your tax file number on the statement is not read or stored.</p>
+        {read.warnings.map((w) => <Callout key={w} kind="warn">{w}</Callout>)}
+        <div className="form-grid">
+          <SelectField label="Income year" value={v.fy} onChange={(fy) => setV({ ...v, fy })} options={fyOptions.map((y) => ({ value: y, label: `FY ${fyDisplay(y)}` }))} />
+          <TextField label="Employer" value={v.employer} onChange={(employer) => setV({ ...v, employer })} />
+          <MoneyField label="D — Taxed upfront, eligible for reduction" cents={v.taxedUpfrontReductionCents} onChange={(c) => setV({ ...v, taxedUpfrontReductionCents: c ?? 0 })} />
+          <MoneyField label="E — Taxed upfront, not eligible for reduction" cents={v.taxedUpfrontCents} onChange={(c) => setV({ ...v, taxedUpfrontCents: c ?? 0 })} />
+          <MoneyField label="F — Discount from deferral schemes" cents={v.deferralCents} onChange={(c) => setV({ ...v, deferralCents: c ?? 0 })} />
+          <MoneyField label="C — TFN amounts withheld from discounts" cents={v.tfnWithheldCents} onChange={(c) => setV({ ...v, tfnWithheldCents: c ?? 0 })} />
+        </div>
+        <Callout kind="neutral">
+          {total > 0 ? <>The discount of <strong><Money cents={total} /></strong> is added to your taxable income for FY {fyDisplay(v.fy)}{v.taxedUpfrontReductionCents > 0 ? ', less up to $1,000 for label D if your income is $180,000 or less' : ''}.</> : 'No discount amounts to add.'}
+          {' '}To track the shares themselves, add them on the Investments screen — their cost base is their market value at the time they were taxed.
+        </Callout>
+        <Checkbox label="Keep a copy of the statement (encrypted, linked to these records)" checked={v.keepFile} onChange={(keepFile) => setV({ ...v, keepFile })} />
+        <ErrorText error={save.error} />
+      </div>
+    </Dialog>
+  );
+}
+
+function Records({ fy, years }: { fy: string; years: string[] }) {
+  const { toast } = useApp();
   const q = useApi('taxEntries.list', { fy }, [fy]);
   const [adding, setAdding] = useState(false);
-  const [e, setE] = useState({ kind: 'deduction' as 'deduction' | 'payg-instalment' | 'other-income' | 'payg-withheld-other' | 'reportable-super', description: '', amountCents: 0, date: null as string | null });
+  const [e, setE] = useState({ kind: 'deduction' as EntryKind, description: '', amountCents: 0, date: null as string | null });
+  const [ess, setEss] = useState<EssRead | null>(null);
   const save = useAction(async () => { await api('taxEntries.save', { fy, ...e }); setAdding(false); setE({ ...e, description: '', amountCents: 0 }); });
-  const LABEL = { deduction: 'Deduction', 'payg-instalment': 'PAYG instalment paid', 'other-income': 'Other taxable income', 'payg-withheld-other': 'Tax withheld (not on payslips)', 'reportable-super': 'Reportable super contributions' };
+  const readEss = useAction(async () => { const r = await api('tax.readEssStatement'); if (r) setEss(r); });
+  const LABEL = ENTRY_LABEL;
   return (
-    <Card title="Tax records for this year" sub="Amounts not captured from transactions or payslips — for example work-related deductions, instalments or income statement figures" actions={<button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>Add record</button>}>
+    <Card title="Tax records for this year" sub="Amounts not captured from transactions or payslips — for example work-related deductions, instalments, employee share schemes or income statement figures"
+      actions={<div className="row"><button className="btn btn-sm" disabled={readEss.pending} onClick={() => readEss.run()}>Import share scheme statement…</button><button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>Add record</button></div>}>
+      <ErrorText error={readEss.error} />
       <DataTable rows={q.data ?? []} rowKey={(r) => r.id} empty={<p className="muted">No records. Transactions marked “tax deductible” are included automatically.</p>} columns={[
         { key: 'k', header: 'Type', render: (r) => LABEL[r.kind] },
         { key: 'd', header: 'Description', render: (r) => r.description },
@@ -75,7 +123,7 @@ function Records({ fy }: { fy: string }) {
       {adding && (
         <Dialog title="Add a tax record" onClose={() => setAdding(false)} footer={<><button className="btn" onClick={() => setAdding(false)}>Cancel</button><button className="btn btn-primary" onClick={() => save.run()}>Save</button></>}>
           <div className="form-grid">
-            <SelectField label="Type" value={e.kind} onChange={(v) => setE({ ...e, kind: v })} options={Object.entries(LABEL).map(([value, label]) => ({ value: value as typeof e.kind, label }))} />
+            <SelectField label="Type" value={e.kind} onChange={(v) => setE({ ...e, kind: v })} options={Object.entries(LABEL).map(([value, label]) => ({ value: value as EntryKind, label }))} />
             <TextField label="Description" value={e.description} onChange={(v) => setE({ ...e, description: v })} />
             <MoneyField label="Amount" cents={e.amountCents || null} onChange={(c) => setE({ ...e, amountCents: c ?? 0 })} />
             <DateField label="Date (optional)" value={e.date} onChange={(v) => setE({ ...e, date: v })} />
@@ -84,6 +132,7 @@ function Records({ fy }: { fy: string }) {
           <ErrorText error={save.error} />
         </Dialog>
       )}
+      {ess && <EssDialog read={ess} years={years} onClose={(savedFy) => { setEss(null); if (savedFy) toast(savedFy === fy ? 'Share scheme amounts saved to this year’s tax records.' : `Share scheme amounts saved to FY ${fyDisplay(savedFy)}.`, 'success'); }} />}
     </Card>
   );
 }
@@ -171,7 +220,7 @@ export function Tax() {
       )}
       <Tabs label="Section" value={tab} onChange={setTab} tabs={[{ value: 'estimate', label: 'Estimate' }, { value: 'records', label: 'Deductions & other records' }, { value: 'bas', label: 'GST & BAS' }, { value: 'rules', label: 'Rules & sources' }]} />
       {tab === 'estimate' && <Estimate fy={fy} />}
-      {tab === 'records' && <Records fy={fy} />}
+      {tab === 'records' && <Records fy={fy} years={years} />}
       {tab === 'bas' && <Bas fy={fy} />}
       {tab === 'rules' && <RulesInfo fy={fy} />}
     </Page>
