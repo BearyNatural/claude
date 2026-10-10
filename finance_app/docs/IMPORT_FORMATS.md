@@ -58,7 +58,7 @@ PDF statements have no standard structure. Geranium:
 5. Finds the opening and closing balances and checks every row's running balance. For **credit cards and loans**, printed balances are amounts owed and are treated that way.
 6. Where the statement has no Debit/Credit headings, the change in running balance decides whether a row is money in or out.
 
-Every PDF row gets a confidence rating and reasons. By default all PDF rows go to the review inbox for confirmation (this can be changed under Settings › Import review).
+Every PDF row gets a confidence rating and reasons. By default all PDF rows go to the review inbox for confirmation (this can be changed under Settings › Imports & learning).
 
 **Statements with several accounts.** Some banks send one statement covering every account, with a section per account ("Account name: …", "Account: 12345678", its own period, headings and opening/closing balance rows). Geranium splits the file at each new account number and reads each section as its own statement. Each section is matched to the account with the same account number (only the last four digits are stored, so a match is used only when exactly one account ends in those digits; the BSB breaks ties). The import screen lists the accounts found with their matches; you can change a match, add a missing account (its name, type and number are filled in from the statement), import everything at once, or review each account on its own. Each section is checked exactly as a single statement would be.
 
@@ -75,6 +75,16 @@ These statements also showed some layouts that are now read correctly everywhere
 **Employee share scheme statements** (Tax › Deductions & other records › *Import share scheme statement*): the year-end statement in the ATO format (NAT 75282). Geranium reads label D (taxed-upfront discount, eligible for the reduction), E (taxed-upfront, not eligible), F (discount from deferral schemes), C (TFN amounts withheld from discounts), the income year and the employer's name and ABN. The employee's TFN printed on the statement is deliberately not read or stored. The amounts are shown for checking and saved as tax records for the chosen year; saving the same employer's statement for the same year again replaces the earlier amounts. The statement does not say how many shares were received, so add the shares themselves on the Investments screen (their cost base is their market value when they were taxed).
 
 Scanned (image-only) PDFs can't be read for either; enter the figures by hand.
+
+## Learning from your documents
+
+Geranium gets better at reading *your* payslips and statements as you use it — on your own device, from documents you confirm, and from no one else's (Settings › Imports & learning, both parts on by default):
+
+- **Learned layouts.** When you save a payslip read from a PDF, or import a PDF statement that reconciles, Geranium finds each confirmed figure in the document and remembers what surrounds it — the label beside it, the heading above it, the words before it in the same cell. The next document with the same layout is read from the same places. A correction made once is remembered: for example, a super amount printed next to an unusual label, or an opening balance worded in an unusual way.
+- **Machine learning trained on your documents.** Every confirmed document also trains a small model (logistic regression) that learns which numbers and dates are gross pay, tax withheld, super, net pay, pay dates and balances, from the words around them and where they sit. After 5 confirmed documents it starts helping with layouts that have no learned layout yet. It fills in figures the built-in rules missed and only overrules them when it is very sure.
+- **On the payslip form**, figures that came from a learned layout or the model say so under the field, so you know what to check.
+
+Order of trust: a learned layout, then the model (when confident), then the built-in rules. Learned layouts can be deleted one by one, and the model can be told to forget what it has learned.
 
 ## Checks on every import
 

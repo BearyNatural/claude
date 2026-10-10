@@ -9,6 +9,7 @@ import * as plan from './services/planning';
 import * as tax from './services/taxes';
 import * as docs from './services/documents';
 import * as taxDocs from './services/taxDocuments';
+import * as learning from './services/learning';
 import * as out from './services/output';
 import { networkLog } from './net';
 import { GoogleTokens, revoke, signIn, validAccessToken } from './google/oauth';
@@ -210,6 +211,9 @@ export function buildRegistry({ state, platform }: Deps) {
       if (i.keepSourceFile && !state.demo) docId = imp.keepSourceFile(ctx(), store(), i.sessionId);
       return imp.commitImportAll(ctx(), { sessionId: i.sessionId, items: i.items, sourceDocumentId: docId });
     }),
+    'learning.overview': m(none, () => learning.learningOverview(ctx())),
+    'learning.deleteLayout': m(z.object({ id }), (i) => learning.deleteLayout(ctx(), i.id)),
+    'learning.forgetModel': m(none, () => learning.forgetModel(ctx())),
     'imports.discard': m(z.object({ sessionId: id }), (i) => imp.discardImport(i.sessionId)),
     'imports.list': m(none, () => imp.listImports(ctx())),
     'imports.reconcile': m(z.object({ importId: id, openingCents: cents.nullable(), closingCents: cents.nullable() }), (i) => imp.reReconcile(ctx(), i.importId, i.openingCents, i.closingCents)),
@@ -291,7 +295,7 @@ export function buildRegistry({ state, platform }: Deps) {
     'payslips.list': m(z.object({ fy: fy.optional() }).optional(), (i) => tax.listPayslips(ctx(), i?.fy)),
     'payslips.save': m(z.object({ id: z.string(), employer: z.string().min(1).max(100), payDate: iso, periodStart: iso.nullable().optional(), periodEnd: iso.nullable().optional(), grossCents: cents.positive(), allowancesCents: cents.nonnegative(), salarySacrificeCents: cents.nonnegative(), taxableCents: cents.nullable().optional(), paygCents: cents.nonnegative(), employerSuperCents: cents.nonnegative(), deductionsCents: cents.nonnegative(), netCents: cents.nonnegative(), linkedTransactionId: z.string().nullable().optional(), sourceToken: z.string().max(100).nullable().optional(), keepFile: z.boolean().optional() }), ({ sourceToken, keepFile, ...p }) => {
       const r = tax.savePayslip(ctx(), p as never);
-      if (sourceToken) taxDocs.payslipSaved(ctx(), state.demo ? null : store(), sourceToken, r.id, p.employer, !!keepFile);
+      if (sourceToken) taxDocs.payslipSaved(ctx(), state.demo ? null : store(), sourceToken, r.id, p, !!keepFile);
       return r;
     }),
     'payslips.readFile': m(none, async () => {

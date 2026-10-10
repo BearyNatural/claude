@@ -179,8 +179,23 @@ CREATE TABLE exports (
 );
 `;
 
+/** Learning from the person's own documents (learned layouts, training examples, the on-device model). */
+const V2 = `
+CREATE TABLE learned_layouts (
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, fingerprint TEXT NOT NULL, fields TEXT NOT NULL,
+  documents INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, last_used_at TEXT
+);
+CREATE INDEX idx_learned_layouts_kind ON learned_layouts(kind);
+CREATE TABLE learning_examples (
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL, layout_id TEXT, examples TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE INDEX idx_learning_examples_kind ON learning_examples(kind, created_at);
+CREATE TABLE learning_models (kind TEXT PRIMARY KEY, model TEXT NOT NULL, trained_at TEXT NOT NULL);
+`;
+
 export const MIGRATIONS: Migration[] = [
   { version: 1, description: 'Initial schema', up: (db) => db.exec(V1) },
+  { version: 2, description: 'Learning from your documents', up: (db) => db.exec(V2) },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

@@ -261,6 +261,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             <h1>Review and categorise</h1>
             <p>Geranium suggests categories using clear rules you can see and change, such as <em>“contains WOOLWORTHS → Groceries”</em>.</p>
             <p><strong>Automatic learning is not AI.</strong> It is data analytics and rules-based learning: Geranium counts the corrections you make for each shop or payee. When you’ve changed the same one to the same category a couple of times, it turns that into a rule. Every rule is listed under <em>Categories &amp; rules</em>, where you can edit or switch it off, and each transaction shows which rule categorised it.</p>
+            <p>Separately, Geranium learns from the <strong>payslips and statements you confirm</strong>: where each figure is printed, so the next one with the same layout is read correctly; and, once you've confirmed a few, a small machine-learning model trained only on your own documents helps with layouts it hasn't seen. Both stay {IS_WEB ? 'in this browser' : 'on this computer'}, use no one else's data, and can be switched off in Settings › Imports &amp; learning.</p>
             <Checkbox label="Turn on automatic learning" hint="Create rules from your corrections without asking first. Off: Geranium asks before creating each rule. You can change this later in Categories & rules › Suggestions." checked={autoLearn} onChange={setAutoLearn} />
           </>
         )}

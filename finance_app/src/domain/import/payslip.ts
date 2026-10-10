@@ -75,9 +75,9 @@ export const formatAbn = (abn: string) => abn.replace(/^(\d{2})(\d{3})(\d{3})(\d
  *  - a "YTD" column next to a "This pay" column: that column.
  * Each zone runs down the page until the next section title.
  */
-interface Zone { page: number; top: number; bottom: number; x0: number; x1: number }
+export interface Zone { page: number; top: number; bottom: number; x0: number; x1: number }
 
-function ytdZones(lines: Line[]): Zone[] {
+export function ytdZones(lines: Line[]): Zone[] {
   const zones: Zone[] = [];
   lines.forEach((l, i) => {
     l.cells.forEach((c) => {

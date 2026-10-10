@@ -123,6 +123,8 @@ function Review({ session, index, initialAccountId, onDone, onCancel, onBack }: 
   const [accountId, setAccountId] = useState<string | null>(initialAccountId ?? st?.suggestedAccountId ?? null);
   const [opening, setOpening] = useState<number | null>(st?.openingBalanceDerived ? null : st?.openingBalanceCents ?? null);
   const [closing, setClosing] = useState<number | null>(st?.closingBalanceCents ?? null);
+  /** Balances typed by the person; otherwise the statement's own, for the chosen account (loans and cards owe money). */
+  const [edited, setEdited] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [edits, setEdits] = useState<Record<number, { include?: boolean; categoryId?: string | null; amountCents?: number; date?: string; description?: string }>>({});
   const [profileName, setProfileName] = useState('');
@@ -131,12 +133,14 @@ function Review({ session, index, initialAccountId, onDone, onCancel, onBack }: 
   const [filter, setFilter] = useState<'all' | 'review' | 'duplicates'>('all');
   const load = useAction(async () => {
     if (!accountId) return;
-    setPreview(await api('imports.preview', { sessionId: session.sessionId, statementIndex: stmt, accountId, openingCents: opening, closingCents: closing }));
+    const p = await api('imports.preview', { sessionId: session.sessionId, statementIndex: stmt, accountId, openingCents: edited ? opening : null, closingCents: edited ? closing : null });
+    if (!edited) { setOpening(p.balances.openingCents); setClosing(p.balances.closingCents); }
+    setPreview(p);
   });
   useEffect(() => { void load.run(); }, [accountId, stmt]); // eslint-disable-line react-hooks/exhaustive-deps
   const commit = useAction(async () => {
     const rows = (preview?.rows ?? []).map((r) => ({ index: r.index, include: edits[r.index]?.include ?? r.include, ...(edits[r.index]?.categoryId !== undefined ? { categoryId: edits[r.index].categoryId } : {}), ...(edits[r.index]?.amountCents !== undefined ? { amountCents: edits[r.index].amountCents } : {}), ...(edits[r.index]?.date ? { date: edits[r.index].date } : {}), ...(edits[r.index]?.description ? { description: edits[r.index].description } : {}) }));
-    onDone(await api('imports.commit', { sessionId: session.sessionId, statementIndex: stmt, accountId: accountId!, keepSourceFile: keepFile, saveProfileName: profileName.trim() || null, openingCents: opening, closingCents: closing, rows }));
+    onDone(await api('imports.commit', { sessionId: session.sessionId, statementIndex: stmt, accountId: accountId!, keepSourceFile: keepFile, saveProfileName: profileName.trim() || null, openingCents: edited ? opening : null, closingCents: edited ? closing : null, rows }));
   });
   const suspects = new Set(preview?.reconciliation.suspectIndexes ?? []);
   const rows = (preview?.rows ?? []).filter((r) => filter === 'all' || (filter === 'review' ? r.willStage || r.confidence !== 'high' : r.duplicate.status !== 'new'));
@@ -155,8 +159,8 @@ function Review({ session, index, initialAccountId, onDone, onCancel, onBack }: 
               <AccountSelect label="Import into account" value={accountId} onChange={setAccountId} />
               <QuickAccount onCreated={setAccountId} hint={st.accountHint} />
             </div>
-            <MoneyField label="Opening balance (from statement)" cents={opening} onChange={setOpening} allowNegative hint={st.openingBalanceDerived ? 'This file does not include one — type it from your statement to check the import.' : undefined} />
-            <MoneyField label="Closing balance (from statement)" cents={closing} onChange={setClosing} allowNegative />
+            <MoneyField label="Opening balance (from statement)" cents={opening} onChange={(c) => { setOpening(c); setEdited(true); }} allowNegative hint={(preview?.balances.openingDerived ?? st.openingBalanceDerived) && !edited ? 'This file does not include one — type it from your statement to check the import.' : undefined} />
+            <MoneyField label="Closing balance (from statement)" cents={closing} onChange={(c) => { setClosing(c); setEdited(true); }} allowNegative />
           </div>
           <div className="row"><button className="btn btn-sm" disabled={!accountId} onClick={() => load.run()}>Re-check with these balances</button></div>
           {!accountId && <Callout>Choose the account this statement belongs to. Card and loan statements show amounts owed.</Callout>}

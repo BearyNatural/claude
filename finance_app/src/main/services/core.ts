@@ -66,6 +66,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   learningThreshold: 2,
   theme: 'system',
   background: 'geraniums',
+  documentLearning: { layouts: true, model: true },
   highContrast: false,
   textScale: 1,
   privacyModeDefault: false,

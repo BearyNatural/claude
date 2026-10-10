@@ -139,6 +139,8 @@ export interface AppSettings {
   theme: 'system' | 'light' | 'dark';
   /** The picture behind the content. */
   background: 'geraniums' | 'field' | 'plain';
+  /** Learning from confirmed payslips and statements, on this device: learned layouts and the on-device model. */
+  documentLearning: { layouts: boolean; model: boolean };
   highContrast: boolean;
   textScale: number;
   privacyModeDefault: boolean;

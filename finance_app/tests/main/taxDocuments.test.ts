@@ -7,6 +7,7 @@ import { parsePayslip } from '@domain/import/payslip';
 import { emptyTaxInput, estimateTax } from '@domain/tax/australia/estimator';
 import { readEssStatement, saveEssStatement, readPayslip, payslipSaved } from '@main/services/taxDocuments';
 import { listTaxEntries, taxEstimate } from '@main/services/taxes';
+import { updateSettings } from '@main/services/core';
 
 describe('employee share scheme statements', () => {
   it('reads labels D, E, F and C, the year and the employer — not the TFN', async () => {
@@ -106,9 +107,14 @@ describe('payslip PDFs', () => {
     const bytes = await makePdf([payslipSideBySideYtd()]);
     const first = await readPayslip(ctx, 'july.pdf', bytes);
     expect(first.employer).toBeNull();
-    payslipSaved(ctx, null, first.token, 'slip-1', 'Example Web Company Pty Ltd', false);
+    payslipSaved(ctx, null, first.token, 'slip-1', { employer: 'Example Web Company Pty Ltd', payDate: '2026-07-30', grossCents: 250000, allowancesCents: 0, salarySacrificeCents: 0, paygCents: 45000, employerSuperCents: 28750, netCents: 205000 }, false);
     const next = await readPayslip(ctx, 'august.pdf', bytes);
     expect(next.employer).toBe('Example Web Company Pty Ltd');
-    expect(next.warnings[0]).toMatch(/filled in from an earlier payslip/);
+    expect(next.warnings.some((w) => /not printed on this payslip/.test(w))).toBe(false);
+    // With layout learning switched off, the name still comes back from the ABN.
+    updateSettings(ctx, { documentLearning: { layouts: false, model: false } });
+    const plain = await readPayslip(ctx, 'august.pdf', bytes);
+    expect(plain.employer).toBe('Example Web Company Pty Ltd');
+    expect(plain.warnings[0]).toMatch(/filled in from an earlier payslip/);
   });
 });

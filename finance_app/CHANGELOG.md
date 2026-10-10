@@ -2,6 +2,14 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `finance_app-v<version>-build<n>`, marked as pre-releases while Geranium is at 0.x).
 
+## 0.6.0 — 11 October 2026
+
+- **Geranium learns from your own documents, on your own device.** Two parts, both on by default, each with its own switch in Settings › Imports & learning (renamed from "Import review"):
+  - **Learned layouts.** When you save a payslip read from a PDF, or import a PDF statement that balances, Geranium remembers where each figure was printed. The next document with the same layout is read the same way, so a correction made once is remembered.
+  - **Machine learning trained on your documents.** A small model (logistic regression) learns from every document you confirm which numbers and dates are gross pay, tax, super, net pay, dates and balances. After 5 confirmed documents it helps with layouts Geranium hasn't learned yet. It never uses anyone else's data and isn't an AI service.
+  - Figures on the payslip form say when they came from a learned layout or the model. Settings lists every learned layout (delete any of them), what the model has learned, and a button to make it forget.
+- **Fix:** reviewing a loan or credit-card section of a statement on its own showed its balances with the wrong sign, so the check reported a difference. The review screen now uses the balances for the account you choose, unless you type your own.
+
 ## 0.5.1 — 11 October 2026
 
 - **Linux: the panel and menu icon now really shows.** The package only installed a 1024×1024 icon, a size desktop icon themes don't look in, so Cinnamon and others found no icon at all. It now installs the standard sizes (16 to 512 pixels).

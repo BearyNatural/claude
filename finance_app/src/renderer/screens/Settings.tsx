@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { api, IS_WEB, useAction, useApi } from '../lib/api';
 import { RecoveryKeySettings } from '../components/recovery';
 import { useApp } from '../lib/app';
-import { Badge, Callout, Card, Checkbox, DataTable, DateField, ErrorText, Loading, NumberField, Page, SelectField, Tabs, TextField } from '../components/ui';
+import { Badge, Callout, Card, Checkbox, DataTable, DateField, ErrorText, Loading, NumberField, Page, SelectField, Tabs, TextField, useConfirm } from '../components/ui';
 import type { AppSettings, ReminderType } from '../../shared/types';
+import { formatDate } from '@domain/dates';
 
 const REMINDER_LABEL: Record<ReminderType, string> = {
   bills: 'Bills due', termDeposits: 'Term deposits maturing', taxReview: 'Tax time (July–October)', insurance: 'Insurance renewals', goals: 'Monthly goal check-in',
@@ -153,10 +154,52 @@ function Notifications({ s }: { s: AppSettings }) {
   );
 }
 
+/** What Geranium has learned from confirmed payslips and statements — on this device only. */
+function DocumentLearning({ s }: { s: AppSettings }) {
+  const update = useSettingsUpdate();
+  const q = useApi('learning.overview', undefined, []);
+  const confirm = useConfirm();
+  const dl = s.documentLearning;
+  const where = IS_WEB ? 'in this browser' : 'on this computer';
+  return (
+    <Card title="Learning from your documents" sub={`Everything here is learned ${where} from payslips and statements you confirm. Nothing is sent anywhere, and no one else's data is used.`}>
+      <div className="stack">
+        <Checkbox label="Learn the layout of my payslips and statements" checked={dl.layouts} onChange={(v) => update({ documentLearning: { ...dl, layouts: v } })}
+          hint="When you save a payslip or import a PDF statement that balances, Geranium notes where each figure was printed — the label beside it or the heading above it — and reads the next document with the same layout the same way. You can see and delete each learned layout below." />
+        <Checkbox label="Use machine learning trained on my own documents" checked={dl.model} onChange={(v) => update({ documentLearning: { ...dl, model: v } })}
+          hint={`A small statistical model (logistic regression) learns from every document you confirm which numbers and dates are gross pay, tax, super, balances and so on. It is used once it has seen ${q.data?.minDocuments ?? 5} confirmed documents, mainly for layouts Geranium hasn't learned yet. It is not an AI service and runs entirely ${where}.`} />
+        {q.data && (
+          <>
+            <DataTable rows={q.data.models} rowKey={(m) => m.kind} columns={[
+              { key: 'k', header: 'Model', render: (m) => m.kindLabel + 's' },
+              { key: 'd', header: 'Confirmed documents', num: true, render: (m) => m.documents },
+              { key: 's', header: 'Status', render: (m) => !dl.model ? <Badge>Off</Badge> : m.ready ? <Badge kind="ok">In use</Badge> : <Badge>Learning ({m.documents} of {q.data!.minDocuments})</Badge> },
+              { key: 'f', header: 'Fields it can help with', render: (m) => <span className="small">{m.fields.filter((f) => f.ready).map((f) => f.label).join(', ') || <span className="muted">None yet</span>}</span> },
+            ]} />
+            <DataTable rows={q.data.layouts} rowKey={(l) => l.id} empty={<p className="muted small">No layouts learned yet. They are learned when you save a payslip read from a PDF, or import a PDF statement that balances.</p>} columns={[
+              { key: 'n', header: 'Learned layout', render: (l) => <span>{l.name}<div className="small muted">{l.kindLabel} · {l.fields.join(', ')}</div></span> },
+              { key: 'd', header: 'Documents', num: true, render: (l) => l.documents },
+              { key: 'u', header: 'Last used', render: (l) => (l.lastUsedAt ? formatDate(l.lastUsedAt.slice(0, 10)) : <span className="muted">Not yet</span>) },
+              { key: 'x', header: '', render: (l) => <button className="btn btn-ghost btn-sm" onClick={async () => { if (await confirm.ask('Forget this layout?', <p>Geranium will go back to its built-in rules for documents like “{l.name}” until it learns the layout again.</p>, 'Forget layout', true)) await api('learning.deleteLayout', { id: l.id }); }}>Forget</button> },
+            ]} />
+            <div className="row">
+              <button className="btn btn-sm" disabled={!q.data.models.some((m) => m.documents > 0)} onClick={async () => { if (await confirm.ask('Forget what the model has learned?', <p>Its training examples and the model are deleted. Learned layouts are kept. It starts learning again from the next document you confirm.</p>, 'Forget', true)) await api('learning.forgetModel'); }}>Forget what the model has learned</button>
+            </div>
+          </>
+        )}
+        <p className="small muted">What is learned is stored inside your encrypted data and included in your backups. It records labels and positions (for example “the amount after ‘EmpER SGC’”), not copies of your documents.</p>
+      </div>
+      {confirm.node}
+    </Card>
+  );
+}
+
 function ImportRules({ s }: { s: AppSettings }) {
   const update = useSettingsUpdate();
   const st = s.staging;
   return (
+    <div className="stack-lg">
+    <DocumentLearning s={s} />
     <Card title="When imported transactions wait for review" sub="Waiting transactions are not included in figures until approved">
       <div className="stack">
         <Checkbox label="The file reader was unsure, or the category is unclear" checked={st.lowConfidence} onChange={(v) => update({ staging: { ...st, lowConfidence: v } })} />
@@ -165,6 +208,7 @@ function ImportRules({ s }: { s: AppSettings }) {
         <Checkbox label="It came from a PDF statement" checked={st.allPdf} onChange={(v) => update({ staging: { ...st, allPdf: v } })} />
       </div>
     </Card>
+    </div>
   );
 }
 
@@ -174,7 +218,7 @@ export function Settings() {
   if (!settings) return <Loading />;
   return (
     <Page title="Settings & privacy" intro={`Your preferences, how your data is protected, and what (if anything) leaves ${IS_WEB ? 'this browser' : 'this computer'}.`}>
-      <Tabs label="Section" value={tab} onChange={setTab} tabs={[{ value: 'preferences', label: 'Preferences' }, { value: 'security', label: 'Privacy & security' }, ...(IS_WEB ? [] : [{ value: 'notifications' as const, label: 'Reminders' }]), { value: 'imports', label: 'Import review' }]} />
+      <Tabs label="Section" value={tab} onChange={setTab} tabs={[{ value: 'preferences', label: 'Preferences' }, { value: 'security', label: 'Privacy & security' }, ...(IS_WEB ? [] : [{ value: 'notifications' as const, label: 'Reminders' }]), { value: 'imports', label: 'Imports & learning' }]} />
       {tab === 'preferences' && <Preferences s={settings} />}
       {tab === 'security' && (status?.demo ? <Callout kind="neutral">Security settings apply to your own data, not demo mode. <button className="btn btn-sm" onClick={async () => setStatus(await api('app.exitDemo'))}>Leave demo</button></Callout> : <Security />)}
       {tab === 'notifications' && <Notifications s={settings} />}

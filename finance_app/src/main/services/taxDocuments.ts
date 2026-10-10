@@ -4,6 +4,8 @@ import { isEssStatement, parseEssStatement, EssStatement } from '../../domain/im
 import { formatAbn, parsePayslip, PayslipRead } from '../../domain/import/payslip';
 import { ISODate } from '../../domain/dates';
 import { DocumentStore, addDocument, linkDocument } from './documents';
+import { applyLearning, docFromPages, FIELD_SPECS, learnFrom } from './learning';
+import type { Doc, Source } from '../../domain/learning/documentLearning';
 import { TaxEntryKind } from './taxes';
 
 /**
@@ -12,7 +14,7 @@ import { TaxEntryKind } from './taxes';
  * (briefly, for one file at a time) so a copy can be kept with the saved records if asked.
  */
 
-const held = new Map<string, { fileName: string; bytes: Uint8Array; at: number; abn?: string | null }>();
+const held = new Map<string, { fileName: string; bytes: Uint8Array; at: number; abn?: string | null; doc?: Doc }>();
 const HOLD_MS = 30 * 60 * 1000;
 
 function hold(ctx: Ctx, fileName: string, bytes: Uint8Array): string {
@@ -99,24 +101,83 @@ export function saveEssStatement(ctx: Ctx, store: DocumentStore | null, e: EssIn
 /** Employer names typed in for payslips that only print the employer's ABN, by ABN. */
 const EMPLOYERS_KEY = 'payslipEmployersByAbn';
 
-export async function readPayslip(ctx: Ctx, fileName: string, bytes: Uint8Array): Promise<PayslipRead & { token: string; fileName: string }> {
+const PAYSLIP_FIELD_NAME: Record<string, string> = { gross: 'gross pay', payg: 'tax withheld', net: 'net pay' };
+
+export type PayslipReadResult = PayslipRead & {
+  token: string;
+  fileName: string;
+  /** How each field was found: a learned layout, the on-device model, or the built-in rules. */
+  sources: Record<string, Source>;
+  /** Said when a learned layout was used. */
+  learnedNote: string | null;
+};
+
+export async function readPayslip(ctx: Ctx, fileName: string, bytes: Uint8Array): Promise<PayslipReadResult> {
   const pages = await pdfPages(bytes);
   const r = parsePayslip(pages);
   const remembered = r.employerAbn ? getSecretValue<Record<string, string>>(ctx, EMPLOYERS_KEY)?.[r.employerAbn] : undefined;
-  if (!r.employer && remembered) {
-    r.employer = remembered;
-    r.warnings = r.warnings.filter((w) => !w.startsWith("The employer's name"));
+  if (!r.employer && remembered) r.employer = remembered;
+
+  // What has been learned from earlier payslips comes before the built-in rules.
+  const doc = docFromPages(pages);
+  const learned = applyLearning(ctx, 'payslip', doc, {
+    gross: r.grossCents, allowances: r.allowancesCents, salarySacrifice: r.salarySacrificeCents, payg: r.paygCents, employerSuper: r.employerSuperCents,
+    net: r.netCents, payDate: r.payDate, periodStart: r.periodStart, periodEnd: r.periodEnd, employer: r.employer,
+  });
+  const v = learned.values;
+  const money = (k: string) => (v[k] === null || v[k] === undefined ? null : Number(v[k]));
+  const date = (k: string) => (v[k] ? String(v[k]) : null);
+  Object.assign(r, {
+    grossCents: money('gross'), allowancesCents: money('allowances'), salarySacrificeCents: money('salarySacrifice'), paygCents: money('payg'),
+    employerSuperCents: money('employerSuper'), netCents: money('net'), payDate: date('payDate'), periodStart: date('periodStart'), periodEnd: date('periodEnd'),
+    employer: v.employer ? String(v.employer) : null,
+  });
+  if (r.grossCents !== null && r.netCents !== null && r.paygCents !== null) {
+    r.deductionsCents = Math.max(0, r.grossCents - (r.salarySacrificeCents ?? 0) - r.paygCents - r.netCents);
+  }
+
+  // Warnings follow the final figures.
+  r.warnings = r.warnings.filter((w) => !/^(Not found on the payslip|The pay date was not found|The employer's name)/.test(w));
+  const missing = ['gross', 'payg', 'net'].filter((k) => v[k] === null || v[k] === undefined).map((k) => PAYSLIP_FIELD_NAME[k]);
+  if (!r.employer) {
+    r.warnings.unshift(`The employer's name is not printed on this payslip${r.employerAbn ? ` (ABN ${formatAbn(r.employerAbn)}). Type it in — Geranium will remember it for this employer's next payslip` : '. Type it in'}.`);
+  } else if (remembered && learned.sources.employer === 'rules' && r.employer === remembered) {
     r.warnings.unshift(`The employer's name isn't printed on this payslip; “${remembered}” was filled in from an earlier payslip with ABN ${formatAbn(r.employerAbn!)}.`);
   }
+  if (missing.length) r.warnings.push(`Not found on the payslip: ${missing.join(', ')}. Type ${missing.length === 1 ? 'it' : 'them'} in from the payslip.`);
+  if (!r.payDate) r.warnings.push('The pay date was not found. Enter it before saving.');
+  const sourceNames = Object.keys(learned.sources).filter((k) => learned.sources[k] !== 'rules').map((k) => FIELD_SPECS.payslip.find((f) => f.name === k)?.label ?? k);
+  r.found = [...new Set([...r.found, ...sourceNames])];
+
   const token = hold(ctx, fileName, bytes);
-  held.get(token)!.abn = r.employerAbn;
-  return { ...r, token, fileName };
+  Object.assign(held.get(token)!, { abn: r.employerAbn, doc });
+  return {
+    ...r, token, fileName, sources: learned.sources,
+    learnedNote: learned.layout ? `Read using the layout Geranium learned from your earlier ${learned.layout.name} payslip${learned.layout.documents === 1 ? '' : 's'} (${learned.layout.documents}).` : null,
+  };
 }
 
-/** After a payslip that was read from a file is saved: remember its employer by ABN and keep the file if asked. */
-export function payslipSaved(ctx: Ctx, store: DocumentStore | null, token: string, payslipId: string, employer: string, keepFile: boolean): void {
+export interface ConfirmedPayslip {
+  employer: string; payDate: string; periodStart?: string | null; periodEnd?: string | null; grossCents: number; allowancesCents: number;
+  salarySacrificeCents: number; paygCents: number; employerSuperCents: number; netCents: number;
+}
+
+/**
+ * After a payslip that was read from a file is saved: learn from the confirmed figures (its layout
+ * and the on-device model, as switched on in Settings), remember the employer by ABN, and keep the
+ * file if asked.
+ */
+export function payslipSaved(ctx: Ctx, store: DocumentStore | null, token: string, payslipId: string, p: ConfirmedPayslip, keepFile: boolean): void {
   const f = held.get(token);
-  if (f?.abn && employer.trim()) setSecretValue(ctx, EMPLOYERS_KEY, { ...(getSecretValue<Record<string, string>>(ctx, EMPLOYERS_KEY) ?? {}), [f.abn]: employer.trim() });
+  if (!f) return;
+  const employer = p.employer.trim();
+  if (f.abn && employer) setSecretValue(ctx, EMPLOYERS_KEY, { ...(getSecretValue<Record<string, string>>(ctx, EMPLOYERS_KEY) ?? {}), [f.abn]: employer });
+  if (f.doc) {
+    learnFrom(ctx, 'payslip', f.doc, {
+      gross: p.grossCents, allowances: p.allowancesCents, salarySacrifice: p.salarySacrificeCents, payg: p.paygCents, employerSuper: p.employerSuperCents,
+      net: p.netCents, payDate: p.payDate, periodStart: p.periodStart ?? null, periodEnd: p.periodEnd ?? null, employer,
+    }, employer);
+  }
   if (keepFile && store) {
     const doc = keep(ctx, store, token, 'payslip', 'Payslip read at entry');
     if (doc) linkDocument(ctx, doc, 'payslip', payslipId);

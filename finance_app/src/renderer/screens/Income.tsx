@@ -21,6 +21,8 @@ function PayslipForm({ initial, read, onClose }: { initial?: Slip; read?: SlipRe
     deductionsCents: initial?.deductionsCents ?? read?.deductionsCents ?? 0, netCents: initial?.netCents ?? read?.netCents ?? 0, linkedTransactionId: initial?.linkedTransactionId ?? null,
   });
   const [keepFile, setKeepFile] = useState(true);
+  // Where an imported figure came from, when it wasn't the built-in rules.
+  const from = (k: string) => (read?.sources[k] === 'layout' ? 'From your learned layout' : read?.sources[k] === 'model' ? 'Suggested by your model — please check' : undefined);
   const expectedNet = p.grossCents - p.salarySacrificeCents - p.paygCents - p.deductionsCents;
   const save = useAction(async () => {
     const r = await api('payslips.save', { ...p, ...(read ? { sourceToken: read.token, keepFile } : {}) });
@@ -32,22 +34,23 @@ function PayslipForm({ initial, read, onClose }: { initial?: Slip; read?: SlipRe
       <div className="stack">
         {read && (
           <>
-            <p className="small muted">Read from {read.fileName}{read.found.length ? ` — found ${read.found.join(', ')}` : ''}. Check every figure against the payslip before saving; payslips are laid out differently by every employer.</p>
+            <p className="small muted">Read from {read.fileName}{read.found.length ? ` — found ${read.found.join(', ')}` : ''}. Check every figure against the payslip before saving; payslips are laid out differently by every employer. Your corrections teach Geranium this layout.</p>
+            {read.learnedNote && <Callout kind="neutral">{read.learnedNote}</Callout>}
             {read.warnings.map((w) => <Callout key={w} kind="warn">{w}</Callout>)}
           </>
         )}
         <div className="form-grid">
-          <TextField label="Employer" value={p.employer} onChange={(v) => setP({ ...p, employer: v })} />
-          <DateField label="Pay date" value={p.payDate} onChange={(v) => v && setP({ ...p, payDate: v })} />
-          <DateField label="Period start" value={p.periodStart} onChange={(v) => setP({ ...p, periodStart: v })} />
-          <DateField label="Period end" value={p.periodEnd} onChange={(v) => setP({ ...p, periodEnd: v })} />
-          <MoneyField label="Gross pay (including allowances)" cents={p.grossCents || null} onChange={(c) => setP({ ...p, grossCents: c ?? 0 })} />
-          <MoneyField label="of which allowances" cents={p.allowancesCents} onChange={(c) => setP({ ...p, allowancesCents: c ?? 0 })} />
-          <MoneyField label="Salary sacrifice (before tax)" cents={p.salarySacrificeCents} onChange={(c) => setP({ ...p, salarySacrificeCents: c ?? 0 })} />
-          <MoneyField label="Tax withheld (PAYG)" cents={p.paygCents} onChange={(c) => setP({ ...p, paygCents: c ?? 0 })} />
-          <MoneyField label="Employer super" cents={p.employerSuperCents} onChange={(c) => setP({ ...p, employerSuperCents: c ?? 0 })} />
+          <TextField label="Employer" value={p.employer} onChange={(v) => setP({ ...p, employer: v })} hint={from('employer')} />
+          <DateField label="Pay date" value={p.payDate} onChange={(v) => v && setP({ ...p, payDate: v })} hint={from('payDate')} />
+          <DateField label="Period start" value={p.periodStart} onChange={(v) => setP({ ...p, periodStart: v })} hint={from('periodStart')} />
+          <DateField label="Period end" value={p.periodEnd} onChange={(v) => setP({ ...p, periodEnd: v })} hint={from('periodEnd')} />
+          <MoneyField label="Gross pay (including allowances)" cents={p.grossCents || null} onChange={(c) => setP({ ...p, grossCents: c ?? 0 })} hint={from('gross')} />
+          <MoneyField label="of which allowances" cents={p.allowancesCents} onChange={(c) => setP({ ...p, allowancesCents: c ?? 0 })} hint={from('allowances')} />
+          <MoneyField label="Salary sacrifice (before tax)" cents={p.salarySacrificeCents} onChange={(c) => setP({ ...p, salarySacrificeCents: c ?? 0 })} hint={from('salarySacrifice')} />
+          <MoneyField label="Tax withheld (PAYG)" cents={p.paygCents} onChange={(c) => setP({ ...p, paygCents: c ?? 0 })} hint={from('payg')} />
+          <MoneyField label="Employer super" cents={p.employerSuperCents} onChange={(c) => setP({ ...p, employerSuperCents: c ?? 0 })} hint={from('employerSuper')} />
           <MoneyField label="After-tax deductions" cents={p.deductionsCents} onChange={(c) => setP({ ...p, deductionsCents: c ?? 0 })} />
-          <MoneyField label="Net pay (deposited)" cents={p.netCents || null} onChange={(c) => setP({ ...p, netCents: c ?? 0 })} hint={expectedNet > 0 ? `Gross − salary sacrifice − tax − deductions = ${formatMoney(expectedNet)}` : undefined} />
+          <MoneyField label="Net pay (deposited)" cents={p.netCents || null} onChange={(c) => setP({ ...p, netCents: c ?? 0 })} hint={[from('net'), expectedNet > 0 ? `Gross − salary sacrifice − tax − deductions = ${formatMoney(expectedNet)}` : ''].filter(Boolean).join(' · ') || undefined} />
         </div>
         {p.netCents > 0 && Math.abs(expectedNet - p.netCents) > 1 && <Callout kind="warn">Net pay does not equal gross less salary sacrifice, tax withheld and deductions (difference {formatMoney(Math.abs(expectedNet - p.netCents))}). Check the payslip.</Callout>}
         {read && <Checkbox label="Keep a copy of the payslip (encrypted, linked to this payslip)" checked={keepFile} onChange={setKeepFile} />}

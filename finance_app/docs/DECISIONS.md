@@ -69,3 +69,15 @@ vitest 4 cannot be installed by npm 10 (bundled with Node 22, used in CI and the
 ## 14. The name: Geranium
 
 First released as Paperbark; renamed in 0.2.0 because many finance, budgeting and bookkeeping products already use "Paperbark". Format identifiers inside encrypted files (the key-wrapping label and the backup check value) keep the original name so existing keystores and backups still open, and the old data folder and file names are migrated on first start.
+
+## 15. Learning from your own documents, on your own device
+
+**Decision:** payslips and PDF statements are read better over time by learning only from the documents the person confirms, in two layers that are both on by default and can each be switched off (Settings › Imports & learning):
+
+1. **Learned layouts** (rules-based): each confirmed figure is found in the document and remembered by what surrounds it (the label beside it, the heading above it, the words before it in the same cell). Documents with the same headings (and, for payslips, the same employer ABN) are read the same way. One correction is enough.
+2. **An on-device model**: multinomial logistic regression over features of every number and date on the page (nearby words, position, year-to-date areas, size compared with other amounts), retrained after each confirmed document. It is used once it has seen 5 confirmed documents, for fields it has seen at least 3 times; it fills fields the built-in rules missed (probability ≥ 0.55) and only overrules them when very sure (≥ 0.85). A learned layout always comes first.
+
+**Why:** the person asked for machine learning that improves with their own use and never collects anyone else's data. Payslips and statements come from a handful of sources that repeat, so layouts learned from one correction help immediately; the model generalises to new layouts as confirmed documents accumulate. Logistic regression is small, fast to train in JavaScript, explainable (each figure says where it came from), and needs no downloads or network. A large local AI model was rejected: multi-gigabyte downloads, slow without a GPU, and less predictable.
+
+**Privacy:** everything is stored in the encrypted database (and backups). What is kept is labels, positions and feature words, not copies of documents. Statements teach only when they reconcile; payslips only when saved. Layouts can be deleted one by one and the model forgotten.
+

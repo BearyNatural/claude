@@ -361,3 +361,59 @@ export function payslipTotalsColumn(): PdfText[] {
     { text: 'Messages', x: 36, y: 235 },
   ];
 }
+
+export interface SlipValues { gross: string; tax: string; superAmt: string; net: string; start: string; end: string; paid: string }
+
+/**
+ * Fictional payslips in three different layouts, with the figures filled in, for teaching and
+ * testing what Geranium learns from confirmed documents. Dates are dd/mm/yyyy.
+ *  - 'totals': a Totals column, and super labelled "Company contribution (CC)" (the built-in rules miss it)
+ *  - 'rows':   one figure per row ("Gross earnings  …")
+ *  - 'grid':   a row of headings with the figures underneath, dates under headings
+ */
+export function payslipFamily(style: 'totals' | 'rows' | 'grid', v: SlipValues, shift = 0): PdfText[] {
+  const r = (text: string, x: number, y: number): PdfText => ({ text, x, y: y + shift, right: true });
+  const t = (text: string, x: number, y: number): PdfText => ({ text, x, y: y + shift });
+  if (style === 'totals') {
+    return [
+      t('Pay Advice', 36, 726), t('Example Logistics Pty Ltd ABN 11222333444', 36, 706),
+      t(`Pay Period: ${v.start} to ${v.end}`, 61, 585), t(`Banked: ${v.paid}`, 375, 585),
+      t('Summary', 36, 555), t('Totals', 306, 555), r('Amount', 492, 555),
+      t('Work', 48, 546), r(v.gross, 252, 546), t('Gross', 318, 546), r(v.gross, 492, 546),
+      t('Leave', 48, 536), r('0.00', 252, 536), t('Tax', 318, 536), r(v.tax, 492, 536),
+      t('Overtime', 48, 526), r('0.00', 252, 526), t('Net', 318, 526), r(v.net, 492, 526),
+      t('Company contribution (CC)', 318, 486), r(v.superAmt, 492, 486),
+      t('Messages', 36, 400),
+    ];
+  }
+  if (style === 'rows') {
+    return [
+      t('Example Bakery Pty Ltd', 50, 800), t('PAYSLIP', 480, 800),
+      t(`Pay date: ${v.paid}`, 50, 770), t(`Period: ${v.start} - ${v.end}`, 300, 770),
+      t('Earnings', 50, 730),
+      t('Gross earnings', 60, 712), r(v.gross, 520, 712),
+      t('Deductions', 50, 690),
+      t('PAYG withholding', 60, 672), r(v.tax, 520, 672),
+      t('Net payment', 60, 650), r(v.net, 520, 650),
+      t('Other', 50, 628),
+      t('Employer super contribution', 60, 610), r(v.superAmt, 520, 610),
+    ];
+  }
+  return [
+    t('Example Florist Pty Ltd', 40, 810),
+    t('Period Start', 40, 780), t('Period End', 160, 780), t('Paid', 280, 780),
+    t(v.start, 40, 768), t(v.end, 160, 768), t(v.paid, 280, 768),
+    t('Gross Wages', 40, 730), t('Income Tax', 160, 730), t('Superannuation', 280, 730), t('Net Wages', 420, 730),
+    t(v.gross, 40, 718), t(v.tax, 160, 718), t(v.superAmt, 280, 718), t(v.net, 420, 718),
+  ];
+}
+
+/** Figures for the nth fictional pay (different every time, adding up correctly). */
+export function slipValues(n: number): SlipValues {
+  const grossC = 250000 + n * 3713;
+  const taxC = Math.round(grossC * 0.21);
+  const fmt = (c: number) => (c / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const d = (day: number, m: number) => `${String(day).padStart(2, '0')}/${String(m).padStart(2, '0')}/2026`;
+  const m = 1 + (n % 11);
+  return { gross: fmt(grossC), tax: fmt(taxC), superAmt: fmt(Math.round(grossC * 0.12)), net: fmt(grossC - taxC), start: d(1, m), end: d(14, m), paid: d(17, m) };
+}

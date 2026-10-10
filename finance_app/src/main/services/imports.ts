@@ -17,6 +17,8 @@ import { cleanDescription, guessPayee } from '../../domain/categorise/clean';
 import { findTransferPairs } from '../../domain/transfers';
 import { ImportPreviewRow, ImportSession, ReconciliationDTO, TransactionDTO } from '../../shared/types';
 import { DocumentStore, addDocument } from './documents';
+import { applyLearning, learnFrom, statementDocs } from './learning';
+import type { Doc } from '../../domain/learning/documentLearning';
 
 /* ------------------------------ sessions ------------------------------ */
 
@@ -33,6 +35,8 @@ interface Session {
   detection: ReturnType<typeof detectMapping> | null;
   statements: ParsedStatement[];
   pdfPages: PdfTextPage[] | null;
+  /** One learning document per statement in a PDF (for learned balances). */
+  pdfDocs: Doc[] | null;
   profileId: string | null;
   needsMapping: boolean;
   createdAt: number;
@@ -166,7 +170,7 @@ export async function openImport(ctx: Ctx, fileName: string, bytes: Uint8Array):
   const format = detectFormat(fileName, bytes);
   const s: Session = {
     id: ctx.id(), fileName, bytes, sha256: sha256(bytes), format, sheets: [], selectedSheet: null, rows: null, mapping: null,
-    detection: null, statements: [], pdfPages: null, profileId: null, needsMapping: false, createdAt: Date.now(), committed: new Map(), documentId: null,
+    detection: null, statements: [], pdfPages: null, pdfDocs: null, profileId: null, needsMapping: false, createdAt: Date.now(), committed: new Map(), documentId: null,
   };
   switch (format) {
     case 'ofx':
@@ -180,7 +184,8 @@ export async function openImport(ctx: Ctx, fileName: string, bytes: Uint8Array):
       const { pages } = await extractPdfText(bytes);
       s.pdfPages = pages;
       // One statement per account when the PDF lists several accounts.
-      s.statements = parsePdfStatements(pages);
+      s.pdfDocs = statementDocs(pages);
+      s.statements = parsePdfStatements(pages).map((st, i) => withLearnedBalances(ctx, st, s.pdfDocs?.[i], false));
       break;
     }
     case 'xlsx':
@@ -244,14 +249,35 @@ export function currentMappingKinds(sessionId: string): ColumnKind[] {
 
 /* ------------------------------ preview ------------------------------ */
 
+/**
+ * Opening and closing balances from a learned layout or the on-device model (learned from earlier
+ * statements that reconciled), in place of the built-in reader's when they are found.
+ */
+function withLearnedBalances(ctx: Ctx, st: ParsedStatement, doc: Doc | undefined, liability: boolean): ParsedStatement {
+  if (!doc) return st;
+  const l = applyLearning(ctx, 'statement', doc, { opening: st.openingBalanceCents ?? null, closing: st.closingBalanceCents ?? null });
+  const out = { ...st, warnings: [...st.warnings] };
+  for (const f of ['opening', 'closing'] as const) {
+    const src = l.sources[f];
+    if (!src || src === 'rules' || l.values[f] === null) continue;
+    const printed = Number(l.values[f]);
+    const v = liability ? -printed : printed;
+    if (f === 'opening') { out.openingBalanceCents = v; out.openingBalanceDerived = false; } else out.closingBalanceCents = v;
+    if (src === 'model') out.warnings.push(`The ${f} balance was suggested by what Geranium has learned from your statements — check it against the statement.`);
+  }
+  if (out.openingBalanceCents != null && out.closingBalanceCents != null) out.warnings = out.warnings.filter((w) => !w.startsWith('Opening and closing balances were not both found'));
+  return out;
+}
+
 function statementFor(ctx: Ctx, s: Session, index: number, accountId: string): ParsedStatement {
   const acc = ctx.db.get('SELECT type FROM accounts WHERE id = ?', [accountId]);
   if (!acc) throw new UserError('Choose which account this statement belongs to.');
   if (s.format === 'pdf' && s.pdfPages) {
     // Card and loan statements print the amount owed as the balance.
-    const st = parsePdfStatements(s.pdfPages, { balanceMeaning: isLiability(acc.type as AccountType) ? 'liability' : 'asset' })[index];
+    const liability = isLiability(acc.type as AccountType);
+    const st = parsePdfStatements(s.pdfPages, { balanceMeaning: liability ? 'liability' : 'asset' })[index];
     if (!st) throw new UserError('That statement was not found in the file.');
-    return st;
+    return withLearnedBalances(ctx, st, s.pdfDocs?.[index], liability);
   }
   const st = s.statements[index];
   if (!st) throw new UserError('That statement was not found in the file.');
@@ -259,6 +285,8 @@ function statementFor(ctx: Ctx, s: Session, index: number, accountId: string): P
 }
 
 export interface PreviewResult {
+  /** The statement's balances for the chosen account (cards and loans: amounts owed are negative). */
+  balances: { openingCents: number | null; closingCents: number | null; openingDerived: boolean };
   rows: ImportPreviewRow[];
   reconciliation: ReconciliationDTO;
   counts: { total: number; duplicates: number; possibleDuplicates: number; toStage: number; toPost: number; lowConfidence: number };
@@ -269,8 +297,9 @@ export function previewImport(ctx: Ctx, sessionId: string, statementIndex: numbe
   const st = statementFor(ctx, s, statementIndex, accountId);
   const settings = getSettings(ctx);
   const txs = st.transactions;
+  const stBalances = { openingCents: st.openingBalanceDerived ? null : st.openingBalanceCents ?? null, closingCents: st.closingBalanceCents ?? null, openingDerived: !!st.openingBalanceDerived };
   if (!txs.length) {
-    return { rows: [], reconciliation: reconcile({ openingCents: null, closingCents: null, transactions: [] }), counts: { total: 0, duplicates: 0, possibleDuplicates: 0, toStage: 0, toPost: 0, lowConfidence: 0 } };
+    return { balances: stBalances, rows: [], reconciliation: reconcile({ openingCents: null, closingCents: null, transactions: [] }), counts: { total: 0, duplicates: 0, possibleDuplicates: 0, toStage: 0, toPost: 0, lowConfidence: 0 } };
   }
   const dates = txs.map((t) => t.date).sort();
   const existing = ctx.db.all('SELECT id, date, processing_date, amount_cents, original_description, external_id, balance_cents, reference FROM transactions WHERE account_id = ? AND date BETWEEN ? AND ?',
@@ -327,6 +356,7 @@ export function previewImport(ctx: Ctx, sessionId: string, statementIndex: numbe
     transactions: txs,
   });
   return {
+    balances: stBalances,
     rows,
     reconciliation: rec,
     counts: {
@@ -454,6 +484,15 @@ export function commitImport(ctx: Ctx, input: CommitInput): CommitResult {
     }
     ctx.db.run('UPDATE imports SET added_count = ?, staged_count = ?, duplicate_count = ? WHERE id = ?', [added, staged, skipped, importId]);
   });
+  // A PDF statement that reconciles confirms its balances: learn where they are printed.
+  const doc = s.format === 'pdf' ? s.pdfDocs?.[input.statementIndex] : undefined;
+  if (doc && rec.status === 'reconciled') {
+    const openingKnown = input.openingCents != null || !st.openingBalanceDerived;
+    learnFrom(ctx, 'statement', doc, {
+      opening: openingKnown && rec.openingCents !== null ? Math.abs(rec.openingCents) : null,
+      closing: rec.closingCents !== null ? Math.abs(rec.closingCents) : null,
+    }, String(ctx.db.scalar('SELECT name FROM accounts WHERE id = ?', [input.accountId]) ?? 'Statement'));
+  }
   s.committed.set(input.statementIndex, input.accountId);
   // A file with several accounts stays open until every account in it has been imported.
   const remaining = s.statements.filter((x, i) => !s.committed.has(i) && x.transactions.length > 0).length;
