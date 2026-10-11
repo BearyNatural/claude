@@ -5,6 +5,7 @@ import { migrate, currentVersion, SCHEMA_VERSION } from '../db/schema';
 import { KeyStore, LockKind, OsProtector, newRecoveryKey } from '../crypto/keyStore';
 import { randomKey, wipe } from '../crypto/crypto';
 import { Ctx, makeCtx, seedDefaults, updateSettings, getSettings } from '../services/core';
+import { repairLearnedRules } from '../services/transactions';
 import { DocumentStore } from '../services/documents';
 import { createBackup, openBackup, backupInfo } from '../services/backup';
 import { seedDemo } from '../demo/demoData';
@@ -94,6 +95,7 @@ export class AppState {
     this.docs = new DocumentStore(join(this.dataDir, 'documents'), dek);
     this.ctx = makeCtx(db, { changed: this.onChanged });
     seedDefaults(this.ctx);
+    repairLearnedRules(this.ctx);
     db.saveNow();
   }
 

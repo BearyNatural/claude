@@ -172,7 +172,7 @@ export function buildRegistry({ state, platform }: Deps) {
     'rules.delete': m(z.object({ id }), (i) => tx.deleteRule(ctx(), i.id)),
     'rules.apply': m(z.object({ onlyUncategorised: z.boolean().optional(), ruleId: z.string().optional() }), (i) => tx.applyRules(ctx(), i)),
     'rules.suggestions': m(none, () => tx.ruleSuggestions(ctx())),
-    'rules.acceptSuggestion': m(z.object({ pattern: z.string().min(1).max(200), categoryId: id, applyToExisting: z.boolean() }), (i) => tx.acceptRuleSuggestion(ctx(), i.pattern, i.categoryId, i.applyToExisting)),
+    'rules.acceptSuggestion': m(z.object({ pattern: z.string().min(1).max(200), categoryId: id, applyToExisting: z.boolean(), direction: z.enum(['in', 'out', 'any']).optional() }), (i) => tx.acceptRuleSuggestion(ctx(), i.pattern, i.categoryId, i.applyToExisting, i.direction ?? 'any')),
     'rules.dismissSuggestion': m(z.object({ key: z.string(), categoryId: id }), (i) => tx.dismissRuleSuggestion(ctx(), i.key, i.categoryId)),
 
     'transfers.suggestions': m(none, () => tx.transferSuggestions(ctx())),

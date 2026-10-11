@@ -129,10 +129,10 @@ describe('transactions', () => {
     const first = updateTransaction(ctx, all[0].id, { categoryId: 'food.groceries' });
     expect(first.ruleSuggestion).toBeNull();
     const second = updateTransaction(ctx, all[1].id, { categoryId: 'food.groceries' });
-    expect(second.ruleSuggestion).toMatchObject({ pattern: 'CORNER', categoryId: 'food.groceries' });
-    expect(ruleSuggestions(ctx)[0].message).toBe('Always categorise transactions containing "CORNER" as Groceries?');
+    expect(second.ruleSuggestion).toMatchObject({ pattern: 'CORNER STORE', categoryId: 'food.groceries', direction: 'out' });
+    expect(ruleSuggestions(ctx)[0].message).toBe('Always categorise payments to "CORNER STORE" as Groceries?');
     expect(listRules(ctx).some((r) => r.source === 'learned')).toBe(false);
-    const accepted = acceptRuleSuggestion(ctx, 'CORNER', 'food.groceries', true);
+    const accepted = acceptRuleSuggestion(ctx, 'CORNER STORE', 'food.groceries', true, 'out');
     expect(accepted.updated).toBe(1);
     expect(getTransaction(ctx, all[2].id).categoryName).toBe('Groceries');
     const h = transactionHistory(ctx, all[0].id).find((x) => x.field === 'categoryId' && x.reason === 'Changed by you');

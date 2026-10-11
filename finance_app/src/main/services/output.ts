@@ -2,7 +2,7 @@ import { Ctx, UserError, categoryMap, listAccounts, listCategories, getSettings 
 import { listTransactions } from './transactions';
 import { budgetReport, listBills, listBudgets, listSinkingFunds } from './budgeting';
 import { listGoals, listLoans, listTermDeposits, modelLoan, buildAssumptions, runScenarios, listScenarios } from './planning';
-import { basPreparation, investmentsOverview, listPayslips, listTaxEntries, superOverview, taxEstimate, taxRulesInfo, buildTaxInput } from './taxes';
+import { basPreparation, investmentsOverview, listPayslips, listTaxEntries, superOverview, taxEstimate, taxRulesInfo, buildTaxInput, deductionItems } from './taxes';
 import { costOfLiving, netWorth, recurringList, spendingSummary, subscriptions } from './insights';
 import { listDocuments } from './documents';
 import { ISODate, formatDate, formatMonth, fyRange, fyDisplay, financialYearOf } from '../../domain/dates';
@@ -338,6 +338,9 @@ export function accountantPackage(ctx: Ctx, fy: string, opts: { include: string[
   if (inc('tax-categories')) {
     const t = listTransactions(ctx, { status: 'posted', from: start, to: end, limit: 1_000_000, sort: 'date-asc' }).rows.filter((x) => x.taxClass && x.taxClass !== 'none');
     files.push({ path: 'tax-classified-transactions.csv', content: toCsv(['Date', 'Description', 'Amount', 'Tax class', 'Category', 'Notes'], t.map((x) => [x.date, x.cleanDescription, x.amountCents / 100, x.taxClass, x.categoryPath, x.notes])) });
+    const cats = new Map(listCategories(ctx, true).map((c) => [c.id, c.path]));
+    files.push({ path: 'deductions.csv', content: toCsv(['Date', 'Description', 'Amount', 'Tax return label', 'Label name', 'Category', 'Counted because', 'Notes'],
+      deductionItems(ctx, fy).map((d) => [d.date, d.description, d.amountCents / 100, d.label, d.labelName, cats.get(d.categoryId ?? '') ?? '', d.basis === 'category' ? 'Tax-deductible category' : d.basis === 'split' ? 'Split part in a deductible category' : 'Marked tax deductible', d.notes])) });
     files.push({ path: 'tax-entries.csv', content: toCsv(['Type', 'Description', 'Amount', 'Date'], listTaxEntries(ctx, fy).map((e) => [e.kind, e.description, e.amountCents / 100, e.date])) });
   }
   if (inc('gst')) {

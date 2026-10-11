@@ -48,7 +48,7 @@ describe('demo household data', () => {
 
   it('leaves a few items in the review inbox and a rule suggestion', () => {
     expect(inbox(ctx).count).toBe(2);
-    expect(ruleSuggestions(ctx).some((s) => s.pattern === 'CORNER')).toBe(true);
+    expect(ruleSuggestions(ctx).some((s) => s.pattern === 'CORNER BUTCHER')).toBe(true);
   });
 
   it('warns about missing credit-card statements', () => {

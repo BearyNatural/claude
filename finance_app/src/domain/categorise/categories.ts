@@ -120,6 +120,24 @@ export const DEFAULT_CATEGORIES: CategorySeed[] = [
     e('taxes.payg-instalments', 'PAYG instalments', 'fixed'),
     e('taxes.gst', 'GST / BAS payments', 'fixed'),
   ]),
+  // Work-related and other deductions on the individual tax return, grouped by the return's labels.
+  // Spending in these categories counts as a deduction in the tax estimate unless a transaction is
+  // marked otherwise. Record only the work share — split a bill that is partly private.
+  e('deductions', 'Tax-deductible expenses', 'variable', [
+    e('deductions.car', 'Work car expenses', 'variable'),
+    e('deductions.travel', 'Work travel (fares, accommodation, meals)', 'variable'),
+    e('deductions.clothing', 'Work clothing, uniforms & laundry', 'variable'),
+    e('deductions.self-education', 'Self-education (courses, textbooks, conferences)', 'variable'),
+    e('deductions.home-office', 'Working from home', 'variable'),
+    e('deductions.phone-internet', 'Phone & internet (work share)', 'variable'),
+    e('deductions.stationery', 'Stationery & office supplies', 'variable'),
+    e('deductions.tools', 'Tools & equipment', 'variable'),
+    e('deductions.memberships', 'Union fees & professional memberships', 'variable'),
+    e('deductions.subscriptions', 'Work subscriptions, journals & software', 'variable'),
+    e('deductions.other-work', 'Other work-related expenses', 'variable'),
+    e('deductions.donations', 'Donations to registered charities', 'discretionary'),
+    e('deductions.tax-affairs', 'Tax agent & managing tax affairs', 'variable'),
+  ]),
   e('business', 'Business', 'variable', [
     e('business.supplies', 'Business supplies', 'variable'),
     e('business.software', 'Business software', 'fixed'),
@@ -169,6 +187,26 @@ export const DEFAULT_CATEGORIES: CategorySeed[] = [
     e('other.uncategorised', 'Uncategorised', 'variable'),
   ]),
 ];
+
+/** Where each deduction category goes on the individual tax return (ATO labels). */
+export const DEDUCTION_LABELS: Record<string, { label: string; name: string }> = {
+  'deductions.car': { label: 'D1', name: 'Work-related car expenses' },
+  'deductions.travel': { label: 'D2', name: 'Work-related travel expenses' },
+  'deductions.clothing': { label: 'D3', name: 'Work-related clothing, laundry and dry-cleaning expenses' },
+  'deductions.self-education': { label: 'D4', name: 'Work-related self-education expenses' },
+  'deductions.home-office': { label: 'D5', name: 'Other work-related expenses' },
+  'deductions.phone-internet': { label: 'D5', name: 'Other work-related expenses' },
+  'deductions.stationery': { label: 'D5', name: 'Other work-related expenses' },
+  'deductions.tools': { label: 'D5', name: 'Other work-related expenses' },
+  'deductions.memberships': { label: 'D5', name: 'Other work-related expenses' },
+  'deductions.subscriptions': { label: 'D5', name: 'Other work-related expenses' },
+  'deductions.other-work': { label: 'D5', name: 'Other work-related expenses' },
+  'deductions.donations': { label: 'D9', name: 'Gifts or donations' },
+  'deductions.tax-affairs': { label: 'D10', name: 'Cost of managing tax affairs' },
+};
+
+/** A built-in deduction category (categories added under "Tax-deductible expenses" are found by the tax service). */
+export const isDeductionCategory = (id: string | null | undefined): boolean => !!id && (id === 'deductions' || id.startsWith('deductions.'));
 
 export interface FlatCategory {
   key: string;

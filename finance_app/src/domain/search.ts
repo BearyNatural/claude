@@ -1,6 +1,6 @@
 import { ISODate, addDays, addMonths, addYears, financialYearOf, fyRange, fyDisplay, formatDate, isValidDate, makeDate, parts, previousFy, startOfMonth, endOfMonth } from './dates';
 import { Cents, formatMoney, parseMoney } from './money';
-import { IncomeType } from './categorise/categories';
+import { IncomeType, isDeductionCategory } from './categorise/categories';
 
 /**
  * Deterministic search: turns a plain-English query into explicit filters and shows the user
@@ -189,7 +189,7 @@ export function matchesSearch(t: SearchableTx, f: SearchFilter): boolean {
   }
   if (f.accountNames.length && !f.accountNames.some((a) => a.toLowerCase() === t.accountName.toLowerCase())) return false;
   if (f.incomeTypes.length && (!t.incomeType || !f.incomeTypes.includes(t.incomeType))) return false;
-  if (f.deductible && t.taxClass !== 'deductible') return false;
+  if (f.deductible && !(t.taxClass === 'deductible' || (!t.taxClass && t.amountCents < 0 && (isDeductionCategory(t.categoryId) || (t.categoryPath ?? []).includes('Tax-deductible expenses'))))) return false;
   if (f.business && !(t.businessUse === 'business' || t.businessUse === 'mixed')) return false;
   if (f.oneOff && !t.isOneOff) return false;
   if (f.uncategorised && t.categoryId) return false;

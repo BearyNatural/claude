@@ -1,6 +1,6 @@
 import { Cents } from '../money';
 import { IncomeType } from './categories';
-import { cleanDescription } from './clean';
+import { cleanDescription, matchText } from './clean';
 
 /**
  * Transparent, deterministic categorisation rules.
@@ -119,7 +119,7 @@ export function ruleMatches(rule: Rule, subject: RuleSubject): boolean {
   const re = toRegex(rule);
   if (!re) return false;
   if (rule.field === 'payee') return !!subject.payee && re.test(subject.payee);
-  return re.test(subject.description) || re.test(cleanDescription(subject.description));
+  return re.test(subject.description) || re.test(cleanDescription(subject.description)) || re.test(matchText(subject.description));
 }
 
 function specificity(rule: Rule): number {
@@ -253,6 +253,10 @@ const DEFAULTS: D[] = [
   ...['MEDICARE BENEFIT', 'MEDICARE REBATE', 'MEDICARE'].map((p): D => [p, 'income.refunds', { direction: 'in', incomeType: 'refund', priority: 3 }]),
   ...['AUSTRALIAN TAXATION OFFICE', 'ATO', 'TAX REFUND'].map((p): D => [p, 'income.refunds', { direction: 'in', incomeType: 'refund', priority: 3 }]),
   ['REFUND', 'income.refunds', { direction: 'in', incomeType: 'refund', priority: 1 }],
+  // Added later — keep new built-in rules at the end so existing rule ids stay the same.
+  // Amazon is several different businesses: the cloud service and Prime are not shopping.
+  ['AMAZON WEB SERVICES', 'subscriptions.software', { direction: 'out', priority: 1 }],
+  ['AMAZON PRIME', 'subscriptions.streaming', { direction: 'out', priority: 1 }],
 ];
 
 export function defaultRules(): Rule[] {

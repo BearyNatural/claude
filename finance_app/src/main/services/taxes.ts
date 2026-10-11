@@ -1,4 +1,5 @@
 import { SUPER_CATEGORY_ENTRY_KIND } from '../../domain/categorise/superannuation';
+import { DEDUCTION_LABELS } from '../../domain/categorise/categories';
 import { Ctx, NOT_IN_SUPER, UserError, bool, getSettings, num, str, listAccounts, recordChange } from './core';
 import { ISODate, financialYearOf, fyRange, fyDisplay, formatDate, addDays, diffDays, isValidDate } from '../../domain/dates';
 import { Cents, formatMoney, parseMoney, roundCents } from '../../domain/money';
@@ -109,6 +110,66 @@ function gstPart(r: Record<string, unknown>, registered: boolean): Cents {
   return r.gst_cents !== null && r.gst_cents !== undefined ? Math.abs(Number(r.gst_cents)) : gstIncluded(Math.abs(Number(r.amount_cents)));
 }
 
+export interface DeductionItem {
+  transactionId: string;
+  date: ISODate;
+  description: string;
+  amountCents: number;
+  categoryId: string | null;
+  /** The tax return label (D1–D10), or "Other" for transactions marked deductible outside these categories. */
+  label: string;
+  labelName: string;
+  /** Why it counts: its category, being marked deductible, or a split part in a deduction category. */
+  basis: 'category' | 'marked' | 'split';
+  notes: string | null;
+}
+
+/**
+ * Every personal deduction for a financial year. Spending in a Tax-deductible expense category
+ * (including categories you add under it) counts unless the transaction is marked otherwise;
+ * a transaction marked "Tax deductible" counts whatever its category; for split transactions,
+ * the parts in deduction categories count. Business expenses are left to the business figures.
+ */
+export function deductionItems(ctx: Ctx, fy: string): DeductionItem[] {
+  const { start, end } = fyRange(fy);
+  const cats = ctx.db.all('SELECT id, parent_id FROM categories').map((r) => ({ id: String(r.id), parent: str(r.parent_id) }));
+  const parentOf = new Map(cats.map((c) => [c.id, c.parent]));
+  const labelFor = (id: string | null): { label: string; name: string } | null => {
+    // A category added under "Tax-deductible expenses" (or under one of its categories) counts too.
+    for (let cur = id, i = 0; cur && i < 10; cur = parentOf.get(cur) ?? null, i++) {
+      if (DEDUCTION_LABELS[cur]) return DEDUCTION_LABELS[cur];
+      if (cur === 'deductions') return { label: 'D5', name: 'Other work-related expenses' };
+    }
+    return null;
+  };
+  const splits = new Map<string, { categoryId: string | null; amountCents: number }[]>();
+  for (const r of ctx.db.all('SELECT transaction_id, category_id, amount_cents FROM transaction_splits')) {
+    const k = String(r.transaction_id);
+    splits.set(k, [...(splits.get(k) ?? []), { categoryId: str(r.category_id), amountCents: Number(r.amount_cents) }]);
+  }
+  const out: DeductionItem[] = [];
+  const rows = ctx.db.all(`SELECT id, date, amount_cents, clean_description, category_id, tax_class, business_use, notes FROM transactions
+    WHERE status = 'posted' AND is_transfer = 0 AND amount_cents < 0 AND date BETWEEN ? AND ? AND ${NOT_IN_SUPER} ORDER BY date`, [start, end]);
+  for (const r of rows) {
+    if (r.business_use === 'business' || r.business_use === 'mixed') continue;
+    const taxClass = str(r.tax_class);
+    if (taxClass === 'none' || taxClass === 'private' || taxClass === 'business-income') continue;
+    const base = { transactionId: String(r.id), date: String(r.date), description: String(r.clean_description), notes: str(r.notes) };
+    const parts = splits.get(String(r.id));
+    if (parts?.length) {
+      for (const sp of parts) {
+        const l = labelFor(sp.categoryId);
+        if (l && sp.amountCents < 0) out.push({ ...base, amountCents: Math.abs(sp.amountCents), categoryId: sp.categoryId, label: l.label, labelName: l.name, basis: 'split' });
+      }
+      continue;
+    }
+    const l = labelFor(str(r.category_id));
+    if (l) out.push({ ...base, amountCents: Math.abs(Number(r.amount_cents)), categoryId: str(r.category_id), label: l.label, labelName: l.name, basis: 'category' });
+    else if (taxClass === 'deductible') out.push({ ...base, amountCents: Math.abs(Number(r.amount_cents)), categoryId: str(r.category_id), label: 'Other', labelName: 'Marked tax deductible (choose the right label)', basis: 'marked' });
+  }
+  return out;
+}
+
 export function buildTaxInput(ctx: Ctx, fy: string): { input: TaxInput; lines: TaxSourceLine[]; warnings: string[] } {
   const s = getSettings(ctx);
   const { start, end } = fyRange(fy);
@@ -151,9 +212,6 @@ export function buildTaxInput(ctx: Ctx, fy: string): { input: TaxInput; lines: T
       const exGst = Math.abs(amt) - gstPart(r, s.gstRegistered);
       bizExp += roundCents((exGst * pct) / 100);
       bizExpCount++;
-    } else if (amt < 0 && r.tax_class === 'deductible') {
-      deductions += Math.abs(amt);
-      deductionCount++;
     }
     if (amt < 0 && r.category_id === 'taxes.payg-instalments') instal += Math.abs(amt);
   }
@@ -163,6 +221,13 @@ export function buildTaxInput(ctx: Ctx, fy: string): { input: TaxInput; lines: T
   if (bizCount || bizExpCount) lines.push({ label: 'Business / contractor', amountCents: bizIncome - bizExp, basis: `${bizCount} payment(s) received classified as contractor, sole-trader or business income${s.gstRegistered ? ' (GST removed)' : ''}, less the business share of ${bizExpCount} expense(s).` });
   if (interestCount) lines.push({ label: 'Interest', amountCents: interest, basis: `${interestCount} interest credit(s) classified as interest income.` });
   if (gov) warnings.push(`Government payments of ${formatMoney(gov)} are not included automatically — some are taxable and some are not. Add taxable amounts as "Other income" entries.`);
+
+  // Deductions: spending in Tax-deductible expense categories, transactions marked deductible, and split parts.
+  const items = deductionItems(ctx, fy);
+  deductions = items.reduce((a, i) => a + i.amountCents, 0);
+  deductionCount = items.length;
+  const byLabel = new Map<string, number>();
+  for (const i of items) byLabel.set(i.label, (byLabel.get(i.label) ?? 0) + i.amountCents);
 
   const entries = listTaxEntries(ctx, fy);
   const sum = (k: TaxEntryKind) => entries.filter((e) => e.kind === k).reduce((a, e) => a + e.amountCents, 0);
@@ -177,7 +242,10 @@ export function buildTaxInput(ctx: Ctx, fy: string): { input: TaxInput; lines: T
   input.essTfnWithheldCents = sum('ess-tfn-withheld');
   const essCount = entries.filter((e) => e.kind.startsWith('ess-')).length;
   if (essCount) lines.push({ label: 'Employee share schemes', amountCents: input.essTaxedUpfrontReductionCents + input.essTaxedUpfrontCents + input.essDeferralCents, basis: `${essCount} amount(s) from employee share scheme statements (labels D, E, F and C).` });
-  if (deductionCount || sum('deduction')) lines.push({ label: 'Deductions', amountCents: input.deductionsCents, basis: `${deductionCount} transaction(s) marked tax deductible plus ${entries.filter((e) => e.kind === 'deduction').length} deduction(s) you entered.` });
+  if (deductionCount || sum('deduction')) {
+    const parts = [...byLabel.entries()].sort((a, b) => a[0].localeCompare(b[0], 'en', { numeric: true })).map(([l, c]) => `${l === 'Other' ? 'other' : l} ${formatMoney(c)}`);
+    lines.push({ label: 'Deductions', amountCents: input.deductionsCents, basis: `${deductionCount} transaction(s) in Tax-deductible expense categories or marked tax deductible${parts.length ? ` (${parts.join(', ')})` : ''}, plus ${entries.filter((e) => e.kind === 'deduction').length} deduction(s) you entered. Personal deductions only; the business share of expenses is counted under business income.` });
+  }
   if (input.paygInstalmentsCents) lines.push({ label: 'PAYG instalments', amountCents: input.paygInstalmentsCents, basis: 'Payments categorised as PAYG instalments plus instalments you entered.' });
 
   const divs = dividendTotals(listDividends(ctx), fy);

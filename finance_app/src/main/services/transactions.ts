@@ -2,7 +2,7 @@ import { Ctx, NOT_IN_SUPER, UserError, bool, categoryMap, json, listCategories, 
 import { Row } from '../db/database';
 import { ISODate, addDays, isValidDate } from '../../domain/dates';
 import { Cents } from '../../domain/money';
-import { cleanDescription, guessPayee, merchantKey } from '../../domain/categorise/clean';
+import { cleanDescription, guessPayee, matchText } from '../../domain/categorise/clean';
 import { Rule, RuleSubject, validateRegex, describeRule } from '../../domain/categorise/rules';
 import { CategoryCorrection, HistoryEntry, RuleSuggestion, suggestCategory, suggestRules } from '../../domain/categorise/learning';
 import { IncomeType, INCOME_CATEGORY_FOR_TYPE } from '../../domain/categorise/categories';
@@ -194,8 +194,8 @@ export function loadRules(ctx: Ctx): Rule[] {
 }
 
 function userHistory(ctx: Ctx): HistoryEntry[] {
-  return ctx.db.all("SELECT clean_description, category_id, account_id FROM transactions WHERE category_source = 'user' AND category_id IS NOT NULL")
-    .map((r) => ({ description: String(r.clean_description), categoryId: String(r.category_id), accountId: String(r.account_id) }));
+  return ctx.db.all("SELECT clean_description, category_id, account_id, amount_cents FROM transactions WHERE category_source = 'user' AND category_id IS NOT NULL")
+    .map((r) => ({ description: String(r.clean_description), categoryId: String(r.category_id), accountId: String(r.account_id), amountCents: Number(r.amount_cents) }));
 }
 
 export interface Categoriser {
@@ -322,7 +322,7 @@ export function updateTransaction(ctx: Ctx, id: string, patch: TxPatch, reason =
       const found = ruleSuggestionsFor(ctx, String(cur.clean_description), patch.categoryId, s.learningThreshold);
       if (found) {
         if (s.autoLearnRules) {
-          learned = createRule(ctx, { field: 'description', matchType: 'contains', pattern: found.pattern, categoryId: found.categoryId, source: 'learned', direction: 'any', priority: 0, enabled: true });
+          learned = createRule(ctx, { field: 'description', matchType: 'contains', pattern: found.pattern, categoryId: found.categoryId, source: 'learned', direction: found.direction, priority: 0, enabled: true });
           applyRules(ctx, { onlyUncategorised: true, ruleId: learned });
         } else {
           suggestion = found;
@@ -506,12 +506,12 @@ export function applyRules(ctx: Ctx, opts: { onlyUncategorised?: boolean; ruleId
 
 /** One entry per transaction the user re-categorised by hand (latest change only). */
 function corrections(ctx: Ctx): CategoryCorrection[] {
-  return ctx.db.all(`SELECT MAX(h.created_at) AS at, t.clean_description, t.category_id FROM change_history h JOIN transactions t ON t.id = h.entity_id
+  return ctx.db.all(`SELECT MAX(h.created_at) AS at, t.clean_description, t.category_id, t.amount_cents FROM change_history h JOIN transactions t ON t.id = h.entity_id
     WHERE h.entity = 'transaction' AND h.field = 'categoryId' AND t.category_source = 'user' AND t.category_id IS NOT NULL
       AND (h.reason LIKE 'Changed by you%' OR h.reason LIKE 'Chosen%')
       AND t.${NOT_IN_SUPER} AND t.category_id NOT IN (SELECT id FROM categories WHERE kind = 'super')
     GROUP BY t.id`).map((r) => ({
-    description: String(r.clean_description), fromCategoryId: null, toCategoryId: String(r.category_id), at: String(r.at),
+    description: String(r.clean_description), fromCategoryId: null, toCategoryId: String(r.category_id), at: String(r.at), amountCents: Number(r.amount_cents),
   }));
 }
 
@@ -524,20 +524,54 @@ export function ruleSuggestions(ctx: Ctx): (RuleSuggestion & { categoryName: str
   return suggestRules(corrections(ctx), loadRules(ctx), { threshold: s.learningThreshold, dismissedKeys: dismissedKeys(ctx) }).map((x) => ({
     ...x,
     categoryName: categoryName(ctx, x.categoryId),
-    message: `Always categorise transactions containing "${x.pattern}" as ${categoryName(ctx, x.categoryId)}?`,
+    message: `Always categorise ${x.direction === 'in' ? 'money in from' : x.direction === 'out' ? 'payments to' : 'transactions containing'} "${x.pattern}" as ${categoryName(ctx, x.categoryId)}?`,
   }));
 }
 
 function ruleSuggestionsFor(ctx: Ctx, description: string, categoryId: string, threshold: number): RuleSuggestion | null {
-  const key = merchantKey(description);
+  const text = matchText(description);
   const all = suggestRules(corrections(ctx), loadRules(ctx), { threshold, dismissedKeys: dismissedKeys(ctx) });
-  return all.find((s) => s.key === key && s.categoryId === categoryId) ?? null;
+  return all.find((s) => s.categoryId === categoryId && text.includes(s.pattern)) ?? null;
 }
 
-export function acceptRuleSuggestion(ctx: Ctx, pattern: string, categoryId: string, applyToExisting: boolean): { ruleId: string; updated: number } {
-  const ruleId = createRule(ctx, { field: 'description', matchType: 'contains', pattern, categoryId, source: 'learned', direction: 'any', priority: 0, enabled: true });
+export function acceptRuleSuggestion(ctx: Ctx, pattern: string, categoryId: string, applyToExisting: boolean, direction: 'in' | 'out' | 'any' = 'any'): { ruleId: string; updated: number } {
+  const ruleId = createRule(ctx, { field: 'description', matchType: 'contains', pattern, categoryId, source: 'learned', direction, priority: 0, enabled: true });
   const { updated } = applyToExisting ? applyRules(ctx, { ruleId, onlyUncategorised: false }) : { updated: 0 };
   return { ruleId, updated };
+}
+
+/**
+ * Rules learned before 0.7.0 applied to money in and out alike, so a rule learned from salary
+ * deposits ("BIGRIVER" → Salary) could also catch purchases. Give learned rules the direction their
+ * category implies, and re-categorise transactions such a rule caught the wrong way round
+ * (never ones the person categorised themselves).
+ */
+export function repairLearnedRules(ctx: Ctx): { rules: number; recategorised: number } {
+  let fixedRules = 0, recategorised = 0;
+  ctx.db.tx(() => {
+    const rows = ctx.db.all(`SELECT r.id, c.kind FROM rules r JOIN categories c ON c.id = r.category_id
+      WHERE r.source = 'learned' AND (r.direction IS NULL OR r.direction = 'any') AND c.kind IN ('income', 'expense')`);
+    if (!rows.length) return;
+    for (const r of rows) {
+      const direction = r.kind === 'income' ? 'in' : 'out';
+      ctx.db.run('UPDATE rules SET direction = ? WHERE id = ?', [direction, String(r.id)]);
+      recordChange(ctx, 'rule', String(r.id), 'direction', 'any', direction, `Learned rules now apply only to ${direction === 'in' ? 'money in' : 'money out'}, like their category`);
+      fixedRules++;
+    }
+    const wrongWay = ctx.db.all(`SELECT t.id, t.clean_description, t.amount_cents, t.account_id, t.category_id FROM transactions t JOIN rules r ON r.id = t.rule_id
+      WHERE t.category_source = 'rule' AND r.source = 'learned' AND ((r.direction = 'in' AND t.amount_cents < 0) OR (r.direction = 'out' AND t.amount_cents > 0))`);
+    if (!wrongWay.length) return;
+    const categoriser = makeCategoriser(ctx);
+    for (const t of wrongWay) {
+      const sug = categoriser.suggest({ description: String(t.clean_description), amountCents: Number(t.amount_cents), accountId: String(t.account_id) });
+      ctx.db.run('UPDATE transactions SET category_id = ?, category_source = ?, rule_id = ?, category_explanation = ?, updated_at = ? WHERE id = ?',
+        [sug.categoryId, sug.categoryId ? sug.source : null, sug.ruleId, sug.categoryId ? sug.explanation : 'The learned rule that set this category only applies to money going the other way — please choose a category.', ctx.now(), String(t.id)]);
+      recordChange(ctx, 'transaction', String(t.id), 'categoryId', categoryName(ctx, str(t.category_id)), categoryName(ctx, sug.categoryId) ?? 'Uncategorised', 'Re-categorised: the learned rule applies to money going the other way');
+      recategorised++;
+    }
+  });
+  if (fixedRules) { ctx.changed('rules'); ctx.changed('transactions'); }
+  return { rules: fixedRules, recategorised };
 }
 
 export function dismissRuleSuggestion(ctx: Ctx, key: string, categoryId: string): void {

@@ -144,7 +144,7 @@ function Suggestions() {
                 <li key={s.key + s.categoryId} className="row-between">
                   <span>{s.message}<div className="muted small">Based on {s.count} corrections, e.g. {s.examples.join('; ')}</div></span>
                   <span className="row">
-                    <button className="btn btn-sm btn-primary" onClick={async () => { const r = await api('rules.acceptSuggestion', { pattern: s.pattern, categoryId: s.categoryId, applyToExisting: apply }); toast(`Rule created${r.updated ? ` and ${r.updated} transaction(s) updated` : ''}.`, 'success'); }}>Create rule</button>
+                    <button className="btn btn-sm btn-primary" onClick={async () => { const r = await api('rules.acceptSuggestion', { pattern: s.pattern, categoryId: s.categoryId, applyToExisting: apply, direction: s.direction }); toast(`Rule created${r.updated ? ` and ${r.updated} transaction(s) updated` : ''}.`, 'success'); }}>Create rule</button>
                     <button className="btn btn-sm" onClick={() => api('rules.dismissSuggestion', { key: s.key, categoryId: s.categoryId })}>No thanks</button>
                   </span>
                 </li>

@@ -2,6 +2,23 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `finance_app-v<version>-build<n>`, marked as pre-releases while Geranium is at 0.x).
 
+## 0.7.0 — 12 October 2026
+
+- **Businesses that share a first word are told apart.** Categorising used to group transactions by their first word, so a company's pay deposits and purchases from a different business with the same first word looked like the same payee. Now:
+  - Earlier choices for the same name (for example "BIGRIVER H G") come before ones that only share the first word.
+  - Money in and money out are kept apart, so pay never teaches a category for purchases.
+  - A match on the first word alone goes to the Review inbox for you to check.
+  - Learned rules use the shared part of the name ("BIGRIVER H G", "CORNER BUTCHER") and apply only to money in or only to money out.
+  - Rules learned before this release now apply only in their category's direction, and purchases they caught by mistake are re-categorised (never ones you categorised yourself).
+  - New built-in rules: Amazon Web Services → Software, Amazon Prime → Streaming.
+  - Bank wording such as "ePayment From:", "Auto Payment From:" and "PAYW" is ignored when reading the name.
+- **Tax-deductible expense categories.** A new *Tax-deductible expenses* group, following the tax return's labels:
+  - The categories: work car (D1); work travel (D2); work clothing, uniforms and laundry (D3); self-education (D4); working from home, phone and internet work share, stationery and office supplies, tools and equipment, union and professional memberships, work subscriptions, and other work-related expenses (D5); donations to registered charities (D9); and tax agent and managing tax affairs (D10).
+  - Spending in them counts towards the tax estimate's deductions automatically.
+  - On a transaction, the Tax setting "Automatic (from its category)" shows when it counts; set "Not tax-related" to leave one out.
+  - Split a partly private bill to claim only the work share.
+  - The tax-agent package now includes `deductions.csv` with each item's label.
+
 ## 0.6.0 — 11 October 2026
 
 - **Geranium learns from your own documents, on your own device.** Two parts, both on by default, each with its own switch in Settings › Imports & learning (renamed from "Import review"):

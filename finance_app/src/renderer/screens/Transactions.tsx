@@ -3,7 +3,7 @@ import { api, useApi, useAction } from '../lib/api';
 import { useApp } from '../lib/app';
 import { Badge, Callout, Card, Checkbox, DataTable, DateField, DateText, Dialog, Drawer, ErrorText, Icon, Loading, Money, MoneyField, NumberField, Page, SelectField, TextField, useConfirm } from '../components/ui';
 import { AccountSelect, CategorySelect, RangePicker, RangePreset, presetRange, todayLocal } from '../components/pickers';
-import { INCOME_TYPE_LABEL, IncomeType } from '@domain/categorise/categories';
+import { INCOME_TYPE_LABEL, IncomeType, isDeductionCategory } from '@domain/categorise/categories';
 import { GST_CLASS_LABEL, GstClass } from '@domain/tax/gst';
 import { formatDate } from '@domain/dates';
 import { formatMoney } from '@domain/money';
@@ -12,7 +12,7 @@ import type { ApiInput } from '../../main/api';
 
 const SOURCE_LABEL: Record<string, string> = { user: 'You', rule: 'Rule', history: 'Past choices', none: '' };
 
-export function RuleSuggestionCallout({ suggestion, onDone }: { suggestion: { pattern: string; categoryId: string; key?: string; count?: number }; onDone: () => void }) {
+export function RuleSuggestionCallout({ suggestion, onDone }: { suggestion: { pattern: string; categoryId: string; key?: string; count?: number; direction?: 'in' | 'out' | 'any' }; onDone: () => void }) {
   const { toast } = useApp();
   const [apply, setApply] = useState(true);
   const cats = useApi('categories.list', {}, []);
@@ -20,10 +20,10 @@ export function RuleSuggestionCallout({ suggestion, onDone }: { suggestion: { pa
   return (
     <Callout title="Create a rule?">
       <div className="stack">
-        <span>Always categorise transactions containing “{suggestion.pattern}” as {name}?</span>
+        <span>Always categorise {suggestion.direction === 'in' ? 'money in from' : suggestion.direction === 'out' ? 'payments to' : 'transactions containing'} “{suggestion.pattern}” as {name}?</span>
         <Checkbox label="Also apply to existing transactions (not ones you categorised by hand)" checked={apply} onChange={setApply} />
         <div className="row">
-          <button className="btn btn-primary btn-sm" onClick={async () => { const r = await api('rules.acceptSuggestion', { pattern: suggestion.pattern, categoryId: suggestion.categoryId, applyToExisting: apply }); toast(`Rule created${r.updated ? `; ${r.updated} transaction(s) updated` : ''}.`, 'success'); onDone(); }}>Create rule</button>
+          <button className="btn btn-primary btn-sm" onClick={async () => { const r = await api('rules.acceptSuggestion', { pattern: suggestion.pattern, categoryId: suggestion.categoryId, applyToExisting: apply, direction: suggestion.direction }); toast(`Rule created${r.updated ? `; ${r.updated} transaction(s) updated` : ''}.`, 'success'); onDone(); }}>Create rule</button>
           <button className="btn btn-sm" onClick={async () => { await api('rules.dismissSuggestion', { key: suggestion.key ?? suggestion.pattern, categoryId: suggestion.categoryId }); onDone(); }}>Not now</button>
         </div>
       </div>
@@ -68,13 +68,14 @@ function SplitEditor({ tx, onDone }: { tx: TransactionDTO; onDone: () => void })
 function TransactionDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const { toast } = useApp();
   const q = useApi('transactions.get', { id }, [id]);
-  const [suggestion, setSuggestion] = useState<{ pattern: string; categoryId: string; key: string } | null>(null);
+  const [suggestion, setSuggestion] = useState<{ pattern: string; categoryId: string; key: string; direction?: 'in' | 'out' | 'any' } | null>(null);
   const [splitting, setSplitting] = useState(false);
   const [tagText, setTagText] = useState('');
   const confirm = useConfirm();
   const tx = q.data?.transaction;
   useEffect(() => setTagText(tx?.tags.join(', ') ?? ''), [tx?.id, tx?.tags.join(',')]);
   if (!tx) return <Drawer title="Transaction" onClose={onClose}><Loading /></Drawer>;
+  const deductibleCategory = tx.amountCents < 0 && (isDeductionCategory(tx.categoryId) || (tx.categoryPath ?? '').startsWith('Tax-deductible expenses'));
   const update = async (patch: ApiInput<'transactions.update'>['patch']) => {
     try {
       const r = await api('transactions.update', { id: tx.id, patch });
@@ -121,7 +122,9 @@ function TransactionDrawer({ id, onClose }: { id: string; onClose: () => void })
           <div className="form-grid">
             <div className="field"><label htmlFor="clean-desc">Description</label><input id="clean-desc" className="input" defaultValue={tx.cleanDescription} onBlur={(e) => e.target.value.trim() && e.target.value !== tx.cleanDescription && update({ cleanDescription: e.target.value.trim() })} /></div>
             <SelectField label="Income type" value={tx.incomeType ?? ''} placeholder="Not income" onChange={(v) => update({ incomeType: (v || null) as IncomeType | null })} options={Object.entries(INCOME_TYPE_LABEL).map(([value, label]) => ({ value: value as IncomeType, label }))} />
-            <SelectField label="Tax" value={tx.taxClass ?? 'none'} onChange={(v) => update({ taxClass: v as TransactionDTO['taxClass'] })} options={[{ value: 'none', label: 'Not tax-related' }, { value: 'deductible', label: 'Tax deductible (personal)' }, { value: 'business-income', label: 'Business income' }, { value: 'private', label: 'Private' }]} />
+            <SelectField label="Tax" value={tx.taxClass ?? 'auto'} onChange={(v) => update({ taxClass: v === 'auto' ? null : v as TransactionDTO['taxClass'] })}
+              options={[{ value: 'auto', label: deductibleCategory ? 'Automatic — tax deductible (from its category)' : 'Automatic (from its category)' }, { value: 'none', label: 'Not tax-related' }, { value: 'deductible', label: 'Tax deductible (personal)' }, { value: 'business-income', label: 'Business income' }, { value: 'private', label: 'Private' }]}
+              hint={deductibleCategory && !tx.taxClass ? 'Counted as a deduction because its category is under Tax-deductible expenses. Record only the work share — split the transaction if part of it is private.' : undefined} />
             <SelectField label="Use" value={tx.businessUse ?? 'personal'} onChange={(v) => update({ businessUse: v as TransactionDTO['businessUse'], businessPercent: v === 'mixed' ? tx.businessPercent ?? 50 : null })} options={[{ value: 'personal', label: 'Personal' }, { value: 'business', label: 'Business' }, { value: 'mixed', label: 'Mixed business & personal' }]} />
             {tx.businessUse === 'mixed' && <NumberField label="Business share" suffix="%" value={tx.businessPercent} min={0} max={100} onChange={(v) => v !== null && update({ businessPercent: v })} hint="Keep a note of how you worked this out." />}
             <SelectField label="GST" value={tx.gstClass ?? ''} placeholder="Not set" onChange={(v) => update({ gstClass: (v || null) as GstClass | null })} options={Object.entries(GST_CLASS_LABEL).map(([value, label]) => ({ value: value as GstClass, label }))} />
@@ -199,7 +202,7 @@ export function Transactions() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkCat, setBulkCat] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [suggestion, setSuggestion] = useState<{ pattern: string; categoryId: string; key: string } | null>(null);
+  const [suggestion, setSuggestion] = useState<{ pattern: string; categoryId: string; key: string; direction?: 'in' | 'out' | 'any' } | null>(null);
   useEffect(() => {
     if (params.search !== undefined) { setSearch(params.search); setApplied(params.search); setPreset('last-2-years'); }
     if (params.accountId) setAccountId(params.accountId);

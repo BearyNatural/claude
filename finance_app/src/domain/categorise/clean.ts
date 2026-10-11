@@ -13,6 +13,11 @@ const PREFIXES = [
   /^(depositmobile|deposit|withdrawal)\s*[-:]\s*/i,
   /^(sq|sp|lsp|zlr|pp|ls)\s*\*\s*/i, // Square, Shopify, Lightspeed, PayPal-style merchant prefixes
   /^paypal\s*\*\s*/i,
+  // Bank wording around the name: "ePayment From:", "Auto Payment From:", "Card Purchase PAYW …"
+  /^e?payment\s+(from|to)\s*:?\s*/i,
+  /^auto\s+payment\s*/i,
+  /^(from|to)\s*:\s*/i,
+  /^payw(ave)?\s+/i,
 ];
 
 const NOISE = [
@@ -47,6 +52,29 @@ export function merchantKey(description: string): string {
   if (words.length === 0) return clean || description.toUpperCase().trim();
   if (words[0].length >= 5 || words.length === 1) return words[0];
   return words.slice(0, 2).join(' ');
+}
+
+/**
+ * The name at the start of a description as words ("BIGRIVER H G", "BIGRIVER MKTPLC"): letters only,
+ * store numbers, dates and references dropped. Used to tell apart businesses that share a first
+ * word, such as two different businesses that share a first word.
+ */
+export function nameTokens(description: string): string[] {
+  return cleanDescription(description).toUpperCase().replace(/\.COM(\.AU)?/g, ' ').replace(/[^A-Z& ]+/g, ' ').split(' ').filter(Boolean);
+}
+
+/** Words that say nothing about which business it is ("PTY", "AU", state names…). */
+export const isGenericWord = (w: string): boolean => GENERIC.has(w);
+
+/** A narrower grouping key than merchantKey: the first three words of the name ("BIGRIVER H G"). */
+export function fineMerchantKey(description: string): string {
+  const words = nameTokens(description).filter((w) => !GENERIC.has(w));
+  return words.slice(0, 3).join(' ') || merchantKey(description);
+}
+
+/** Description text for matching rules: upper case, punctuation and symbols as single spaces. */
+export function matchText(description: string): string {
+  return cleanDescription(description).toUpperCase().replace(/[^A-Z0-9&]+/g, ' ').trim();
 }
 
 function titleCase(s: string): string {
