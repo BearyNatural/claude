@@ -8,7 +8,7 @@ import { WEB_BASE } from '../webBase';
 export type CloudProviderId = 'dropbox' | 'google';
 
 export const CLOUD = {
-  dropbox: { appKey: '87s09553k7twxfh' },
+  dropbox: { appKey: '87s09553k7twxfh' }, // gitleaks:allow — public Dropbox app key (PKCE sign-in has no secret)
   google: {
     webClientId: '757296531892-7eulnqfu03p1jm21q14f2vo2t2d7op84.apps.googleusercontent.com',
     androidClientId: '757296531892-293ik2bgrk4tfopvbctvlamsha9ar2md.apps.googleusercontent.com',

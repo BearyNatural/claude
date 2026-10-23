@@ -166,7 +166,7 @@ jobs:
             echo "SIGNING=$SIGNING"
           } >> "$GITHUB_ENV"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: garden_app-android-apk
           path: ${{ env.APK }}
@@ -205,7 +205,7 @@ jobs:
           cat "$RUNNER_TEMP/release-notes.md"
 
       - name: Publish garden_app release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: garden_app-v${{ env.VERSION }}-build${{ github.run_number }}
           name: "Sow by Season ${{ env.VERSION }} (build ${{ github.run_number }})"
