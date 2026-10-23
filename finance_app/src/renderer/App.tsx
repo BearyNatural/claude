@@ -180,6 +180,8 @@ function Toasts() {
 
 export function App() {
   const { status, setStatus, settings, setSettings, navigate } = useApp();
+  // The version in the window's title bar (the browser tab's title in the browser version).
+  useEffect(() => { if (status?.appVersion) document.title = `Geranium ${status.appVersion}`; }, [status?.appVersion]);
   const [error, setError] = useState<string | null>(null);
 
   const refreshStatus = useCallback(async () => {

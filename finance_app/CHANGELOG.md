@@ -2,6 +2,11 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `finance_app-v<version>-build<n>`, marked as pre-releases while Geranium is at 0.x).
 
+## 0.8.1 — 23 October 2026
+
+- The version number is also shown in the window's title bar (and in the browser tab).
+- Release builds use GitHub Actions versions that run on Node.js 24 (no more deprecation warnings).
+
 ## 0.8.0 — 23 October 2026
 
 - **Version number and update banner.** The version is shown at the foot of the sidebar and in Settings › Preferences › About & updates.

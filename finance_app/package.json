@@ -2,7 +2,7 @@
   "name": "geranium-finance",
   "productName": "Geranium",
   "desktopName": "geranium.desktop",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "private": true,
   "description": "Local-first personal finance, budgeting and planning for Australian households. A tracking, understanding and planning tool — not financial advice.",
   "author": "BearyNatural",
