@@ -15,11 +15,16 @@ import { dueReminders, markRemindersSent } from './services/reminders';
 import { getSettings } from './services/core';
 import { localToday } from '../domain/dates';
 import { runSelfTest } from './selfTest';
+import { guardedFetch } from './net';
+import { latestFromReleases, RELEASES_API } from '../domain/updates';
 
 const DEV = process.env.GERANIUM_DEV === '1';
 const APP_ORIGIN = 'app://geranium';
 /** Sites the app may open in the user's own browser (source links, Google consent). */
-const EXTERNAL_ALLOWED = [/^https:\/\/(www\.)?ato\.gov\.au\//, /^https:\/\/(www\.)?treasury\.gov\.au\//, /^https:\/\/(www\.)?legislation\.gov\.au\//, /^https:\/\/accounts\.google\.com\//, /^https:\/\/docs\.google\.com\//, /^https:\/\/console\.cloud\.google\.com\//, /^mailto:\?subject=/];
+const EXTERNAL_ALLOWED = [
+  // Geranium's own download page, release pages and change log (from the update banner).
+  /^https:\/\/daydreaminginthecloud\.bearynatural\.dev\/geranium\/download\.html$/, /^https:\/\/github\.com\/BearyNatural\/claude\/(releases\/tag\/finance_app-v[\w.-]+|blob\/main\/finance_app\/CHANGELOG\.md)$/,
+  /^https:\/\/(www\.)?ato\.gov\.au\//, /^https:\/\/(www\.)?treasury\.gov\.au\//, /^https:\/\/(www\.)?legislation\.gov\.au\//, /^https:\/\/accounts\.google\.com\//, /^https:\/\/docs\.google\.com\//, /^https:\/\/console\.cloud\.google\.com\//, /^mailto:\?subject=/];
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: false, corsEnabled: false } }]);
 
@@ -125,6 +130,18 @@ const platform: Platform = {
     const file = join(dir, basename(fileName).replace(/[\\/:*?"<>|]/g, '_'));
     writeFileSync(file, bytes, { mode: 0o600 });
     await shell.openPath(file);
+  },
+  // Newer versions: GitHub's public list of Geranium releases (nothing about the person is sent).
+  updates: {
+    kind: 'download',
+    async fetchLatest() {
+      const res = await guardedFetch(RELEASES_API, {
+        purpose: 'Check for a new version of Geranium',
+        headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': `Geranium/${app.getVersion()}` },
+      });
+      if (!res.ok) throw new Error(`GitHub answered ${res.status}`);
+      return latestFromReleases(await res.json(), process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'mac' : 'linux');
+    },
   },
 };
 

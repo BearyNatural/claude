@@ -29,6 +29,8 @@ export interface AppStatus {
   schemaVersion: number;
   /** When the current recovery key was made, or null if there is none. */
   recoveryCreatedAt: string | null;
+  /** This copy of Geranium's version number. */
+  appVersion: string;
 }
 
 export class AppState {
@@ -70,6 +72,7 @@ export class AppState {
       dataFolder: this.dataDir,
       schemaVersion: this.db ? currentVersion(this.db) : SCHEMA_VERSION,
       recoveryCreatedAt: s.recoveryCreatedAt,
+      appVersion: this.appVersion,
     };
   }
 

@@ -387,6 +387,16 @@ details.explain[open] .explain-body { margin-top: 6px; padding: 10px 12px; backg
 .choice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
 .choice { border: 1px solid var(--border-strong); border-radius: 10px; padding: 12px; background: var(--surface); cursor: pointer; text-align: left; }
 .choice[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
+.update-banner { background: var(--info-bg); color: var(--info-ink); padding: 6px 22px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+.update-banner > span:first-child { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.update-banner .icon-btn { color: var(--info-ink); }
+.update-banner > span:last-child { flex-wrap: nowrap; flex-shrink: 0; }
+.version-tag { display: flex; align-items: center; gap: 6px; margin: 14px 10px 0; padding: 4px 6px; border: 0; background: none; color: var(--text-3); font-size: 0.75rem; cursor: pointer; border-radius: var(--radius-sm); }
+.version-tag:hover { color: var(--text-2); background: var(--surface-3); }
+.version-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--series-1); display: inline-block; }
+.whats-new { margin: 6px 0 12px; padding-left: 18px; max-height: 50vh; overflow-y: auto; }
+.whats-new li { margin: 4px 0; }
+.whats-new li.sub { margin-left: 18px; list-style-type: circle; }
 .demo-banner { background: var(--warn-bg); color: var(--warn-ink); padding: 6px 22px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; cursor: pointer; color: var(--text-2); font-weight: 550; }
@@ -411,7 +421,7 @@ details.explain[open] .explain-body { margin-top: 6px; padding: 10px 12px; backg
   .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 55; background: rgba(0, 0, 0, 0.35); }
   .topbar { padding: 8px 12px; }
   .content { padding: 16px 14px 48px; }
-  .demo-banner { padding: 6px 12px; flex-wrap: wrap; }
+  .demo-banner, .update-banner { padding: 6px 12px; flex-wrap: wrap; }
 }
 @media (max-width: 900px) and (prefers-reduced-motion: no-preference) { .sidebar { transition: transform 160ms ease; } }
 @media (max-width: 640px) {

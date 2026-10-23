@@ -154,6 +154,8 @@ jobs:
         run: |
           set -euo pipefail
           VERSION=$(node -p 'require("./package.json").version')
+          # Exported so the release-notes script below can read it (it was "undefined" before).
+          export VERSION
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           (cd dist-release && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
           node -e '

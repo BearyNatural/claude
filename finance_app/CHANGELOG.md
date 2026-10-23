@@ -2,6 +2,15 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `finance_app-v<version>-build<n>`, marked as pre-releases while Geranium is at 0.x).
 
+## 0.8.0 — 23 October 2026
+
+- **Version number and update banner.** The version is shown at the foot of the sidebar and in Settings › Preferences › About & updates.
+  - When a newer version is available, a banner says so, with *What's new*, *Download* (desktop) or *Reload to update* (browser), and a button to dismiss it. Once dismissed, it stays hidden until a newer version comes out.
+  - Geranium checks at most once a day. The desktop app asks GitHub's public list of Geranium releases, and the browser version asks its own website. Nothing about you or your money is sent.
+  - The check can be switched off, and *Check now* is there too. Each desktop check is listed in the network log.
+  - Updates are never installed by themselves.
+- Release notes on GitHub now include this change log's section for each version (they showed "What's new in undefined").
+
 ## 0.7.0 — 12 October 2026
 
 - **Businesses that share a first word are told apart.** Categorising used to group transactions by their first word, so a company's pay deposits and purchases from a different business with the same first word looked like the same payee. Now:

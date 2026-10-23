@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, IS_WEB, useAction, useApi } from '../lib/api';
 import { RecoveryKeySettings } from '../components/recovery';
+import { AboutUpdates } from '../components/updates';
 import { useApp } from '../lib/app';
 import { Badge, Callout, Card, Checkbox, DataTable, DateField, ErrorText, Loading, NumberField, Page, SelectField, Tabs, TextField, useConfirm } from '../components/ui';
 import type { AppSettings, ReminderType } from '../../shared/types';
@@ -27,6 +28,7 @@ function Preferences({ s }: { s: AppSettings }) {
   const toggle = (k: 'week' | 'fortnight' | 'month' | 'quarter') => update({ analysisPeriods: s.analysisPeriods.includes(k) ? s.analysisPeriods.filter((x) => x !== k) : [...s.analysisPeriods, k] });
   return (
     <div className="stack-lg">
+      <AboutUpdates />
       <Card title="How you look at money" sub="Use any mix — for example weekly spending, monthly budgets and quarterly tax">
         <div className="row">{(['week', 'fortnight', 'month', 'quarter'] as const).map((k) => <Checkbox key={k} label={{ week: 'Weekly', fortnight: 'Fortnightly', month: 'Monthly', quarter: 'Quarterly' }[k]} checked={s.analysisPeriods.includes(k)} onChange={() => toggle(k)} />)}</div>
         <div className="form-grid" style={{ marginTop: 10 }}>

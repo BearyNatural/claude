@@ -10,6 +10,9 @@ import * as tax from './services/taxes';
 import * as docs from './services/documents';
 import * as taxDocs from './services/taxDocuments';
 import * as learning from './services/learning';
+import * as updates from './services/updates';
+import type { UpdateSource } from './services/updates';
+import { CHANGELOG_URL, DOWNLOAD_PAGE } from '../domain/updates';
 import * as out from './services/output';
 import { networkLog } from './net';
 import { GoogleTokens, revoke, signIn, validAccessToken } from './google/oauth';
@@ -36,6 +39,10 @@ export interface Platform {
   openPath(path: string): Promise<void>;
   openExternal(url: string): Promise<void>;
   openDocument(fileName: string, bytes: Uint8Array): Promise<void>;
+  /** Where to look for a newer version (none in tests). */
+  updates?: UpdateSource;
+  /** Wait until saved data has reached storage (the browser version writes to IndexedDB in the background). */
+  flushStorage?(): Promise<void>;
 }
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected a date');
@@ -116,6 +123,15 @@ export function buildRegistry({ state, platform }: Deps) {
     'app.initialise': m(z.object({ password: z.object({ secret: z.string().max(200), kind: z.enum(['password', 'pin']) }).nullable().optional() }), async (i) => { await state.initialise(i.password ?? undefined); return state.status(); }),
     'app.unlock': m(z.object({ secret: z.string().max(200).optional() }), async (i) => { await state.unlock(i.secret); return state.status(); }),
     'app.lock': m(none, () => { state.lock(); return state.status(); }),
+    'app.updates': m(z.object({ force: z.boolean().optional() }).optional(), (i) => updates.updateStatus(ctx(), state.appVersion, platform.updates ?? null, { force: !!i?.force })),
+    'app.saveNow': m(none, async () => { state.ctx?.db.saveNow(); await platform.flushStorage?.(); }),
+    'app.dismissUpdate': m(z.object({ version: z.string().regex(/^\d{1,3}\.\d{1,3}\.\d{1,4}$/) }), (i) => updates.dismissUpdate(ctx(), i.version)),
+    'app.openReleaseLink': m(z.object({ url: z.string().url() }), (i) => {
+      // Only Geranium's own download page, release pages and change log.
+      const ok = i.url === DOWNLOAD_PAGE || i.url === CHANGELOG_URL || /^https:\/\/github\.com\/BearyNatural\/claude\/releases\/tag\/finance_app-v[\w.-]+$/.test(i.url);
+      if (!ok) throw new core.UserError('That link is not one of Geranium’s release pages.');
+      return platform.openExternal(i.url);
+    }),
     'app.enterDemo': m(none, async () => { await state.enterDemo(); return state.status(); }),
     'app.exitDemo': m(none, () => { state.exitDemo(); return state.status(); }),
     'app.networkLog': m(none, () => networkLog()),

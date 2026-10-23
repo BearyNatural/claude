@@ -12,7 +12,7 @@ function PrivacyPoints() {
     <ul className="list-plain small">
       <li><strong>{IS_WEB ? 'Stays in this browser.' : 'Stays on this computer.'}</strong> {IS_WEB ? 'Your records are kept encrypted in this browser’s storage on this device — nothing is uploaded. Clearing this site’s data in your browser deletes them, so keep a backup.' : 'Your records are kept in an encrypted file on this computer.'} There is no Geranium account and no Geranium server.</li>
       <li><strong>No bank logins.</strong> Geranium never asks for bank, broker or super passwords. You import statements and exports yourself.</li>
-      <li><strong>No tracking.</strong> Nothing about your finances is sent anywhere. The only time Geranium uses the internet is if you choose to export to Google Sheets.</li>
+      <li><strong>No tracking.</strong> Nothing about your finances is sent anywhere. {IS_WEB ? 'Geranium uses the internet only to export to Google Sheets when you choose to, and to check this website once a day for a newer version.' : 'Geranium uses the internet only to export to Google Sheets when you choose to, and to check GitHub once a day for a new version (you can turn that off in Settings).'}</li>
       <li><strong>You own the data.</strong> Export it to CSV or Excel at any time, and make encrypted backups wherever you like.</li>
       <li><strong>Not financial advice.</strong> Geranium tracks, explains and models. It does not tell you what to buy, sell or decide.</li>
     </ul>

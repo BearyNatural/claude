@@ -141,6 +141,8 @@ export interface AppSettings {
   background: 'geraniums' | 'field' | 'plain';
   /** Learning from confirmed payslips and statements, on this device: learned layouts and the on-device model. */
   documentLearning: { layouts: boolean; model: boolean };
+  /** Look for a newer version of Geranium once a day; the version whose banner was closed. */
+  updates: { check: boolean; dismissedVersion: string | null };
   highContrast: boolean;
   textScale: number;
   privacyModeDefault: boolean;

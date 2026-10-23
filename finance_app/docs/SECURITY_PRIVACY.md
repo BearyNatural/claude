@@ -57,8 +57,9 @@ It does **not** protect against malware already running as the same user while t
 ## Network
 
 - The renderer cannot make network requests: CSP `connect-src 'none'`, and the session blocks every request that is not `app://`.
-- The main process uses one guarded `fetch` that only allows HTTPS to `oauth2.googleapis.com`, `sheets.googleapis.com` and `www.googleapis.com`. Every request (time, host, path, status — never content) is recorded in **Settings › Privacy & security › Network log**.
-- Links open in the user's own browser only for an allow-list of sites: official sources (ATO, Treasury, legislation.gov.au), Google's sign-in and consent pages, the Google Cloud console (to create an OAuth client) and Google Sheets (to open an exported spreadsheet).
+- The main process uses one guarded `fetch` that only allows HTTPS to `oauth2.googleapis.com`, `sheets.googleapis.com` and `www.googleapis.com` (Google Sheets export) and `api.github.com` (the update check). Every request (time, host, path, status — never content) is recorded in **Settings › Privacy & security › Network log**.
+- **Update check** (on by default, Settings › Preferences › About & updates): at most once a day the desktop app reads GitHub's public list of releases (`/repos/BearyNatural/claude/releases`, no token, no identifiers beyond what any web request carries) and the browser version reads `version.json` from its own website. Only a well-formed, newer version is offered, and only links to Geranium's download page, release pages and change log are opened. Release notes are shown as plain text, never as HTML. Nothing is installed automatically.
+- Links open in the user's own browser only for an allow-list of sites: official sources (ATO, Treasury, legislation.gov.au), Google's sign-in and consent pages, the Google Cloud console (to create an OAuth client), Google Sheets (to open an exported spreadsheet), and Geranium's own download page, release pages and change log.
 
 ### Google Sheets
 

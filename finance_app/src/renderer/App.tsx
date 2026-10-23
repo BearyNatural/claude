@@ -3,6 +3,7 @@ import { api, clearShared, IS_WEB, onDataChanged, useApi } from './lib/api';
 import { Route, useApp } from './lib/app';
 import { BrandMark, Icon } from './components/ui';
 import { Backdrop } from './components/backdrop';
+import { UpdateBanner, VersionTag } from './components/updates';
 import { Setup, Unlock, Onboarding } from './screens/Setup';
 import { Dashboard } from './screens/Dashboard';
 import { Accounts } from './screens/Accounts';
@@ -127,9 +128,11 @@ function Shell() {
             ))}
           </div>
         ))}
+        <VersionTag onOpen={() => { setMenuOpen(false); navigate('settings'); }} />
       </nav>
       <div className="main">
         <Backdrop kind={settings?.background ?? 'geraniums'} />
+        <UpdateBanner />
         {status?.demo && (
           <div className="demo-banner" role="status">
             <span><strong>Demo mode.</strong> Everything shown is fictional sample data held only in memory. Nothing you do here is saved.</span>

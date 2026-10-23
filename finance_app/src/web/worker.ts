@@ -14,6 +14,7 @@ import { UserError } from '../main/services/core';
 import { vfs } from './vfs';
 import { setAppBase } from './googleAuth';
 import type { FromWorker, PickedFile, ToWorker } from './protocol';
+import { latestFromVersionFile } from '../domain/updates';
 
 /**
  * Geranium in the browser: this worker plays the part of the desktop app's main process.
@@ -28,7 +29,7 @@ setSqlLoader(() => initSqlJs({ locateFile: () => sqlWasmUrl }));
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 /** Links the app may open (same list as the desktop app, plus the Google sign-in page). */
-const EXTERNAL_ALLOWED = [/^https:\/\/(www\.)?ato\.gov\.au\//, /^https:\/\/(www\.)?treasury\.gov\.au\//, /^https:\/\/(www\.)?legislation\.gov\.au\//, /^https:\/\/accounts\.google\.com\//, /^https:\/\/docs\.google\.com\//, /^https:\/\/console\.cloud\.google\.com\//];
+const EXTERNAL_ALLOWED = [/^https:\/\/github\.com\/BearyNatural\/claude\/(releases\/tag\/finance_app-v[\w.-]+|blob\/main\/finance_app\/CHANGELOG\.md)$/, /^https:\/\/(www\.)?ato\.gov\.au\//, /^https:\/\/(www\.)?treasury\.gov\.au\//, /^https:\/\/(www\.)?legislation\.gov\.au\//, /^https:\/\/accounts\.google\.com\//, /^https:\/\/docs\.google\.com\//, /^https:\/\/console\.cloud\.google\.com\//];
 
 let pendingFile: PickedFile | null = null;
 let nextRequest = 1;
@@ -80,6 +81,16 @@ const platform: Platform = {
   async openDocument(fileName, bytes) {
     await download(fileName, bytes, mimeOf(fileName));
   },
+  flushStorage: () => vfs.flush(),
+  // The website publishes version.json next to the app; a newer one means reloading the page updates Geranium.
+  updates: {
+    kind: 'reload',
+    async fetchLatest() {
+      const res = await fetch(new URL('version.json', appBase).href, { cache: 'no-store', credentials: 'omit' });
+      if (!res.ok) throw new Error(`The website answered ${res.status}`);
+      return latestFromVersionFile(await res.json(), appBase);
+    },
+  },
 };
 
 let state: AppState;
@@ -115,7 +126,10 @@ setInterval(() => {
   else if (a.maxSessionMinutes && Date.now() - unlockedAt > a.maxSessionMinutes * 60_000) lock('time-limit');
 }, 15_000);
 
+let appBase = '';
+
 async function start(base: string) {
+  appBase = base;
   setAppBase(base);
   vfs.onError = (message) => post({ kind: 'event', channel: 'storage:error', payload: message });
   await vfs.load();

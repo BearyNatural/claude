@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
+import { changelogSection } from './src/domain/updates';
 
 /**
  * Browser build of Geranium (`npm run build:web` → dist/web), published to
@@ -21,7 +22,17 @@ export default defineConfig({
   root: here('./src/web'),
   base: './',
   publicDir: here('./web-public'),
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      // version.json lets an open copy of Geranium notice that the website has a newer version.
+      name: 'geranium-version-file',
+      generateBundle() {
+        const notes = changelogSection(readFileSync(here('./CHANGELOG.md'), 'utf8'), pkg.version);
+        this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: pkg.version, publishedAt: new Date().toISOString(), notes }, null, 1) });
+      },
+    },
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     'process.env.GERANIUM_GOOGLE_CLIENT_ID': JSON.stringify(googleWebClientId),
