@@ -1,0 +1,87 @@
+# ── Failure alerts ───────────────────────────────────────────────────────────
+# GitHub only emails the person who started a workflow run. Runs started by a
+# schedule or by another workflow (for example a release started by the weekly
+# maintenance) belong to the github-actions bot, so nobody is told when they fail.
+#
+# When one of the workflows below fails on main, this opens an issue (or adds to the
+# open one) assigned to the repository owner — GitHub notifies assignees by email
+# and on the web, like any assignment — and closes it when that workflow next succeeds.
+# Weekly maintenance is not listed: it already reports in its own issues.
+#
+# Add new workflows to the list (use their `name:`). The weekly pipeline check
+# reports any failed runs it finds as well.
+
+name: "Failure alerts"
+
+on:
+  workflow_run:
+    workflows:
+      - "finance_app · checks"
+      - "finance_app · desktop build & release"
+      - "finance_app · publish browser version"
+      - "garden_app · Android build & release"
+      - "garden_app · publish browser version"
+      - "garden_app · publish plant list"
+      - "garden_app · plant list token check"
+      - "garden_app · check plant suggestions"
+    types: [completed]
+
+permissions:
+  issues: write
+  actions: read
+
+concurrency:
+  group: failure-alerts-${{ github.event.workflow_run.workflow_id }}
+  cancel-in-progress: false
+
+jobs:
+  alert:
+    name: Open or close the failure issue
+    # Only runs on main (no pull requests), and only for a clear failure or success.
+    if: >-
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event != 'pull_request' &&
+      contains(fromJson('["failure","timed_out","success"]'), github.event.workflow_run.conclusion)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Issue for the failed (or recovered) workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          WF: ${{ github.event.workflow_run.name }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          EVENT: ${{ github.event.workflow_run.event }}
+          ACTOR: ${{ github.event.workflow_run.triggering_actor.login }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          STARTED: ${{ github.event.workflow_run.run_started_at }}
+        run: |
+          set -euo pipefail
+          title="Pipeline failed: $WF"
+          num=$(gh issue list --state open --search "\"$title\" in:title" --json number,title | jq -r --arg t "$title" '.[] | select(.title==$t) | .number' | head -1 || true)
+          if [ "$CONCLUSION" = success ]; then
+            if [ -n "$num" ]; then gh issue close "$num" --comment "✅ $WF succeeded again: $RUN_URL"; fi
+            exit 0
+          fi
+          jobs=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs?per_page=100" --jq '.jobs[] | select(.conclusion=="failure" or .conclusion=="timed_out") | "- " + .name + ([.steps[]? | select(.conclusion=="failure") | .name] | if length > 0 then " — failed at: " + join(", ") else "" end)' || true)
+          body=$(cat <<MD
+          @$OWNER **$WF** ${CONCLUSION/timed_out/timed out}.
+
+          - Started: ${STARTED/T/ } (UTC), by ${EVENT} (${ACTOR})
+          - Commit: ${SHA:0:7}
+          ${jobs:-- (no job details)}
+
+          Run: $RUN_URL
+
+          This issue closes by itself when **$WF** next succeeds.
+          MD
+          )
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body "$body"
+            gh issue edit "$num" --add-assignee "$OWNER" || true
+          else
+            gh issue create --title "$title" --body "$body" --assignee "$OWNER" || gh issue create --title "$title" --body "$body"
+          fi
