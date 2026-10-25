@@ -169,7 +169,7 @@ jobs:
               gh issue create --title "$title" --body-file "$report" --assignee "$OWNER" || gh issue create --title "$title" --body-file "$report" || true
             fi
           elif [ -n "$num" ]; then
-            gh issue close "$num" --comment "No failures or warnings in the past week. $RUN_URL" || true
+            gh issue close "$num" --comment "Nothing from the past week still needs a person. $RUN_URL" || true
           fi
 
   maintain:

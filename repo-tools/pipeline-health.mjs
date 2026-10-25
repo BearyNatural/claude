@@ -3,13 +3,14 @@
 //
 // 1. Reads every workflow run in this repository from the past week (DAYS, default 7):
 //    failed runs, and the warnings GitHub attached to their jobs (for example
-//    "Node.js 20 is deprecated … actions/upload-artifact@v4").
+//    "Node.js 20 is deprecated … actions/upload-artifact@v4"). A failure whose jobs all
+//    passed in a later run of the same workflow (same branch) is reported as fixed since.
 // 2. Looks at every action the workflows use (.github/workflows, repo-tools/github/workflows
 //    and each project's ci/ copies) and finds ones that run on a deprecated Node.js runtime.
 // 3. For those, picks the smallest newer major version that runs on Node.js 24 and, with
 //    --apply, updates every workflow file that uses it (the projects' copies stay in sync).
 // 4. Writes a Markdown report (--report <file>) and sets outputs for the workflow:
-//    changed=true|false, fixes=<n>, problems=<n> (failed runs + warnings that need a person).
+//    changed=true|false, fixes=<n>, problems=<n> (runs still failing + warnings that need a person).
 //
 // Needs GITHUB_TOKEN (actions: read, checks: read) and GITHUB_REPOSITORY. Only reads from
 // GitHub; the only files it changes are workflow files, and only with --apply.
@@ -122,10 +123,18 @@ async function main() {
   const checked = runs.filter((r) => String(r.id) !== self && r.status === 'completed');
   const failed = [];
   const warnings = new Map(); // message → { count, example }
+  const latest = new Map(); // workflow · branch · job → its newest result
+  const jobKey = (run, job) => `${run.workflow_id}|${run.head_branch}|${job.name}`;
   for (const run of checked) {
     const jobs = (await gh(`/repos/${repo}/actions/runs/${run.id}/jobs?per_page=100`))?.jobs ?? [];
+    for (const job of jobs) {
+      if (!['success', 'failure', 'timed_out'].includes(job.conclusion)) continue;
+      const prev = latest.get(jobKey(run, job));
+      if (!prev || prev.at < run.created_at) latest.set(jobKey(run, job), { at: run.created_at, ok: job.conclusion === 'success' });
+    }
     if (run.conclusion === 'failure') {
-      failed.push({ name: run.name, at: run.created_at, url: run.html_url, jobs: jobs.filter((j) => j.conclusion === 'failure').map((j) => `${j.name}${j.steps?.some((s) => s.conclusion === 'failure') ? ` (${j.steps.filter((s) => s.conclusion === 'failure').map((s) => s.name).join(', ')})` : ''}`) });
+      const bad = jobs.filter((j) => j.conclusion === 'failure');
+      failed.push({ name: run.name, at: run.created_at, url: run.html_url, keys: bad.map((j) => jobKey(run, j)), jobs: bad.map((j) => `${j.name}${j.steps?.some((s) => s.conclusion === 'failure') ? ` (${j.steps.filter((s) => s.conclusion === 'failure').map((s) => s.name).join(', ')})` : ''}`) });
     }
     for (const job of jobs) {
       const notes = (await gh(`/repos/${repo}/check-runs/${job.id}/annotations`).catch(() => [])) ?? [];
@@ -138,6 +147,10 @@ async function main() {
       }
     }
   }
+  // A failure is fixed once every job that failed has passed in a later run of the same
+  // workflow on the same branch. Those are reported but need nobody.
+  const open = failed.filter((f) => !f.keys.length || !f.keys.every((k) => latest.get(k)?.ok));
+  const fixedSince = failed.filter((f) => !open.includes(f));
 
   // 2. Actions on a deprecated runtime: from the warnings and from the workflow files themselves.
   const files = workflowFiles();
@@ -178,10 +191,16 @@ async function main() {
   });
 
   // 4. Report.
-  const lines = [`## Pipelines: past ${days} days`, '', `${checked.length} workflow run(s) checked, ${failed.length} failed, ${warnings.size} distinct warning(s).`, ''];
-  if (failed.length) {
+  const lines = [`## Pipelines: past ${days} days`, '', `${checked.length} workflow run(s) checked, ${failed.length} failed${fixedSince.length ? ` (${fixedSince.length} fixed since)` : ''}, ${warnings.size} distinct warning(s).`, ''];
+  const runLine = (f) => `- **${f.name}** (${f.at.slice(0, 16).replace('T', ' ')} UTC): ${f.jobs.join('; ') || 'see run'} — ${f.url}`;
+  if (open.length) {
     lines.push('### Failed runs', '');
-    for (const f of failed) lines.push(`- **${f.name}** (${f.at.slice(0, 16).replace('T', ' ')} UTC): ${f.jobs.join('; ') || 'see run'} — ${f.url}`);
+    for (const f of open) lines.push(runLine(f));
+    lines.push('');
+  }
+  if (fixedSince.length) {
+    lines.push('### Fixed since (a later run passed)', '');
+    for (const f of fixedSince) lines.push(runLine(f));
     lines.push('');
   }
   if (fixes.length) {
@@ -195,11 +214,17 @@ async function main() {
     for (const s of stuck) lines.push(`- ${s}`);
     lines.push('');
   }
-  if (!failed.length && !fixes.length && !manual.length && !stuck.length) lines.push('No failures or warnings. ✅', '');
+  const dealtWith = [...warnings.entries()].filter((e) => !manual.includes(e));
+  if (dealtWith.length) {
+    lines.push('### Warnings already dealt with (the actions they name are updated or no longer used)', '');
+    for (const [msg, w] of dealtWith) lines.push(`- ${msg} (${w.count}×)`);
+    lines.push('');
+  }
+  if (!open.length && !fixes.length && !manual.length && !stuck.length) lines.push('Nothing needs a person. ✅', '');
   const report = lines.join('\n');
   console.log(report);
   if (reportPath) writeFileSync(reportPath, report);
-  const problems = failed.length + manual.length + stuck.length;
+  const problems = open.length + manual.length + stuck.length;
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `changed=${changed}\nfixes=${fixes.length}\nproblems=${problems}\n`);
 }
 
