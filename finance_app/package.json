@@ -2,7 +2,7 @@
   "name": "geranium-finance",
   "productName": "Geranium",
   "desktopName": "geranium.desktop",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "private": true,
   "description": "Local-first personal finance, budgeting and planning for Australian households. A tracking, understanding and planning tool — not financial advice.",
   "author": "BearyNatural",
@@ -31,9 +31,9 @@
     "@noble/hashes": "^2.4.0",
     "buffer": "^6.0.3",
     "fflate": "^0.8.3",
-    "papaparse": "^5.7.0",
+    "papaparse": "^5.7.1",
     "pdfjs-dist": "^6.5.438",
-    "sql.js": "^1.15.2",
+    "sql.js": "^1.16.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.6.7"
   },
@@ -44,14 +44,14 @@
     "@types/react-dom": "^19.3.0",
     "@types/sql.js": "^1.4.11",
     "@vitejs/plugin-react": "^5.2.0",
-    "electron": "^44.10.2",
+    "electron": "^44.11.3",
     "electron-builder": "^26.18.0",
     "esbuild": "^0.28.2",
     "pdf-lib": "^1.17.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "typescript": "~5.9.3",
-    "vite": "^7.3.7",
+    "vite": "^7.3.8",
     "vitest": "^3.2.7"
   }
 }
