@@ -2,6 +2,11 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `finance_app-v<version>-build<n>`, marked as pre-releases while Geranium is at 0.x).
 
+## 0.8.6 — 19 November 2026
+
+- Security: the test runner is upgraded to Vitest 4.1.12, fixing the Vitest and Tinypool advisories (development only — not part of the app). `minimatch` in the desktop packaging tools is moved to 11.0.9. OSV-Scanner is clean again.
+- The weekly maintenance check now uses npm 11 for Geranium, because npm 10 crashes while updating Vitest 4.
+
 ## 0.8.1 — 23 October 2026
 
 - The version number is also shown in the window's title bar (and in the browser tab).

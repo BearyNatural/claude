@@ -199,6 +199,13 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      - name: Use the project's npm version
+        # Optional "npmVersion" in project.json (e.g. finance_app needs npm 11: npm 10
+        # crashes with "reading 'edgesOut'" when updating vitest 4's optional peers).
+        if: matrix.project.npmVersion
+        env:
+          NPM_VERSION: ${{ matrix.project.npmVersion }}
+        run: npm install -g "npm@$NPM_VERSION" && npm --version
 
       # ── 1. Security ─────────────────────────────────────────────────────────
       - name: "Security · secret scan (gitleaks)"

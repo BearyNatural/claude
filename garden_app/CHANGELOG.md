@@ -2,6 +2,9 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `garden_app-v<version>-build<n>`). The newest Android version can always be downloaded from https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html.
 
+## 1.11.7 — 19 November 2026
+- Security: fixed the two denial-of-service advisories in `decode-uri-component` (used by expo-router to read deep links) with a patched copy of version 0.5.1, and in `minimatch` (used by the Expo CLI's build fingerprinting) by moving to 11.0.9. `npm audit` and OSV-Scanner are clean again.
+
 ## 1.11.0 — 5 October 2026
 - **Pests & problems**: log pests and problems on your plants (with photos), and get remedies in order — prevent, remove, natural helpers, home-made spray, organic product, and a chemical only as a last resort. This Week reminds you to check again. Backup schema v9.
 - **Pest & problem guide**: 28 common Australian garden pests, diseases and growing problems, with signs, the plants they affect and sourced remedies.

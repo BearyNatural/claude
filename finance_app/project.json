@@ -4,6 +4,7 @@
   "description": "Geranium: local-first Australian personal finance, budgeting and planning \u2014 desktop app (Electron) and browser version",
   "kind": "electron-app",
   "packageManager": "npm",
+  "npmVersion": "11",
   "install": "npm ci --no-audit --no-fund",
   "test": "npm test",
   "typecheck": "npm run typecheck",
