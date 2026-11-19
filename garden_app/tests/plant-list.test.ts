@@ -16,6 +16,7 @@ import { GardenRepository } from '../src/services/storage/gardenRepository';
 import { MemoryStore } from '../src/services/storage/keyValueStore';
 import { WeatherService } from '../src/services/weather/weatherService';
 import { GardenStore, getPlant } from '../src/state/gardenStore';
+import { addedFor } from '../scripts/check-plant-suggestions';
 import { NOW_ISO } from './helpers';
 
 const NOW = new Date(NOW_ISO);
@@ -26,7 +27,7 @@ function newPlant(overrides: Partial<PlantRecord> = {}): PlantRecord {
 }
 
 function feedJson(plants: unknown[], extra: Record<string, unknown> = {}) {
-  return JSON.parse(JSON.stringify({ ...buildCatalogueFeed([], SOURCES, '2026.10.1', NOW), plants, ...extra }));
+  return JSON.parse(JSON.stringify({ ...buildCatalogueFeed([], SOURCES, '2099.1.1', NOW), plants, ...extra }));
 }
 
 describe('plant list updates (published between releases)', () => {
@@ -190,5 +191,17 @@ describe('the live plant list in the app', () => {
     });
     assert.deepEqual(names.map((n) => n.scientificName), ['Syzygium australe']);
     assert.equal(names[0].family, 'Myrtaceae');
+  });
+});
+
+describe('plant suggestions that have been added', () => {
+  it('finds the plant record that cites a suggestion issue, and nothing else', () => {
+    assert.equal(addedFor(2)?.id, 'choko');
+    assert.equal(addedFor(5)?.id, 'choko');
+    assert.equal(addedFor(3)?.id, 'lemon-myrtle');
+    assert.equal(addedFor(4)?.id, 'coffee');
+    assert.equal(addedFor(7)?.id, 'watermelon');
+    assert.equal(addedFor(1), undefined);
+    assert.equal(addedFor(70), undefined); // #7 must not match #70
   });
 });

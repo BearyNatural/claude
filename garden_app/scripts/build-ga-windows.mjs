@@ -50,6 +50,8 @@ const MAP = [
   [/^oregano$/, ['oregano']],
   [/^sunflower$/, ['sunflower']],
   [/^(warrigal greens|nz spinach|warrigal greens \/ nz spinach)$/, ['warrigal-greens']],
+  [/^choko$/, ['choko']],
+  [/^watermelon$/, ['watermelon']],
 ];
 
 const out = {};

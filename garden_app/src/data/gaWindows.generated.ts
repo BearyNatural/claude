@@ -63,6 +63,11 @@ export const GA_WINDOWS: Record<string, Partial<Record<ClimateZoneId, Month[]>>>
     "cool-temperate": [1, 2, 3, 4, 9, 10, 11, 12],
     "arid": [1, 2, 3, 4, 7, 8, 9, 10, 11, 12]
   },
+  "choko": {
+    "tropical": [1, 2, 9, 10, 11, 12],
+    "subtropical": [1, 2, 9, 10, 11, 12],
+    "arid": [1, 2, 3, 9, 10, 11, 12]
+  },
   "eggplant": {
     "tropical": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     "subtropical": [1, 2, 3, 8, 9, 10, 11, 12],
@@ -96,6 +101,12 @@ export const GA_WINDOWS: Record<string, Partial<Record<ClimateZoneId, Month[]>>>
     "subtropical": [1, 2, 3, 8, 9, 10, 11, 12],
     "warm-temperate": [1, 2, 10, 11, 12],
     "cool-temperate": [1, 10, 11, 12],
+    "arid": [1, 2, 3, 9, 10, 11, 12]
+  },
+  "watermelon": {
+    "tropical": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    "subtropical": [1, 2, 8, 9, 10, 11, 12],
+    "warm-temperate": [2, 8, 9, 10, 11, 12],
     "arid": [1, 2, 3, 9, 10, 11, 12]
   },
   "carrot": {

@@ -127,14 +127,14 @@ export const FERTILISER_PROFILES: Record<FertiliserProfileId, FertiliserProfile>
 
 const BY_PLANT: Record<string, FertiliserProfileId> = {
   tomato: 'fruiting', 'cherry-tomato': 'fruiting', capsicum: 'fruiting', chilli: 'fruiting', eggplant: 'fruiting',
-  zucchini: 'fruiting', pumpkin: 'fruiting', cucumber: 'fruiting', strawberry: 'fruiting', passionfruit: 'fruiting',
+  zucchini: 'fruiting', pumpkin: 'fruiting', cucumber: 'fruiting', strawberry: 'fruiting', passionfruit: 'fruiting', choko: 'fruiting', watermelon: 'fruiting',
   carrot: 'root', radish: 'root', beetroot: 'root', potato: 'root', 'sweet-potato': 'root',
   lettuce: 'leafy', spinach: 'leafy', silverbeet: 'leafy', kale: 'leafy', 'pak-choy': 'leafy', rocket: 'leafy',
   broccoli: 'leafy', cauliflower: 'leafy', cabbage: 'leafy', 'warrigal-greens': 'leafy',
   'bean-bush': 'legume', 'bean-climbing': 'legume', 'broad-bean': 'legume', pea: 'legume',
   'sweet-corn': 'general', onion: 'general', garlic: 'general', 'spring-onion': 'general', leek: 'general',
   basil: 'herbs', parsley: 'herbs', coriander: 'herbs', rosemary: 'herbs', thyme: 'herbs', mint: 'herbs', chives: 'herbs', oregano: 'herbs', lavender: 'herbs',
-  lemon: 'citrus', blueberry: 'acid',
+  lemon: 'citrus', blueberry: 'acid', 'lemon-myrtle': 'native', coffee: 'fruit-tree',
   fig: 'fruit-tree', mango: 'fruit-tree', avocado: 'fruit-tree', grape: 'fruit-tree', 'dragon-fruit': 'fruit-tree', mulberry: 'fruit-tree',
   peachcot: 'fruit-tree', plumcot: 'fruit-tree', plum: 'fruit-tree', peach: 'fruit-tree', nectarine: 'fruit-tree', apricot: 'fruit-tree', apple: 'fruit-tree', pear: 'fruit-tree',
   sunflower: 'flowers', calendula: 'flowers', cosmos: 'flowers', borage: 'flowers', alyssum: 'flowers', marigold: 'flowers',

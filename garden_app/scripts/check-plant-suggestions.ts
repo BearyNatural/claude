@@ -5,20 +5,19 @@
 // the Atlas of Living Australia, then comment and label it. It never changes the
 // plant list — adding a plant always needs a person to verify it against
 // reliable sources — and never closes duplicates itself.
+// It does close a suggestion once a person has added the plant: a plant record
+// whose review notes name the issue (e.g. "BearyNatural/australian_plant_data #7")
+// marks it as done, and the issue is closed with a link to the plant.
 // Run: PLANT_DATA_TOKEN=… npx tsx scripts/check-plant-suggestions.ts [--dry-run]
 //   --dry-run  re-checks every open suggestion and prints the results without
 //              commenting or labelling.
-import { PLANTS } from '../src/data/plants';
+import { CATALOGUE_VERSION, PLANTS } from '../src/data/plants';
 import { validateCustomPlant } from '../src/domain/validation';
 import { parseAlaResults } from '../src/services/plants/alaNames';
 
 const REPO = 'BearyNatural/australian_plant_data';
 const token = process.env.PLANT_DATA_TOKEN;
 const dryRun = process.argv.includes('--dry-run');
-if (!token) {
-  console.error('PLANT_DATA_TOKEN is not set.');
-  process.exit(1);
-}
 const gh = (path: string, init: RequestInit = {}) =>
   fetch(`https://api.github.com/repos/${REPO}${path}`, {
     ...init,
@@ -56,8 +55,36 @@ async function allSuggestions(): Promise<Issue[]> {
   return out.sort((a, b) => a.number - b.number);
 }
 
+/** The plant record that a person added for this suggestion, if any (its review notes cite the issue). */
+export function addedFor(issueNumber: number, plants = PLANTS) {
+  const re = new RegExp(`australian_plant_data[^.]*#${issueNumber}(?!\\d)`);
+  return plants.find((p) => re.test(p.review.notes ?? ''));
+}
+
+async function closeAdded(all: Issue[]) {
+  for (const issue of all.filter((i) => i.state === 'open')) {
+    const plant = addedFor(issue.number);
+    if (!plant) continue;
+    const body = `✅ Added to the plant list as **${plant.commonName}**${plant.botanicalName ? ` (_${plant.botanicalName}_)` : ''} — id \`${plant.id}\`, plant list ${CATALOGUE_VERSION}. It reaches installed apps with the next plant list update. Thank you for the suggestion!`;
+    if (dryRun) {
+      console.log(`\n#${issue.number} ${issue.title} → would close (added as ${plant.id})`);
+      continue;
+    }
+    await gh(`/issues/${issue.number}/comments`, { method: 'POST', body: JSON.stringify({ body }) });
+    await gh(`/issues/${issue.number}/labels`, { method: 'POST', body: JSON.stringify({ labels: ['added'] }) });
+    const res = await gh(`/issues/${issue.number}`, { method: 'PATCH', body: JSON.stringify({ state: 'closed', state_reason: 'completed' }) });
+    console.log(`#${issue.number}: added as ${plant.id} — ${res.ok ? 'closed' : `couldn't close (HTTP ${res.status})`}`);
+    issue.state = 'closed';
+  }
+}
+
 async function main() {
+  if (!token) {
+    console.error('PLANT_DATA_TOKEN is not set.');
+    process.exit(1);
+  }
   const all = await allSuggestions();
+  await closeAdded(all);
   const issues = all.filter((i) => i.state === 'open' && (dryRun || !i.labels.some((l) => ['checked', 'needs-info'].includes(l.name))));
   console.log(`${issues.length} ${dryRun ? 'open' : 'new'} suggestion(s)${dryRun ? ' — dry run, nothing will be posted' : ''}.`);
   for (const issue of issues) {
@@ -119,7 +146,9 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error(e instanceof Error ? e.message : String(e));
-  process.exit(1);
-});
+if (process.argv[1]?.endsWith('check-plant-suggestions.ts')) {
+  main().catch((e) => {
+    console.error(e instanceof Error ? e.message : String(e));
+    process.exit(1);
+  });
+}

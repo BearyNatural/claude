@@ -2,6 +2,9 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `garden_app-v<version>-build<n>`). The newest Android version can always be downloaded from https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html.
 
+## 1.11.10 — 25 November 2026
+- **Four plants suggested from the app are now in the plant list** (plant list 2026.11.1): **choko**, **watermelon**, **lemon myrtle** and **coffee**, each with its sources. Choko and watermelon have planting months from Gardening Australia; no reliable planting months were found for lemon myrtle or coffee, so none are shown yet. Installed apps get them with the next plant list update.
+- Plant suggestions now close themselves: once a plant is added and its record names the suggestion, the daily check comments, labels it *added* and closes it.
 ## 1.11.9 — 25 November 2026
 - Fixes the builds that broke after the 22 November dependency update: it had moved the animation library (react-native-reanimated) to a version that needs a newer React Native than Expo SDK 57 uses, so installs failed. Reanimated and its worklets library are now pinned to the versions Expo SDK 57 is tested with (4.5 and 0.10).
 - The weekly check now reinstalls from scratch before releasing a dependency update, so a broken update is caught there instead of being released.

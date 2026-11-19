@@ -9,4 +9,4 @@ import { VEGETABLES } from './vegetables';
 export const PLANTS: PlantRecord[] = [...VEGETABLES, ...HERBS, ...FRUIT, ...FLOWERS].map(withFertiliser);
 
 /** Bump when catalogue content changes meaningfully (shown on the About screen). */
-export const CATALOGUE_VERSION = '2026.10.1';
+export const CATALOGUE_VERSION = '2026.11.1';

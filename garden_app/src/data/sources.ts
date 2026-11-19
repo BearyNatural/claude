@@ -9,6 +9,8 @@ import type { SourceRef } from '../domain/plantTypes';
 
 const ACCESSED = '2026-09-24';
 const PESTS_ACCESSED = '2026-10-05';
+/** Plant suggestions from the app (choko, lemon myrtle, coffee, watermelon), researched for BearyNatural/australian_plant_data. */
+const SUGGESTIONS_ACCESSED = '2026-11-19';
 
 export const SOURCES: Record<string, SourceRef> = {
   'ga-vegie-guide': {
@@ -504,6 +506,96 @@ export const SOURCES: Record<string, SourceRef> = {
     url: 'https://anpsa.org.au/phosphorus-needs-of-some-australian-plants/',
     accessed: PESTS_ACCESSED,
     kind: 'horticultural-org',
+  },
+  'plants-se-nsw-sechium-edule': {
+    id: 'plants-se-nsw-sechium-edule',
+    title: 'Plants of South Eastern New South Wales — Sechium edule',
+    publisher: 'Plants of South Eastern NSW (Lucid key), author Betty Wood',
+    url: 'https://apps.lucidcentral.org/plants_se_nsw/text/entities/sechium_edule.htm',
+    accessed: SUGGESTIONS_ACCESSED,
+    kind: 'horticultural-org',
+    notes: 'Researched for BearyNatural/australian_plant_data (record sechium-edule).',
+  },
+  'nsw-weedwise-moth-vine': {
+    id: 'nsw-weedwise-moth-vine',
+    title: 'NSW WeedWise — Moth vine (Araujia sericifera)',
+    publisher: 'NSW Department of Primary Industries and Regional Development',
+    url: 'https://weeds.dpi.nsw.gov.au/Weed/MothVine',
+    accessed: SUGGESTIONS_ACCESSED,
+    kind: 'government',
+    notes: 'Moth vine fruit looks like choko; its leaves and seeds are poisonous.',
+  },
+  'dgp-choko': {
+    id: 'dgp-choko',
+    title: 'How to grow a choko vine from a fruit',
+    publisher: 'Deep Green Permaculture (Angelo Eliades)',
+    url: 'https://deepgreenpermaculture.com/2023/02/05/how-to-grow-a-choko-vine-from-a-fruit/',
+    accessed: SUGGESTIONS_ACCESSED,
+    kind: 'horticultural-org',
+  },
+  'ltg-choko': {
+    id: 'ltg-choko',
+    title: 'Growing chokos',
+    publisher: 'Love the Garden (Evergreen Garden Care Australia)',
+    url: 'https://www.lovethegarden.com/au-en/growing-guide/how-grow-care-chokos',
+    accessed: SUGGESTIONS_ACCESSED,
+    kind: 'industry',
+  },
+  'sc-watermelon': {
+    id: 'sc-watermelon',
+    title: 'How to grow watermelon seeds (grow guide)',
+    publisher: 'The Seed Collection',
+    url: 'https://www.theseedcollection.com.au/growguide/watermelon-seeds',
+    accessed: SUGGESTIONS_ACCESSED,
+    kind: 'seed-supplier',
+  },
+  'nt-agnote-watermelon': {
+    id: 'nt-agnote-watermelon',
+    title: 'Agnote 185 — Watermelon (Citrullus lanatus)',
+    publisher: 'Northern Territory Government (Primary Industry), 1999',
+    url: 'https://daf.nt.gov.au/__data/assets/pdf_file/0011/233759/185.pdf',
+    accessed: SUGGESTIONS_ACCESSED,
+    kind: 'government',
+  },
+  'anpsa-lemon-myrtle': {
+    id: 'anpsa-lemon-myrtle',
+    title: 'Backhousia citriodora',
+    publisher: 'Australian Native Plants Society (Australia)',
+    url: 'https://resources.austplants.com.au/plant/backhousia-citriodora/',
+    accessed: SUGGESTIONS_ACCESSED,
+    kind: 'horticultural-org',
+  },
+  'sa-landscape-lemon-myrtle': {
+    id: 'sa-landscape-lemon-myrtle',
+    title: 'Native food plants for gardens — Lemon myrtle (Backhousia citriodora)',
+    publisher: 'Murraylands and Riverland Landscape Board (Landscape Boards SA)',
+    url: 'https://cdn.environment.sa.gov.au/landscape/docs/mr/Native-food-fact-sheet_lemon-myrtle.pdf',
+    accessed: SUGGESTIONS_ACCESSED,
+    kind: 'government',
+  },
+  'nre-tas-myrtle-rust-ira': {
+    id: 'nre-tas-myrtle-rust-ira',
+    title: 'Import Risk Analysis for Myrtle Rust (Austropuccinia psidii), version 1.2',
+    publisher: 'Biosecurity Tasmania (Department of Natural Resources and Environment Tasmania)',
+    url: 'https://nre.tas.gov.au/Documents/Import%20Risk%20Analysis%20for%20Myrtle%20Rust.pdf',
+    accessed: SUGGESTIONS_ACCESSED,
+    kind: 'government',
+  },
+  'burkes-coffee': {
+    id: 'burkes-coffee',
+    title: 'Coffee (fact sheet)',
+    publisher: "Burke's Backyard",
+    url: 'https://www.burkesbackyard.com.au/fact-sheets/in-the-garden/herbs-fruit-and-vegetables/coffee/',
+    accessed: SUGGESTIONS_ACCESSED,
+    kind: 'broadcaster',
+  },
+  'bcc-weeds-coffee': {
+    id: 'bcc-weeds-coffee',
+    title: 'Weed identification tool — Coffee (Coffea arabica)',
+    publisher: 'Brisbane City Council',
+    url: 'https://weeds.brisbane.qld.gov.au/weeds/coffee',
+    accessed: SUGGESTIONS_ACCESSED,
+    kind: 'government',
   },
   'general-knowledge': {
     id: 'general-knowledge',
