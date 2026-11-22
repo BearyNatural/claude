@@ -1,6 +1,6 @@
 {
   "name": "sow-by-season",
-  "version": "1.11.7",
+  "version": "1.11.8",
   "private": true,
   "description": "Sow by Season by BearyNatural — an Australian garden-planning assistant.",
   "main": "index.ts",
@@ -21,7 +21,7 @@
     "@expo/dom-webview": "~57.0.1",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "decode-uri-component": "file:./vendor/decode-uri-component",
+    "decode-uri-component": "file:vendor/decode-uri-component",
     "expo": "~57.0.33",
     "expo-background-task": "~57.0.23",
     "expo-constants": "~57.0.19",
