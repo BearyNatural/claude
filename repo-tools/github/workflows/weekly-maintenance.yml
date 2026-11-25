@@ -304,6 +304,16 @@ jobs:
         id: verify
         if: steps.update.outputs.changed == 'true'
         run: |
+          # Install from the updated lockfile from scratch, exactly as every other
+          # workflow will (npm ci). npm update can write a lockfile that only works
+          # on top of an existing node_modules — e.g. a peer that needs a newer
+          # React Native — and that must never be committed or released.
+          rm -rf node_modules
+          npm ci --no-audit --no-fund
+          if npm ls --all >/dev/null 2>npm-ls.err; then rm -f npm-ls.err; else
+            grep -E 'invalid|missing' npm-ls.err | head -20 || true; rm -f npm-ls.err
+            echo "::warning title=$DIR dependencies::npm ls reports invalid or missing dependencies (listed above)."
+          fi
           ${{ matrix.project.test || 'npm test' }}
           if [ -n "${{ matrix.project.typecheck }}" ]; then ${{ matrix.project.typecheck }}; fi
 

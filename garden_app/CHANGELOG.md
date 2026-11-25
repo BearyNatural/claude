@@ -2,6 +2,10 @@
 
 Releases are on the [GitHub releases page](https://github.com/BearyNatural/claude/releases) (tags `garden_app-v<version>-build<n>`). The newest Android version can always be downloaded from https://daydreaminginthecloud.bearynatural.dev/sow-by-season/android.html.
 
+## 1.11.9 — 25 November 2026
+- Fixes the builds that broke after the 22 November dependency update: it had moved the animation library (react-native-reanimated) to a version that needs a newer React Native than Expo SDK 57 uses, so installs failed. Reanimated and its worklets library are now pinned to the versions Expo SDK 57 is tested with (4.5 and 0.10).
+- The weekly check now reinstalls from scratch before releasing a dependency update, so a broken update is caught there instead of being released.
+
 ## 1.11.7 — 19 November 2026
 - Security: fixed the two denial-of-service advisories in `decode-uri-component` (used by expo-router to read deep links) with a patched copy of version 0.5.1, and in `minimatch` (used by the Expo CLI's build fingerprinting) by moving to 11.0.9. `npm audit` and OSV-Scanner are clean again.
 
